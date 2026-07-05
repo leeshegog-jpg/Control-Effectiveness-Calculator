@@ -162,6 +162,7 @@
 
 <footer class="site-footer">TP Risk Management SMS — Incident Log</footer>
 <script src="sms-shared.js"></script>
+<script src="obsidian-sync.js"></script>
 <script>
 let editId=null, deleteId=null, dirty=false, sortCol=null, sortDir=1;
 const SEV_LABEL=['','Insignificant','Minor','Moderate','Major','Catastrophic'];
@@ -309,7 +310,8 @@ function saveForm(){
   const f=collectForm();
   if(!f.description.trim()){alert('Description is required.');return;}
   btn.disabled=true;
-  if(editId) SMS.update('incidents',editId,f); else SMS.add('incidents',f);
+  const saved=editId?SMS.update('incidents',editId,f):SMS.add('incidents',f);
+  ObsidianSync.pushAndToast('incidents',saved);
   dirty=false;
   closeForm(true); render();
 }
@@ -325,7 +327,7 @@ function openCAR(){
 
 function openDelete(id){deleteId=id;document.getElementById('delOverlay').classList.remove('hidden');}
 function closeDelete(){document.getElementById('delOverlay').classList.add('hidden');deleteId=null;}
-function confirmDelete(){if(deleteId){SMS.remove('incidents',deleteId);deleteId=null;}closeDelete();render();}
+function confirmDelete(){if(deleteId){const rec=SMS.get('incidents').find(r=>r.id===deleteId);SMS.remove('incidents',deleteId);if(rec)ObsidianSync.remove('incidents',rec);deleteId=null;}closeDelete();render();}
 
 function doExport(){
   SMS.exportXlsx(SMS.get('incidents').map(r=>({

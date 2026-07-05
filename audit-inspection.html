@@ -108,6 +108,7 @@
 
 <footer class="site-footer">TP Risk Management SMS — Audit &amp; Inspection Register</footer>
 <script src="sms-shared.js"></script>
+<script src="obsidian-sync.js"></script>
 <script>
 let editId=null, deleteId=null, dirty=false, sortCol=null, sortDir=1;
 
@@ -235,7 +236,8 @@ function saveForm(){
   const f=collectForm();
   if(!f.title.trim()){alert('Title is required.');return;}
   btn.disabled=true;
-  if(editId) SMS.update('audits',editId,f); else SMS.add('audits',f);
+  const saved=editId?SMS.update('audits',editId,f):SMS.add('audits',f);
+  ObsidianSync.pushAndToast('audits',saved);
   dirty=false;
   closeForm(true); render();
 }
@@ -250,7 +252,7 @@ function openCAR(){
 }
 function openDelete(id){deleteId=id;document.getElementById('delOverlay').classList.remove('hidden');}
 function closeDelete(){document.getElementById('delOverlay').classList.add('hidden');deleteId=null;}
-function confirmDelete(){if(deleteId){SMS.remove('audits',deleteId);deleteId=null;}closeDelete();render();}
+function confirmDelete(){if(deleteId){const rec=SMS.get('audits').find(r=>r.id===deleteId);SMS.remove('audits',deleteId);if(rec)ObsidianSync.remove('audits',rec);deleteId=null;}closeDelete();render();}
 function doExport(){
   SMS.exportXlsx(SMS.get('audits').map(r=>({
     ID:r.id,'Audit Type':r.auditType,Title:r.title,Scope:r.scope,
