@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Report Generator — TP SMS</title>
+<link rel="stylesheet" href="styles.css"/><link rel="stylesheet" href="sms.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.chart-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+.chart-title{font-size:14px;font-weight:700;margin-bottom:16px;color:var(--gray-800)}
+.spi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.spi-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;text-align:center}
+.spi-val{font-size:30px;font-weight:800;line-height:1}
+.spi-label{font-size:11px;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.spi-trend{font-size:11px;margin-top:4px;font-weight:600}
+.custom-range{display:none;gap:16px}
+.custom-range.show{display:flex}
+.rpt-section{margin-top:26px}
+.rpt-section:first-child{margin-top:0}
+.rpt-section h3{font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--gray-200)}
+.rpt-narrative{font-size:13.5px;line-height:1.7;color:var(--gray-800);background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px 18px}
+.rpt-table{width:100%;border-collapse:collapse;font-size:12px}
+.rpt-table th{background:#1E3A8A;color:#fff;padding:7px 10px;text-align:left;font-weight:600;white-space:nowrap}
+.rpt-table td{padding:6px 10px;border-bottom:1px solid var(--gray-100);vertical-align:top}
+.rpt-table tr:nth-child(even) td{background:var(--gray-50)}
+.rpt-note{font-size:11px;color:var(--gray-400);margin-top:6px}
+.rpt-recs{list-style:none;display:flex;flex-direction:column;gap:8px}
+.rpt-recs li{font-size:13px;padding:10px 14px;border-radius:6px;border-left:4px solid var(--gray-200);background:var(--gray-50)}
+.rpt-recs li.rec-critical{border-left-color:#7F1D1D;background:#FEF2F2}
+.rpt-recs li.rec-high{border-left-color:#DC2626;background:#FEF2F2}
+.rpt-recs li.rec-medium{border-left-color:#D97706;background:#FFFBEB}
+.rpt-recs li.rec-ok{border-left-color:#16A34A;background:#F0FDF4}
+.rpt-cover{text-align:center;padding:8px 0 20px;border-bottom:1px solid var(--gray-200);margin-bottom:22px}
+.rpt-cover h1{font-size:24px;font-weight:800;color:var(--gray-800)}
+.rpt-cover .rpt-period{font-size:13.5px;color:var(--gray-600);margin-top:6px}
+.rpt-cover .rpt-gen{font-size:11px;color:var(--gray-400);margin-top:4px}
+@media print{
+  .site-header,.module-nav,#configCard,#exportBar,.site-footer{display:none!important}
+  body{background:#fff}
+  .container{margin:0;padding:0;max-width:none}
+  #reportOutput{box-shadow:none;border:none;padding:0}
+  .rpt-section{break-inside:avoid}
+  table{font-size:11px}
+}
+</style>
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+<div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>TP Risk Management SMS</span></div>
+<p class="tagline">Report Generator — consolidated safety &amp; risk management reporting</p>
+</div></header>
+<nav class="module-nav"><div class="module-nav-inner">
+<a href="index.html">⬛ Hub</a><a href="risk-register.html">⚠️ Risk Register</a>
+<a href="incident-report.html">🔴 Incidents</a><a href="corrective-actions.html">✅ Corrective Actions</a>
+<a href="safety-dashboard.html">📊 Dashboard</a><a href="audit-inspection.html">📋 Audits</a>
+<a href="risk-report-generator.html" class="active">📄 Reports</a>
+</div></nav>
+<main class="container">
+<div class="card" id="configCard">
+<h2 style="font-size:15px;font-weight:700;margin-bottom:16px">Generate Report</h2>
+<div class="form-grid">
+<div class="form-group"><label>Report Title</label><input type="text" id="rTitle" value="Safety &amp; Risk Management Report"/></div>
+<div class="form-group"><label>Reporting Period</label>
+<select id="rPeriod">
+<option value="30">Last 30 Days</option>
+<option value="90" selected>Last Quarter (90 Days)</option>
+<option value="365">Last 12 Months</option>
+<option value="all">All Time</option>
+<option value="custom">Custom Range…</option>
+</select></div>
+</div>
+<div class="custom-range" id="customRange" style="margin-top:14px">
+<div class="form-group"><label>From</label><input type="date" id="rFrom"/></div>
+<div class="form-group"><label>To</label><input type="date" id="rTo"/></div>
+</div>
+<h3 style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;margin-top:20px;margin-bottom:10px">Include Sections</h3>
+<div class="checkbox-group" style="display:flex;flex-wrap:wrap;gap:16px">
+<label><input type="checkbox" id="secSummary" checked/> Executive Summary</label>
+<label><input type="checkbox" id="secKpi" checked/> KPI Summary</label>
+<label><input type="checkbox" id="secCharts" checked/> Charts</label>
+<label><input type="checkbox" id="secRisk" checked/> Risk Register</label>
+<label><input type="checkbox" id="secIncident" checked/> Incidents</label>
+<label><input type="checkbox" id="secCar" checked/> Corrective Actions</label>
+<label><input type="checkbox" id="secAudit" checked/> Audits</label>
+<label><input type="checkbox" id="secRecs" checked/> Recommendations</label>
+</div>
+<div style="margin-top:20px"><button class="btn btn-primary" id="genBtn" onclick="generateReport()">📄 Generate Report</button></div>
+</div>
+
+<div class="toolbar hidden" id="exportBar">
+<div class="toolbar-left"><span style="font-size:12px;color:var(--gray-600)">Report ready — export or print below</span></div>
+<div class="toolbar-right">
+<button class="btn btn-outline" onclick="window.print()">🖨️ Print / Save PDF</button>
+<button class="btn btn-outline" id="docxBtn" onclick="exportDocx()">📝 Export Word (.docx)</button>
+<button class="btn btn-outline" onclick="exportDataXlsx()">📊 Export Data (.xlsx)</button>
+</div>
+</div>
+
+<div class="card report-doc hidden" id="reportOutput"></div>
+</main>
+<footer class="site-footer">TP Risk Management SMS — Report Generator</footer>
+<script src="sms-shared.js"></script>
+<script>
+const BAND_COLOR={Critical:'#7F1D1D',High:'#D97706',Medium:'#2563EB',Low:'#16A34A','—':'#6B7280'};
+let LAST=null; // last generated report context, reused by export functions
+let charts=[];
+
+document.getElementById('rPeriod').addEventListener('change',e=>{
+  document.getElementById('customRange').classList.toggle('show',e.target.value==='custom');
+});
+
+function getRange(){
+  const preset=document.getElementById('rPeriod').value;
+  const end=new Date(new Date().toDateString());
+  let start;
+  if(preset==='custom'){
+    start=document.getElementById('rFrom').value?new Date(document.getElementById('rFrom').value):new Date(0);
+    const to=document.getElementById('rTo').value?new Date(document.getElementById('rTo').value):end;
+    return {start,end:to};
+  }
+  if(preset==='all'){ start=new Date(0); }
+  else { start=new Date(end); start.setDate(start.getDate()-(+preset)); }
+  return {start,end};
+}
+
+function priorRange(range){
+  const spanMs=range.end-range.start;
+  const priorEnd=new Date(range.start.getTime()-1);
+  const priorStart=new Date(range.start.getTime()-spanMs);
+  return {start:priorStart,end:priorEnd};
+}
+
+function inRange(dateStr,range){
+  if(!dateStr) return false;
+  const d=new Date(dateStr);
+  return !isNaN(d)&&d>=range.start&&d<=new Date(range.end.getTime()+86399999);
+}
+
+function fmt(d){ return d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}); }
+
+function resScore(r){ return SMS.riskScore(r.resLikelihood||r.likelihood,r.resConsequence||r.consequence); }
+function resBand(r){ return SMS.riskBand(resScore(r)).label; }
+
+function trendArrow(cur,prev){
+  if(prev===0&&cur===0) return '<span class="spi-trend" style="color:var(--gray-400)">flat</span>';
+  if(prev===0) return '<span class="spi-trend" style="color:#DC2626">▲ new</span>';
+  const pct=Math.round(((cur-prev)/prev)*100);
+  if(pct>0) return `<span class="spi-trend" style="color:#DC2626">▲ ${pct}% vs prior period</span>`;
+  if(pct<0) return `<span class="spi-trend" style="color:#16A34A">▼ ${Math.abs(pct)}% vs prior period</span>`;
+  return '<span class="spi-trend" style="color:var(--gray-400)">— no change</span>';
+}
+
+function buildData(){
+  const range=getRange();
+  const prior=priorRange(range);
+  const risks=SMS.get('risks'), incidents=SMS.get('incidents'), cars=SMS.get('cars'), audits=SMS.get('audits');
+
+  const openRisks=risks.filter(r=>r.status!=='Closed');
+  const incInPeriod=incidents.filter(i=>inRange(i.dateTime||i.created,range));
+  const incInPrior=incidents.filter(i=>inRange(i.dateTime||i.created,prior));
+  const carsRaisedInPeriod=cars.filter(c=>inRange(c.created,range));
+  const carsRaisedInPrior=cars.filter(c=>inRange(c.created,prior));
+  const openCars=cars.filter(c=>c.status!=='Closed');
+  const overdueCars=cars.filter(c=>SMS.isOverdue(c.dueDate,c.status));
+  const auditsCompletedInPeriod=audits.filter(a=>a.status==='Complete'&&inRange(a.actualDate||a.plannedDate,range));
+  const openAudits=audits.filter(a=>a.status!=='Complete'&&a.status!=='Cancelled');
+  const overdueAudits=audits.filter(a=>SMS.isOverdue(a.plannedDate,a.status));
+
+  const riskCritical=openRisks.filter(r=>resBand(r)==='Critical').length;
+  const riskHigh=openRisks.filter(r=>resBand(r)==='High').length;
+
+  return {range,prior,risks,incidents,cars,audits,openRisks,incInPeriod,incInPrior,
+    carsRaisedInPeriod,carsRaisedInPrior,openCars,overdueCars,
+    auditsCompletedInPeriod,openAudits,overdueAudits,riskCritical,riskHigh};
+}
+
+function narrative(d){
+  const days=Math.max(1,Math.round((d.range.end-d.range.start)/86400000));
+  const parts=[];
+  parts.push(`This report covers the period ${fmt(d.range.start)} to ${fmt(d.range.end)} (${days} day${days===1?'':'s'}).`);
+  parts.push(`During this period, ${d.incInPeriod.length} incident${d.incInPeriod.length===1?' was':'s were'} recorded, compared with ${d.incInPrior.length} in the preceding period of equal length.`);
+  parts.push(`The risk register currently holds ${d.openRisks.length} open risk${d.openRisks.length===1?'':'s'}, including ${d.riskCritical} rated Critical and ${d.riskHigh} rated High.`);
+  parts.push(`${d.openCars.length} corrective action${d.openCars.length===1?' is':'s are'} currently open, of which ${d.overdueCars.length} ${d.overdueCars.length===1?'is':'are'} overdue.`);
+  parts.push(`${d.openAudits.length} audit${d.openAudits.length===1?' is':'s are'} scheduled or in progress, with ${d.overdueAudits.length} currently overdue.`);
+  return parts.join(' ');
+}
+
+function buildRecommendations(d){
+  const recs=[];
+  if(d.riskCritical>0) recs.push({cls:'rec-critical',text:`Prioritise remediation of ${d.riskCritical} Critical-rated risk${d.riskCritical===1?'':'s'} in the register — review controls and residual ratings.`});
+  if(d.overdueCars.length>0) recs.push({cls:'rec-high',text:`${d.overdueCars.length} corrective action${d.overdueCars.length===1?' is':'s are'} overdue — escalate to assigned owners for close-out or revised due dates.`});
+  if(d.overdueAudits.length>0) recs.push({cls:'rec-high',text:`${d.overdueAudits.length} scheduled audit${d.overdueAudits.length===1?'':'s'}/inspection${d.overdueAudits.length===1?'':'s'} ${d.overdueAudits.length===1?'is':'are'} overdue — reschedule or close out promptly.`});
+  if(d.riskHigh>3) recs.push({cls:'rec-medium',text:`${d.riskHigh} High-rated risks are open — confirm control effectiveness reviews are current.`});
+  if(d.incInPrior.length>0&&d.incInPeriod.length>d.incInPrior.length*1.2) recs.push({cls:'rec-medium',text:`Incident volume increased ${Math.round(((d.incInPeriod.length-d.incInPrior.length)/d.incInPrior.length)*100)}% versus the prior period — review contributing trends.`});
+  if(!recs.length) recs.push({cls:'rec-ok',text:'No critical risk escalations, overdue corrective actions or overdue audits identified for this period.'});
+  return recs;
+}
+
+function badge(text,cls){ return `<span class="badge ${cls}">${text}</span>`; }
+
+function riskTable(d){
+  const top=[...d.openRisks].sort((a,b)=>resScore(b)-resScore(a)).slice(0,10);
+  if(!top.length) return '<p class="rpt-note">No open risks in the register.</p>';
+  const rows=top.map(r=>{
+    const band=SMS.riskBand(resScore(r));
+    const overdue=SMS.isOverdue(r.reviewDate,r.status);
+    return `<tr><td>${r.id}</td><td>${r.hazardDescription||'—'}</td><td>${r.category||'—'}</td><td>${resScore(r)||'—'}</td><td>${badge(band.label,band.cls)}</td><td>${r.controlOwner||'—'}</td><td style="${overdue?'color:#DC2626;font-weight:700':''}">${SMS.fmtDate(r.reviewDate)}</td></tr>`;
+  }).join('');
+  return `<table class="rpt-table"><thead><tr><th>ID</th><th>Hazard</th><th>Category</th><th>Score</th><th>Band</th><th>Owner</th><th>Review Date</th></tr></thead><tbody>${rows}</tbody></table>
+  <p class="rpt-note">Showing top ${top.length} of ${d.openRisks.length} open risk(s) by residual score, as at ${fmt(d.range.end)}.</p>`;
+}
+
+function incidentTable(d){
+  const list=[...d.incInPeriod].sort((a,b)=>(b.dateTime||'').localeCompare(a.dateTime||'')).slice(0,25);
+  if(!list.length) return '<p class="rpt-note">No incidents recorded in this period.</p>';
+  const rows=list.map(i=>`<tr><td>${i.id}</td><td>${SMS.fmtDate(i.dateTime)}</td><td>${i.incidentType||'—'}</td><td>${badge('Sev '+(i.severity||'—'),'sev-'+(i.severity||1))}</td><td>${i.location||'—'}</td><td>${i.status||'—'}</td></tr>`).join('');
+  return `<table class="rpt-table"><thead><tr><th>ID</th><th>Date</th><th>Type</th><th>Severity</th><th>Location</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+  <p class="rpt-note">Showing ${list.length} of ${d.incInPeriod.length} incident(s) recorded ${fmt(d.range.start)} – ${fmt(d.range.end)}.</p>`;
+}
+
+function carTable(d){
+  const list=[...d.openCars].sort((a,b)=>{
+    const ao=SMS.isOverdue(a.dueDate,a.status), bo=SMS.isOverdue(b.dueDate,b.status);
+    if(ao!==bo) return ao?-1:1;
+    return (a.dueDate||'9999').localeCompare(b.dueDate||'9999');
+  }).slice(0,20);
+  if(!list.length) return '<p class="rpt-note">No open corrective actions.</p>';
+  const rows=list.map(c=>{
+    const overdue=SMS.isOverdue(c.dueDate,c.status);
+    return `<tr><td>${c.id}</td><td>${c.description||'—'}</td><td>${badge(c.priority||'—','priority-'+(c.priority||'medium').toLowerCase())}</td><td>${c.assignedTo||'—'}</td><td style="${overdue?'color:#DC2626;font-weight:700':''}">${SMS.fmtDate(c.dueDate)}</td><td>${overdue?badge('Overdue','status-overdue'):(c.status||'—')}</td></tr>`;
+  }).join('');
+  return `<table class="rpt-table"><thead><tr><th>ID</th><th>Description</th><th>Priority</th><th>Assigned To</th><th>Due Date</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+  <p class="rpt-note">Showing ${list.length} of ${d.openCars.length} open corrective action(s), as at ${fmt(d.range.end)}. ${d.overdueCars.length} overdue.</p>`;
+}
+
+function auditTable(d){
+  const list=[...d.openAudits].sort((a,b)=>(a.plannedDate||'9999').localeCompare(b.plannedDate||'9999')).slice(0,20);
+  if(!list.length) return '<p class="rpt-note">No open or upcoming audits/inspections.</p>';
+  const rows=list.map(a=>{
+    const overdue=SMS.isOverdue(a.plannedDate,a.status);
+    return `<tr><td>${a.id}</td><td>${a.title||'—'}</td><td>${a.auditType||'—'}</td><td style="${overdue?'color:#DC2626;font-weight:700':''}">${SMS.fmtDate(a.plannedDate)}</td><td>${a.auditor||'—'}</td><td>${overdue?badge('Overdue','status-overdue'):(a.status||'—')}</td><td>${a.findingsTotal||0}${(+a.findingsHigh||0)>0?' ('+a.findingsHigh+' High)':''}</td></tr>`;
+  }).join('');
+  return `<table class="rpt-table"><thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Planned Date</th><th>Auditor</th><th>Status</th><th>Findings</th></tr></thead><tbody>${rows}</tbody></table>
+  <p class="rpt-note">Showing ${list.length} of ${d.openAudits.length} open/upcoming audit(s), as at ${fmt(d.range.end)}. ${d.overdueAudits.length} overdue.</p>`;
+}
+
+function generateReport(){
+  const d=buildData();
+  const title=document.getElementById('rTitle').value||'Safety & Risk Management Report';
+  const on=id=>document.getElementById(id).checked;
+  LAST={d,title,sections:{summary:on('secSummary'),kpi:on('secKpi'),charts:on('secCharts'),risk:on('secRisk'),incident:on('secIncident'),car:on('secCar'),audit:on('secAudit'),recs:on('secRecs')}};
+
+  let html=`<div class="rpt-cover"><h1>${title}</h1>
+  <div class="rpt-period">TP Risk Management SMS &nbsp;|&nbsp; Reporting Period: ${fmt(d.range.start)} – ${fmt(d.range.end)}</div>
+  <div class="rpt-gen">Generated ${new Date().toLocaleString('en-AU')}</div></div>`;
+
+  if(LAST.sections.summary) html+=`<div class="rpt-section"><h3>Executive Summary</h3><div class="rpt-narrative">${narrative(d)}</div></div>`;
+
+  if(LAST.sections.kpi){
+    const spis=[
+      {val:d.incInPeriod.length,label:'Incidents (Period)',trend:trendArrow(d.incInPeriod.length,d.incInPrior.length),color:d.incInPeriod.length>d.incInPrior.length?'#DC2626':'#16A34A'},
+      {val:incidents_open(d),label:'Open Incidents',color:'#D97706'},
+      {val:d.riskCritical,label:'Critical Risks',color:d.riskCritical>0?'#7F1D1D':'#16A34A'},
+      {val:d.riskHigh,label:'High Risks',color:d.riskHigh>0?'#D97706':'#16A34A'},
+      {val:d.carsRaisedInPeriod.length,label:'CARs Raised (Period)',trend:trendArrow(d.carsRaisedInPeriod.length,d.carsRaisedInPrior.length),color:'#2563EB'},
+      {val:d.overdueCars.length,label:'Overdue CARs',color:d.overdueCars.length>0?'#DC2626':'#16A34A'},
+      {val:d.auditsCompletedInPeriod.length,label:'Audits Completed (Period)',color:'#7C3AED'},
+      {val:d.overdueAudits.length,label:'Overdue Audits',color:d.overdueAudits.length>0?'#DC2626':'#16A34A'},
+    ];
+    html+=`<div class="rpt-section"><h3>KPI Summary</h3><div class="spi-grid">${spis.map(s=>`<div class="spi-card"><div class="spi-val" style="color:${s.color}">${s.val}</div><div class="spi-label">${s.label}</div>${s.trend||''}</div>`).join('')}</div></div>`;
+  }
+
+  if(LAST.sections.charts){
+    html+=`<div class="rpt-section"><h3>Charts</h3><div class="dash-grid">
+    <div class="chart-card"><div class="chart-title">Risk Register — Residual Band Distribution</div><canvas id="rptRiskChart"></canvas></div>
+    <div class="chart-card"><div class="chart-title">Incidents by Type (Period)</div><canvas id="rptTypeChart"></canvas></div>
+    <div class="chart-card"><div class="chart-title">Corrective Action Status</div><canvas id="rptCarChart"></canvas></div>
+    </div></div>`;
+  }
+
+  if(LAST.sections.risk) html+=`<div class="rpt-section"><h3>Risk Register</h3>${riskTable(d)}</div>`;
+  if(LAST.sections.incident) html+=`<div class="rpt-section"><h3>Incidents &amp; Near Misses</h3>${incidentTable(d)}</div>`;
+  if(LAST.sections.car) html+=`<div class="rpt-section"><h3>Corrective Actions</h3>${carTable(d)}</div>`;
+  if(LAST.sections.audit) html+=`<div class="rpt-section"><h3>Audits &amp; Inspections</h3>${auditTable(d)}</div>`;
+
+  if(LAST.sections.recs){
+    const recs=buildRecommendations(d);
+    html+=`<div class="rpt-section"><h3>Recommendations</h3><ul class="rpt-recs">${recs.map(r=>`<li class="${r.cls}">${r.text}</li>`).join('')}</ul></div>`;
+  }
+
+  const out=document.getElementById('reportOutput');
+  out.innerHTML=html;
+  out.classList.remove('hidden');
+  document.getElementById('exportBar').classList.remove('hidden');
+  if(LAST.sections.charts) renderCharts(d);
+  out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function incidents_open(d){ return d.incidents.filter(i=>i.status!=='Closed').length; }
+
+function renderCharts(d){
+  charts.forEach(c=>c.destroy()); charts=[];
+  const bandCounts={Critical:0,High:0,Medium:0,Low:0};
+  d.openRisks.forEach(r=>{const b=resBand(r); if(bandCounts[b]!==undefined) bandCounts[b]++;});
+  charts.push(new Chart(document.getElementById('rptRiskChart'),{type:'doughnut',data:{labels:Object.keys(bandCounts),datasets:[{data:Object.values(bandCounts),backgroundColor:['#7F1D1D','#D97706','#2563EB','#16A34A'],borderWidth:2}]},options:{plugins:{legend:{position:'bottom'}}}}));
+
+  const typeCount={};
+  d.incInPeriod.forEach(i=>{typeCount[i.incidentType||'Other']=(typeCount[i.incidentType||'Other']||0)+1;});
+  const typeLabels=Object.keys(typeCount).length?Object.keys(typeCount):['No Data'];
+  const typeVals=Object.keys(typeCount).length?Object.values(typeCount):[0];
+  charts.push(new Chart(document.getElementById('rptTypeChart'),{type:'bar',data:{labels:typeLabels,datasets:[{data:typeVals,backgroundColor:['#DC2626','#D97706','#7C3AED','#16A34A','#2563EB','#6B7280'],borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}}));
+
+  const carStatus={Open:0,'In Progress':0,Overdue:0,Closed:0};
+  d.cars.forEach(c=>{const cs=c.status==='Closed'?'Closed':SMS.isOverdue(c.dueDate,c.status)?'Overdue':c.status||'Open'; if(carStatus[cs]!==undefined) carStatus[cs]++;});
+  charts.push(new Chart(document.getElementById('rptCarChart'),{type:'doughnut',data:{labels:Object.keys(carStatus),datasets:[{data:Object.values(carStatus),backgroundColor:['#D97706','#7C3AED','#DC2626','#16A34A'],borderWidth:2}]},options:{plugins:{legend:{position:'bottom'}}}}));
+}
+
+// ── DOCX export ──────────────────────────────────────────────────────────
+function exportDocx(){
+  if(!LAST){ alert('Generate a report first.'); return; }
+  const btn=document.getElementById('docxBtn');
+  btn.disabled=true; btn.textContent='Building…';
+  const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel,
+          AlignmentType, WidthType, ShadingType, BorderStyle, VerticalAlign } = docx;
+  const BORDER={style:BorderStyle.SINGLE,size:4,color:'BFBFBF'};
+  const BORDERS={top:BORDER,bottom:BORDER,left:BORDER,right:BORDER};
+  const NAVY='1F3864', GRAY='1F2937';
+
+  function hCell(text,width){ return new TableCell({width:width?{size:width,type:WidthType.DXA}:undefined,shading:{fill:NAVY,type:ShadingType.CLEAR,color:'auto'},borders:BORDERS,verticalAlign:VerticalAlign.CENTER,children:[new Paragraph({children:[new TextRun({text,bold:true,color:'FFFFFF',size:18})]})]}); }
+  function dCell(text,shade){ return new TableCell({shading:shade?{fill:shade,type:ShadingType.CLEAR,color:'auto'}:undefined,borders:BORDERS,verticalAlign:VerticalAlign.CENTER,children:[new Paragraph({children:[new TextRun({text:String(text==null||text===''?'—':text),color:GRAY,size:18})]})]}); }
+  function dataTable(headers,rows,shadeFn){
+    return new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:[
+      new TableRow({tableHeader:true,children:headers.map(h=>hCell(h))}),
+      ...rows.map((r,i)=>new TableRow({children:r.map(c=>dCell(c,shadeFn?shadeFn(i):null))})),
+    ]});
+  }
+  const bandFill={Critical:'F8D7DA',High:'FFF3CD',Medium:'D1E7FF',Low:'D4EDDA','—':'F3F4F6'};
+
+  const d=LAST.d;
+  const children=[];
+  children.push(new Paragraph({heading:HeadingLevel.TITLE,children:[new TextRun({text:LAST.title,bold:true,color:NAVY})]}));
+  children.push(new Paragraph({children:[new TextRun({text:`TP Risk Management SMS  |  Reporting Period: ${fmt(d.range.start)} – ${fmt(d.range.end)}`,size:20,color:GRAY})]}));
+  children.push(new Paragraph({children:[new TextRun({text:`Generated ${new Date().toLocaleString('en-AU')}`,size:16,color:'6B7280',italics:true})]}));
+  children.push(new Paragraph({text:''}));
+
+  if(LAST.sections.summary){
+    children.push(new Paragraph({heading:HeadingLevel.HEADING_1,children:[new TextRun({text:'Executive Summary',bold:true,color:NAVY})]}));
+    children.push(new Paragraph({children:[new TextRun({text:narrative(d),size:20,color:GRAY})],spacing:{after:200}}));
+  }
+
+  if(LAST.sections.kpi){
+    children.push(new Paragraph({heading:HeadingLevel.HEADING_1,children:[new TextRun({text:'KPI Summary',bold:true,color:NAVY})]}));
+    const kpiRows=[
+      ['Incidents (Period)',String(d.incInPeriod.length)],
+      ['Open Incidents',String(incidents_open(d))],
+      ['Critical Risks',String(d.riskCritical)],
+      ['High Risks',String(d.riskHigh)],
+      ['CARs Raised (Period)',String(d.carsRaisedInPeriod.length)],
+      ['Overdue CARs',String(d.overdueCars.length)],
+      ['Audits Completed (Period)',String(d.auditsCompletedInPeriod.length)],
+      ['Overdue Audits',String(d.overdueAudits.length)],
+    ];
+    children.push(dataTable(['Metric','Value'],kpiRows));
+    children.push(new Paragraph({text:'',spacing:{after:200}}));
+  }
+
+  if(LAST.sections.risk){
+    children.push(new Paragraph({heading:HeadingLevel.HEADING_1,children:[new TextRun({text:'Risk Register',bold:true,color:NAVY})]}));
+    const top=[...d.openRisks].sort((a,b)=>resScore(b)-resScore(a)).slice(0,10);
+    if(top.length){
+      const rows=top.map(r=>[r.id,r.hazardDescription||'—',r.category||'—',String(resScore(r)||'—'),resBand(r),r.controlOwner||'—',SMS.fmtDate(r.reviewDate)]);
+      children.push(dataTable(['ID','Hazard','Category','Score','Band','Owner','Review Date'],rows,i=>bandFill[resBand(top[i])]));
+    } else children.push(new Paragraph({children:[new TextRun({text:'No open risks in the register.',italics:true,size:18})]}));
+    children.push(new Paragraph({text:'',spacing:{after:200}}));
+  }
+
+  if(LAST.sections.incident){
+    children.push(new Paragraph({heading:HeadingLevel.HEADING_1,children:[new TextRun({text:'Incidents & Near Misses',bold:true,color:NAVY})]}));
+    const list=[...d.incInPeriod].sort((a,b)=>(b.dateTime||'').localeCompare(a.dateTime||'')).slice(0,25);
+    if(list.length){
+      const rows=list.map(i=>[i.id,SMS.fmtDate(i.dateTime),i.incidentType||'—','Sev '+(i.severity||'—'),i.location||'—',i.status||'—']);
+      children.push(dataTable(['ID','Date','Type','Severity','Location','Status'],rows));
+    } else children.push(new Paragraph({children:[new TextRun({text:'No incidents recorded in this period.',italics:true,size:18})]}));
+    children.push(new Paragraph({text:'',spacing:{after:200}}));
+  }
+
+  if(LAST.sections.car){
+    children.push(new Paragraph({heading:HeadingLevel.HEADING_1,children:[new TextRun({text:'Corrective Actions',bold:true,color:NAVY})]}));
+    const list=[...d.openCars].sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999')).slice(0,20);
+    if(list.length){
+      const rows=list.map(c=>[c.id,c.description||'—',c.priority||'—',c.assignedTo||'—',SMS.fmtDate(c.dueDate),SMS.isOverdue(c.dueDate,c.status)?'Overdue':(c.status||'—')]);
+      children.push(dataTable(['ID','Description','Priority','Assigned To','Due Date','Status'],rows,i=>SMS.isOverdue(list[i].dueDate,list[i].status)?'F8D7DA':null));
+    } else children.push(new Paragraph({children:[new TextRun({text:'No open corrective actions.',italics:true,size:18})]}));
+    children.push(new Paragraph({text:'',spacing:{after:200}}));
+  }
+
+  if(LAST.sections.audit){
+    children.push(new Paragraph({heading:HeadingLevel.HEADING_1,children:[new TextRun({text:'Audits & Inspections',bold:true,color:NAVY})]}));
+    const list=[...d.openAudits].sort((a,b)=>(a.plannedDate||'9999').localeCompare(b.plannedDate||'9999')).slice(0,20);
+    if(list.length){
+      const rows=list.map(a=>[a.id,a.title||'—',a.auditType||'—',SMS.fmtDate(a.plannedDate),a.auditor||'—',SMS.isOverdue(a.plannedDate,a.status)?'Overdue':(a.status||'—')]);
+      children.push(dataTable(['ID','Title','Type','Planned Date','Auditor','Status'],rows,i=>SMS.isOverdue(list[i].plannedDate,list[i].status)?'F8D7DA':null));
+    } else children.push(new Paragraph({children:[new TextRun({text:'No open or upcoming audits/inspections.',italics:true,size:18})]}));
+    children.push(new Paragraph({text:'',spacing:{after:200}}));
+  }
+
+  if(LAST.sections.recs){
+    children.push(new Paragraph({heading:HeadingLevel.HEADING_1,children:[new TextRun({text:'Recommendations',bold:true,color:NAVY})]}));
+    buildRecommendations(d).forEach(r=>children.push(new Paragraph({bullet:{level:0},children:[new TextRun({text:r.text,size:20,color:GRAY})]})));
+  }
+
+  const doc=new Document({sections:[{properties:{},children}]});
+  Packer.toBlob(doc).then(blob=>{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`${LAST.title.replace(/[^\w\-]+/g,'_')}_${SMS.today()}.docx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    btn.disabled=false; btn.textContent='📝 Export Word (.docx)';
+  }).catch(err=>{ console.error(err); alert('Failed to build Word document — see console for details.'); btn.disabled=false; btn.textContent='📝 Export Word (.docx)'; });
+}
+
+// ── Data export (.xlsx, multi-sheet) ────────────────────────────────────
+function exportDataXlsx(){
+  if(!LAST){ alert('Generate a report first.'); return; }
+  const d=LAST.d;
+  const wb=XLSX.utils.book_new();
+  const riskRows=d.openRisks.map(r=>({ID:r.id,Hazard:r.hazardDescription,Category:r.category,Owner:r.controlOwner,Score:resScore(r),Band:resBand(r),'Review Date':r.reviewDate,Status:r.status}));
+  const incRows=d.incInPeriod.map(i=>({ID:i.id,Date:i.dateTime,Type:i.incidentType,Severity:i.severity,Location:i.location,Status:i.status}));
+  const carRows=d.openCars.map(c=>({ID:c.id,Description:c.description,Priority:c.priority,'Assigned To':c.assignedTo,'Due Date':c.dueDate,Overdue:SMS.isOverdue(c.dueDate,c.status),Status:c.status}));
+  const auditRows=d.openAudits.map(a=>({ID:a.id,Title:a.title,Type:a.auditType,'Planned Date':a.plannedDate,Auditor:a.auditor,Overdue:SMS.isOverdue(a.plannedDate,a.status),Status:a.status}));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(riskRows.length?riskRows:[{Info:'No open risks'}]),'Risk Register');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(incRows.length?incRows:[{Info:'No incidents in period'}]),'Incidents');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(carRows.length?carRows:[{Info:'No open CARs'}]),'Corrective Actions');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(auditRows.length?auditRows:[{Info:'No open audits'}]),'Audits');
+  XLSX.writeFile(wb,`${LAST.title.replace(/[^\w\-]+/g,'_')}_${SMS.today()}_data.xlsx`);
+}
+</script>
+</body></html>
