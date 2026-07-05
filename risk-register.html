@@ -1,10 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Risk Register — TP SMS</title>
 <link rel="stylesheet" href="styles.css"/><link rel="stylesheet" href="sms.css"/>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>.th-sort{cursor:pointer;user-select:none}.th-sort:hover{background:var(--gray-100)}.sort-arr{font-size:10px;opacity:.5;margin-left:2px}</style>
 </head>
 <body>
 <header class="site-header"><div class="header-inner">
@@ -24,7 +25,6 @@
 <a href="GOHS4.1.8.X_FARSI_Control_Effectiveness_Calculator_v0.2.html">⬡ FARSI</a>
 </div></nav>
 <main class="container">
-<!-- Toolbar -->
 <div class="toolbar">
 <div class="toolbar-left">
 <button class="btn btn-primary" onclick="openForm()">+ Add Risk</button>
@@ -37,7 +37,6 @@
 <label class="btn btn-outline" style="cursor:pointer">↑ Import Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="doImport(this)"/></label>
 </div>
 </div>
-<!-- Stats bar -->
 <div class="stats-bar" id="statsBar">
 <div class="stat"><span class="stat-value" id="stTotal">0</span><span class="stat-label">Total</span></div>
 <div class="stat"><span class="stat-value" style="color:#7F1D1D" id="stCrit">0</span><span class="stat-label">Critical</span></div>
@@ -45,14 +44,23 @@
 <div class="stat"><span class="stat-value" style="color:#1E3A8A" id="stMed">0</span><span class="stat-label">Medium</span></div>
 <div class="stat"><span class="stat-value" style="color:#14532D" id="stLow">0</span><span class="stat-label">Low</span></div>
 <div class="stat"><span class="stat-value" id="stOpen">0</span><span class="stat-label">Open</span></div>
+<div class="stat"><span class="stat-value" style="color:#DC2626" id="stRevDue">0</span><span class="stat-label">Reviews Due</span></div>
 </div>
-<!-- Table -->
 <div class="card table-card">
 <div class="table-wrap">
 <table id="riskTable">
 <thead><tr>
-<th>ID</th><th>Hazard / Risk</th><th>Category</th><th>Location</th>
-<th>Inherent</th><th>Controls</th><th>Residual</th><th>Owner</th><th>Review</th><th>Status</th><th></th>
+<th class="th-sort" onclick="setSort('id')">ID<span class="sort-arr">⇅</span></th>
+<th>Hazard / Risk</th>
+<th class="th-sort" onclick="setSort('category')">Category<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('location')">Location<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('_inherent')">Inherent<span class="sort-arr">⇅</span></th>
+<th>Controls</th>
+<th class="th-sort" onclick="setSort('_residual')">Residual<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('controlOwner')">Owner<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('reviewDate')">Review<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('status')">Status<span class="sort-arr">⇅</span></th>
+<th></th>
 </tr></thead>
 <tbody id="tbody"></tbody>
 </table>
@@ -61,7 +69,6 @@
 </div>
 </main>
 
-<!-- Modal -->
 <div class="modal-overlay hidden" id="modalOverlay">
 <div class="modal">
 <div class="modal-header"><span class="modal-title" id="modalTitle">Add Risk</span><button class="modal-close" onclick="closeForm()">×</button></div>
@@ -96,12 +103,11 @@
 </div>
 <div class="modal-footer">
 <button class="btn btn-outline" onclick="closeForm()">Cancel</button>
-<button class="btn btn-primary" onclick="saveForm()">Save Risk</button>
+<button class="btn btn-primary" id="btnSave" onclick="saveForm()">Save Risk</button>
 </div>
 </div>
 </div>
 
-<!-- Delete confirm -->
 <div class="modal-overlay hidden" id="delOverlay">
 <div class="modal" style="max-width:360px">
 <div class="modal-header"><span class="modal-title">Delete Risk?</span><button class="modal-close" onclick="closeDelete()">×</button></div>
@@ -112,14 +118,28 @@
 
 <footer class="site-footer">TP Risk Management SMS — Risk Register</footer>
 <script src="sms-shared.js"></script>
+<script src="obsidian-sync.js"></script>
 <script>
-let editId=null, deleteId=null;
-const cats=['Physical','Chemical','Biological','Ergonomic','Psychosocial','Electrical','Fire / Explosion','Environmental','Radiation','Other'];
+let editId=null, deleteId=null, dirty=false, sortCol=null, sortDir=1;
+const resBand=r=>SMS.riskBand(SMS.riskScore(r.resLikelihood||r.likelihood,r.resConsequence||r.consequence)).label;
 
 function scoreBadge(l,c){
   const s=SMS.riskScore(l,c); if(!s) return '<span style="color:var(--gray-400)">—</span>';
   const b=SMS.riskBand(s);
   return `<span class="badge ${b.cls}" style="font-size:13px">${s} — ${b.label}</span>`;
+}
+
+function setSort(col){
+  if(sortCol===col) sortDir=-sortDir; else{sortCol=col;sortDir=1;}
+  render();
+}
+function updateSortArrows(){
+  document.querySelectorAll('th[onclick]').forEach(th=>{
+    const sp=th.querySelector('.sort-arr'); if(!sp) return;
+    const m=th.getAttribute('onclick').match(/setSort\('(.+?)'\)/);
+    if(!m) return;
+    sp.textContent=m[1]===sortCol?(sortDir>0?' ▲':' ▼'):' ⇅';
+  });
 }
 
 function render(){
@@ -128,18 +148,29 @@ function render(){
   const sf=document.getElementById('statusFilter').value;
   let data=SMS.get('risks');
   if(q) data=data.filter(r=>(r.hazardDescription+r.location+r.category+r.id).toLowerCase().includes(q));
-  const resBand=r=>SMS.riskBand(SMS.riskScore(r.resLikelihood||r.likelihood,r.resConsequence||r.consequence)).label;
   if(bf) data=data.filter(r=>resBand(r)===bf);
   if(sf) data=data.filter(r=>r.status===sf);
 
-  // stats
+  if(sortCol){
+    data=data.slice().sort((a,b)=>{
+      let av,bv;
+      if(sortCol==='_inherent'){av=SMS.riskScore(a.likelihood,a.consequence);bv=SMS.riskScore(b.likelihood,b.consequence);}
+      else if(sortCol==='_residual'){av=SMS.riskScore(a.resLikelihood||a.likelihood,a.resConsequence||a.consequence);bv=SMS.riskScore(b.resLikelihood||b.likelihood,b.resConsequence||b.consequence);}
+      else{av=a[sortCol]||'';bv=b[sortCol]||'';}
+      return av<bv?-sortDir:av>bv?sortDir:0;
+    });
+  }
+  updateSortArrows();
+
   const all=SMS.get('risks');
+  const now=new Date(new Date().toDateString());
   document.getElementById('stTotal').textContent=all.length;
   document.getElementById('stCrit').textContent=all.filter(r=>resBand(r)==='Critical').length;
   document.getElementById('stHigh').textContent=all.filter(r=>resBand(r)==='High').length;
   document.getElementById('stMed').textContent=all.filter(r=>resBand(r)==='Medium').length;
   document.getElementById('stLow').textContent=all.filter(r=>resBand(r)==='Low').length;
   document.getElementById('stOpen').textContent=all.filter(r=>r.status!=='Closed').length;
+  document.getElementById('stRevDue').textContent=all.filter(r=>r.status!=='Closed'&&r.reviewDate&&new Date(r.reviewDate)<now).length;
   document.getElementById('rowCount').textContent=data.length+' risk'+(data.length!==1?'s':'');
 
   const tb=document.getElementById('tbody');
@@ -148,8 +179,8 @@ function render(){
     const iS=SMS.riskScore(r.likelihood,r.consequence);
     const rS=SMS.riskScore(r.resLikelihood||r.likelihood,r.resConsequence||r.consequence);
     const rb=SMS.riskBand(rS);
-    const overdue=SMS.isOverdue(r.reviewDate,r.status);
-    const rowCls=overdue?'row-overdue':rb.label==='Critical'?'row-critical':'';
+    const reviewOverdue=r.status!=='Closed'&&r.reviewDate&&new Date(r.reviewDate)<new Date(new Date().toDateString());
+    const rowCls=reviewOverdue?'row-overdue':rb.label==='Critical'?'row-critical':'';
     const statusCls=r.status==='Closed'?'status-closed':r.status==='Under Review'?'status-in-progress':'status-open';
     return `<tr class="${rowCls}">
       <td style="font-family:monospace;font-size:12px;color:var(--gray-400)">${r.id}</td>
@@ -160,7 +191,8 @@ function render(){
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.existingControls||''}">${r.existingControls||'—'}</td>
       <td>${scoreBadge(r.resLikelihood||r.likelihood,r.resConsequence||r.consequence)}</td>
       <td>${r.controlOwner||'—'}</td>
-      <td style="color:${overdue?'#DC2626':'inherit'}">${SMS.fmtDate(r.reviewDate)}</td>
+      <td style="color:${reviewOverdue?'#DC2626':'inherit'};font-weight:${reviewOverdue?700:400}" title="${reviewOverdue?'Review overdue':''}">${SMS.fmtDate(r.reviewDate)}${reviewOverdue?' ⚠':''}
+      </td>
       <td><span class="badge ${statusCls}">${r.status||'Open'}</span></td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost" onclick="openForm('${r.id}')">Edit</button>
@@ -172,6 +204,7 @@ function render(){
 
 function openForm(id){
   editId=id||null;
+  dirty=false;
   document.getElementById('modalTitle').textContent=id?'Edit Risk':'Add Risk';
   const r=id?SMS.get('risks').find(x=>x.id===id):{};
   const set=(i,v)=>{ const el=document.getElementById(i); if(el) el.value=v||''; };
@@ -182,9 +215,15 @@ function openForm(id){
   set('fRL',r.resLikelihood); set('fRC',r.resConsequence);
   set('fAddControls',r.additionalControls); set('fNotes',r.notes);
   updateScores();
+  document.getElementById('btnSave').disabled=false;
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
-function closeForm(){ document.getElementById('modalOverlay').classList.add('hidden'); editId=null; }
+function closeForm(force){
+  if(!force&&dirty&&!confirm('Discard unsaved changes?')) return;
+  dirty=false;
+  document.getElementById('modalOverlay').classList.add('hidden');
+  editId=null;
+}
 
 function updateScores(){
   const iS=SMS.riskScore(document.getElementById('fL').value,document.getElementById('fC').value);
@@ -198,8 +237,11 @@ function updateScores(){
 ['fL','fC','fRL','fRC'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('change',updateScores); });
 
 function saveForm(){
+  const btn=document.getElementById('btnSave');
+  if(btn.disabled) return;
   const h=document.getElementById('fHazard').value.trim();
   if(!h){alert('Hazard description is required.');return;}
+  btn.disabled=true;
   const rec={
     hazardDescription:h, activity:document.getElementById('fActivity').value,
     category:document.getElementById('fCategory').value, location:document.getElementById('fLocation').value,
@@ -210,13 +252,15 @@ function saveForm(){
     resLikelihood:document.getElementById('fRL').value, resConsequence:document.getElementById('fRC').value,
     additionalControls:document.getElementById('fAddControls').value, notes:document.getElementById('fNotes').value,
   };
-  if(editId) SMS.update('risks',editId,rec); else SMS.add('risks',rec);
-  closeForm(); render();
+  const saved=editId?SMS.update('risks',editId,rec):SMS.add('risks',rec);
+  ObsidianSync.pushAndToast('risks',saved);
+  dirty=false;
+  closeForm(true); render();
 }
 
 function openDelete(id){ deleteId=id; document.getElementById('delOverlay').classList.remove('hidden'); }
 function closeDelete(){ document.getElementById('delOverlay').classList.add('hidden'); deleteId=null; }
-function confirmDelete(){ if(deleteId){SMS.remove('risks',deleteId);deleteId=null;} closeDelete(); render(); }
+function confirmDelete(){ if(deleteId){const rec=SMS.get('risks').find(r=>r.id===deleteId);SMS.remove('risks',deleteId);if(rec)ObsidianSync.remove('risks',rec);deleteId=null;} closeDelete(); render(); }
 
 function doExport(){
   const data=SMS.get('risks').map(r=>({
@@ -236,8 +280,12 @@ function doExport(){
 function doImport(input){
   if(!input.files[0]) return;
   SMS.importXlsx(input.files[0],rows=>{
+    let added=0;
     rows.forEach(row=>{
+      const existing=row.ID&&SMS.get('risks').find(r=>r.id===row.ID);
+      if(existing) return;
       SMS.add('risks',{
+        id:row.ID||undefined,
         hazardDescription:row['Hazard Description']||row.hazardDescription||'',
         category:row.Category||row.category||'Other',location:row.Location||row.location||'',
         activity:row.Activity||row.activity||'',dateIdentified:row['Date Identified']||row.dateIdentified||'',
@@ -249,11 +297,17 @@ function doImport(input){
         additionalControls:row['Additional Controls']||row.additionalControls||'',
         status:row.Status||row.status||'Open',notes:row.Notes||row.notes||''
       });
+      added++;
     });
-    input.value=''; render();
+    input.value='';
+    if(added>0) alert(added+' record'+(added!==1?'s':'')+' imported.');
+    else alert('No new records to import (all IDs already exist).');
+    render();
   });
 }
 
+document.getElementById('modalOverlay').addEventListener('input',()=>{dirty=true;});
+document.getElementById('modalOverlay').addEventListener('change',()=>{dirty=true;});
 render();
 </script>
 </body></html>

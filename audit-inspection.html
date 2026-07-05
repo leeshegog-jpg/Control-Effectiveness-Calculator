@@ -1,10 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Audit Register — TP SMS</title>
 <link rel="stylesheet" href="styles.css"/><link rel="stylesheet" href="sms.css"/>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>.th-sort{cursor:pointer;user-select:none}.th-sort:hover{background:var(--gray-100)}.sort-arr{font-size:10px;opacity:.5;margin-left:2px}</style>
 </head>
 <body>
 <header class="site-header"><div class="header-inner">
@@ -17,6 +18,9 @@
 <a href="safety-dashboard.html">📊 Dashboard</a>
 <a href="audit-inspection.html" class="active">📋 Audits</a>
 <a href="risk-report-generator.html">📄 Reports</a>
+<span class="module-nav-sep">|</span>
+<a href="flowchart.html">⬡ SFARP</a>
+<a href="GOHS4.1.8.X_FARSI_Control_Effectiveness_Calculator_v0.2.html">⬡ FARSI</a>
 </div></nav>
 <main class="container">
 <div class="toolbar">
@@ -41,7 +45,19 @@
 </div>
 <div class="card table-card">
 <div class="table-wrap"><table>
-<thead><tr><th>ID</th><th>Type</th><th>Title / Scope</th><th>Planned</th><th>Actual</th><th>Auditor</th><th>Area</th><th>Findings</th><th>Status</th><th>CARs</th><th></th></tr></thead>
+<thead><tr>
+<th class="th-sort" onclick="setSort('id')">ID<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('auditType')">Type<span class="sort-arr">⇅</span></th>
+<th>Title / Scope</th>
+<th class="th-sort" onclick="setSort('plannedDate')">Planned<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('actualDate')">Actual<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('auditor')">Auditor<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('area')">Area<span class="sort-arr">⇅</span></th>
+<th>Findings</th>
+<th class="th-sort" onclick="setSort('_status')">Status<span class="sort-arr">⇅</span></th>
+<th>CARs</th>
+<th></th>
+</tr></thead>
 <tbody id="tbody"></tbody>
 </table></div>
 <div class="table-footer"><span id="rowCount">0 audits</span></div>
@@ -78,7 +94,7 @@
 <div class="modal-footer">
 <button class="btn btn-outline" onclick="closeForm()">Cancel</button>
 <button class="btn btn-primary" onclick="openCAR()" style="background:#7C3AED">Save &amp; Create CAR</button>
-<button class="btn btn-primary" onclick="saveForm()">Save Audit</button>
+<button class="btn btn-primary" id="btnSave" onclick="saveForm()">Save Audit</button>
 </div>
 </div>
 </div>
@@ -93,13 +109,39 @@
 
 <footer class="site-footer">TP Risk Management SMS — Audit &amp; Inspection Register</footer>
 <script src="sms-shared.js"></script>
+<script src="obsidian-sync.js"></script>
 <script>
-let editId=null,deleteId=null;
+let editId=null, deleteId=null, dirty=false, sortCol=null, sortDir=1;
 
 function computeStatus(r){
   if(r.status==='Complete'||r.status==='Cancelled') return r.status;
   if(SMS.isOverdue(r.plannedDate,r.status)) return 'Overdue';
   return r.status||'Planned';
+}
+
+function setSort(col){
+  if(sortCol===col) sortDir=-sortDir; else{sortCol=col;sortDir=1;}
+  render();
+}
+function updateSortArrows(){
+  document.querySelectorAll('th[onclick]').forEach(th=>{
+    const sp=th.querySelector('.sort-arr'); if(!sp) return;
+    const m=th.getAttribute('onclick').match(/setSort\('(.+?)'\)/);
+    if(!m) return;
+    sp.textContent=m[1]===sortCol?(sortDir>0?' ▲':' ▼'):' ⇅';
+  });
+}
+
+function renderCarLinks(refs){
+  if(!refs) return '—';
+  const cars=SMS.get('cars');
+  return refs.split(',').map(id=>{
+    const t=id.trim(); if(!t) return '';
+    const exists=cars.find(c=>c.id===t);
+    return exists
+      ?`<a href="corrective-actions.html?editId=${t}" style="font-size:12px;color:#2563EB;font-family:monospace;text-decoration:none" title="Open CAR ${t}">${t}</a>`
+      :`<span style="font-size:12px;color:var(--gray-400);font-family:monospace">${t}</span>`;
+  }).filter(Boolean).join(', ');
 }
 
 function render(){
@@ -110,6 +152,15 @@ function render(){
   if(q) data=data.filter(r=>(r.title+r.area+r.auditor+r.id).toLowerCase().includes(q));
   if(tf) data=data.filter(r=>r.auditType===tf);
   if(sf) data=data.filter(r=>computeStatus(r)===sf);
+
+  if(sortCol){
+    data=data.slice().sort((a,b)=>{
+      const av=sortCol==='_status'?computeStatus(a):(a[sortCol]||'');
+      const bv=sortCol==='_status'?computeStatus(b):(b[sortCol]||'');
+      return av<bv?-sortDir:av>bv?sortDir:0;
+    });
+  }
+  updateSortArrows();
 
   const all=SMS.get('audits');
   document.getElementById('stTotal').textContent=all.length;
@@ -137,7 +188,7 @@ function render(){
       <td>${r.area||'—'}</td>
       <td>${r.findingsTotal||'—'}${fhigh>0?` <span class="badge band-high" style="font-size:10px">${fhigh} High</span>`:''}</td>
       <td><span class="badge ${stCls}">${cs}</span></td>
-      <td style="font-size:12px;color:var(--gray-400)">${r.carRefs||'—'}</td>
+      <td style="font-size:12px">${renderCarLinks(r.carRefs)}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost" onclick="openForm('${r.id}')">Edit</button>
         <button class="btn btn-ghost" style="color:#DC2626" onclick="openDelete('${r.id}')">Del</button>
@@ -148,6 +199,7 @@ function render(){
 
 function openForm(id){
   editId=id||null;
+  dirty=false;
   document.getElementById('modalTitle').textContent=id?'Edit Audit':'Add Audit / Inspection';
   const r=id?SMS.get('audits').find(x=>x.id===id):{};
   const set=(i,v)=>{const el=document.getElementById(i);if(el)el.value=v!==undefined&&v!==null?v:'';};
@@ -158,9 +210,15 @@ function openForm(id){
   set('fFMed',r.findingsMedium||0); set('fFLow',r.findingsLow||0);
   set('fFindings',r.findingsSummary); set('fRecs',r.recommendations);
   set('fCARs',r.carRefs); set('fNotes',r.notes);
+  document.getElementById('btnSave').disabled=false;
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
-function closeForm(){document.getElementById('modalOverlay').classList.add('hidden');editId=null;}
+function closeForm(force){
+  if(!force&&dirty&&!confirm('Discard unsaved changes?')) return;
+  dirty=false;
+  document.getElementById('modalOverlay').classList.add('hidden');
+  editId=null;
+}
 function collectForm(){
   return {
     auditType:document.getElementById('fType').value, title:document.getElementById('fTitle').value,
@@ -174,22 +232,28 @@ function collectForm(){
   };
 }
 function saveForm(){
+  const btn=document.getElementById('btnSave');
+  if(btn.disabled) return;
   const f=collectForm();
   if(!f.title.trim()){alert('Title is required.');return;}
-  if(editId) SMS.update('audits',editId,f); else SMS.add('audits',f);
-  closeForm(); render();
+  btn.disabled=true;
+  const saved=editId?SMS.update('audits',editId,f):SMS.add('audits',f);
+  ObsidianSync.pushAndToast('audits',saved);
+  dirty=false;
+  closeForm(true); render();
 }
 function openCAR(){
   const f=collectForm();
   if(!f.title.trim()){alert('Title is required.');return;}
   let rec; if(editId){rec=SMS.update('audits',editId,f);}else{rec=SMS.add('audits',f);}
-  closeForm(); render();
+  dirty=false;
+  closeForm(true); render();
   const params=new URLSearchParams({source:'Audit',sourceRef:rec.id,desc:('Audit findings: '+f.title).slice(0,120)});
   window.location.href='corrective-actions.html?'+params.toString();
 }
 function openDelete(id){deleteId=id;document.getElementById('delOverlay').classList.remove('hidden');}
 function closeDelete(){document.getElementById('delOverlay').classList.add('hidden');deleteId=null;}
-function confirmDelete(){if(deleteId){SMS.remove('audits',deleteId);deleteId=null;}closeDelete();render();}
+function confirmDelete(){if(deleteId){const rec=SMS.get('audits').find(r=>r.id===deleteId);SMS.remove('audits',deleteId);if(rec)ObsidianSync.remove('audits',rec);deleteId=null;}closeDelete();render();}
 function doExport(){
   SMS.exportXlsx(SMS.get('audits').map(r=>({
     ID:r.id,'Audit Type':r.auditType,Title:r.title,Scope:r.scope,
@@ -202,10 +266,22 @@ function doExport(){
 function doImport(input){
   if(!input.files[0]) return;
   SMS.importXlsx(input.files[0],rows=>{
-    rows.forEach(row=>{SMS.add('audits',{auditType:row['Audit Type']||'Internal Audit',title:row.Title||row.title||'',scope:row.Scope||'',plannedDate:row['Planned Date']||'',actualDate:row['Actual Date']||'',auditor:row.Auditor||'',area:row.Area||'',status:row.Status||'Planned',findingsTotal:row['Total Findings']||0,findingsHigh:row['High Findings']||0,findingsMedium:row['Medium Findings']||0,findingsLow:row['Low Findings']||0,findingsSummary:row['Findings Summary']||'',recommendations:row.Recommendations||'',carRefs:row['CAR Refs']||'',notes:row.Notes||''});});
-    input.value=''; render();
+    let added=0;
+    rows.forEach(row=>{
+      const existing=row.ID&&SMS.get('audits').find(r=>r.id===row.ID);
+      if(existing) return;
+      SMS.add('audits',{id:row.ID||undefined,auditType:row['Audit Type']||'Internal Audit',title:row.Title||row.title||'',scope:row.Scope||'',plannedDate:row['Planned Date']||'',actualDate:row['Actual Date']||'',auditor:row.Auditor||'',area:row.Area||'',status:row.Status||'Planned',findingsTotal:row['Total Findings']||0,findingsHigh:row['High Findings']||0,findingsMedium:row['Medium Findings']||0,findingsLow:row['Low Findings']||0,findingsSummary:row['Findings Summary']||'',recommendations:row.Recommendations||'',carRefs:row['CAR Refs']||'',notes:row.Notes||''});
+      added++;
+    });
+    input.value='';
+    if(added>0) alert(added+' record'+(added!==1?'s':'')+' imported.');
+    else alert('No new records to import (all IDs already exist).');
+    render();
   });
 }
+
+document.getElementById('modalOverlay').addEventListener('input',()=>{dirty=true;});
+document.getElementById('modalOverlay').addEventListener('change',()=>{dirty=true;});
 render();
 </script>
 </body></html>

@@ -1,10 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Incident Log — TP SMS</title>
 <link rel="stylesheet" href="styles.css"/><link rel="stylesheet" href="sms.css"/>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>.th-sort{cursor:pointer;user-select:none}.th-sort:hover{background:var(--gray-100)}.sort-arr{font-size:10px;opacity:.5;margin-left:2px}</style>
 </head>
 <body>
 <header class="site-header"><div class="header-inner">
@@ -18,6 +19,9 @@
 <a href="safety-dashboard.html">📊 Dashboard</a>
 <a href="audit-inspection.html">📋 Audits</a>
 <a href="risk-report-generator.html">📄 Reports</a>
+<span class="module-nav-sep">|</span>
+<a href="flowchart.html">⬡ SFARP</a>
+<a href="GOHS4.1.8.X_FARSI_Control_Effectiveness_Calculator_v0.2.html">⬡ FARSI</a>
 </div></nav>
 <main class="container">
 <div class="toolbar">
@@ -30,6 +34,7 @@
 <div class="toolbar-right">
 <button class="btn btn-outline" onclick="doExport()">↓ Export Excel</button>
 <label class="btn btn-outline" style="cursor:pointer">↑ Import<input type="file" accept=".xlsx,.xls,.csv" hidden onchange="doImport(this)"/></label>
+<button class="btn btn-outline" onclick="openSettings()" title="Configure pipeline URL">⚙</button>
 </div>
 </div>
 <div class="stats-bar">
@@ -42,20 +47,31 @@
 </div>
 <div class="card table-card">
 <div class="table-wrap"><table>
-<thead><tr><th>ID</th><th>Date</th><th>Type</th><th>Severity</th><th>Description</th><th>Location</th><th>Reporter</th><th>Investigation</th><th>Status</th><th></th></tr></thead>
+<thead><tr>
+<th class="th-sort" onclick="setSort('id')">ID<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('dateTime')">Date<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('incidentType')">Type<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('severity')">Severity<span class="sort-arr">⇅</span></th>
+<th>Description</th>
+<th class="th-sort" onclick="setSort('location')">Location<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('reporterName')">Reporter<span class="sort-arr">⇅</span></th>
+<th>Investigation</th>
+<th class="th-sort" onclick="setSort('status')">Status<span class="sort-arr">⇅</span></th>
+<th></th>
+</tr></thead>
 <tbody id="tbody"></tbody>
 </table></div>
 <div class="table-footer"><span id="rowCount">0 incidents</span></div>
 </div>
 </main>
 
-<!-- Modal -->
+<!-- Incident form modal -->
 <div class="modal-overlay hidden" id="modalOverlay">
 <div class="modal">
 <div class="modal-header"><span class="modal-title" id="modalTitle">Report Incident</span><button class="modal-close" onclick="closeForm()">×</button></div>
 <div class="modal-body">
 <div id="modalPipelineNote" style="display:none;margin-bottom:6px;padding:10px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;font-size:13px"></div>
-<button type="button" class="btn btn-ghost" style="font-size:11px;padding:2px 8px;margin-bottom:12px" onclick="linkPipelineJob()" title="Already have a job ID from the pipeline (e.g. one that finished after this tab was closed)? Attach it here.">🔗 Link existing pipeline job…</button>
+<button type="button" class="btn btn-ghost" style="font-size:11px;padding:2px 8px;margin-bottom:12px" onclick="linkPipelineJob()" title="Attach an existing pipeline job ID to this incident">🔗 Link existing pipeline job…</button>
 <div class="form-grid">
 <div class="form-group"><label>Date &amp; Time of Incident *</label><input type="datetime-local" id="fDateTime"/></div>
 <div class="form-group"><label>Date Reported</label><input type="date" id="fReportDate"/></div>
@@ -94,9 +110,9 @@
 </div>
 <div class="modal-footer">
 <button class="btn btn-outline" onclick="closeForm()">Cancel</button>
-<button class="btn btn-primary" onclick="runPipeline()" title="Submit to the local VRTP agent pipeline for full investigation, compliance and safety-case assessment. Requires start-incident-form.ps1 running on this machine (localhost:8765)." style="background:#C53030">🔬 Run Agent Investigation</button>
-<button class="btn btn-primary" onclick="openCAR()" title="Save and create a Corrective Action" style="background:#7C3AED">Save &amp; Create CAR</button>
-<button class="btn btn-primary" onclick="saveForm()">Save Incident</button>
+<button class="btn btn-primary" onclick="runPipeline()" title="Submit to the local VRTP agent pipeline (requires start-incident-form.ps1 on localhost)" style="background:#C53030">🔬 Run Agent Investigation</button>
+<button class="btn btn-primary" onclick="openCAR()" style="background:#7C3AED">Save &amp; Create CAR</button>
+<button class="btn btn-primary" id="btnSave" onclick="saveForm()">Save Incident</button>
 </div>
 </div>
 </div>
@@ -106,6 +122,24 @@
 <div class="modal-header"><span class="modal-title">Delete Incident?</span><button class="modal-close" onclick="closeDelete()">×</button></div>
 <div class="modal-body"><p style="color:var(--gray-600)">Permanently remove this incident record. Cannot be undone.</p></div>
 <div class="modal-footer"><button class="btn btn-outline" onclick="closeDelete()">Cancel</button><button class="btn btn-primary" style="background:#DC2626" onclick="confirmDelete()">Delete</button></div>
+</div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay hidden" id="settingsOverlay">
+<div class="modal" style="max-width:440px">
+<div class="modal-header"><span class="modal-title">Pipeline Settings</span><button class="modal-close" onclick="closeSettings()">×</button></div>
+<div class="modal-body">
+<div class="form-group">
+<label>Local Pipeline URL</label>
+<input type="text" id="sPipelineUrl" placeholder="http://localhost:8765"/>
+<span class="form-hint">Base URL where start-incident-form.ps1 is listening. Default: http://localhost:8765</span>
+</div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-outline" onclick="closeSettings()">Cancel</button>
+<button class="btn btn-primary" onclick="saveSettings()">Save</button>
+</div>
 </div>
 </div>
 
@@ -121,7 +155,7 @@
 <li style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-200);font-size:13px" id="pstep-safetyCase"><span id="picon-safetyCase">○</span><span id="plbl-safetyCase">Safety Case Trigger Check</span></li>
 <li style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px" id="pstep-complete"><span id="picon-complete">○</span><span id="plbl-complete">Complete</span></li>
 </ul>
-<p class="form-hint" id="pipelineHint" style="margin-top:14px">Connecting to local pipeline at localhost:8765…</p>
+<p class="form-hint" id="pipelineHint" style="margin-top:14px">Connecting to local pipeline…</p>
 </div>
 <div class="modal-footer"><button class="btn btn-outline" onclick="closePipeline()">Close</button></div>
 </div>
@@ -129,9 +163,37 @@
 
 <footer class="site-footer">TP Risk Management SMS — Incident Log</footer>
 <script src="sms-shared.js"></script>
+<script src="obsidian-sync.js"></script>
 <script>
-let editId=null,deleteId=null;
+let editId=null, deleteId=null, dirty=false, sortCol=null, sortDir=1;
 const SEV_LABEL=['','Insignificant','Minor','Moderate','Major','Catastrophic'];
+
+function getPipelineBase(){ return localStorage.getItem('sms_pipeline_url')||'http://localhost:8765'; }
+
+function setSort(col){
+  if(sortCol===col) sortDir=-sortDir; else{sortCol=col;sortDir=1;}
+  render();
+}
+function updateSortArrows(){
+  document.querySelectorAll('th[onclick]').forEach(th=>{
+    const sp=th.querySelector('.sort-arr'); if(!sp) return;
+    const m=th.getAttribute('onclick').match(/setSort\('(.+?)'\)/);
+    if(!m) return;
+    sp.textContent=m[1]===sortCol?(sortDir>0?' ▲':' ▼'):' ⇅';
+  });
+}
+
+function renderCarLinks(refs){
+  if(!refs) return '—';
+  const cars=SMS.get('cars');
+  return refs.split(',').map(id=>{
+    const t=id.trim(); if(!t) return '';
+    const exists=cars.find(c=>c.id===t);
+    return exists
+      ?`<a href="corrective-actions.html?editId=${t}" style="font-size:12px;color:#2563EB;font-family:monospace;text-decoration:none">${t}</a>`
+      :`<span style="font-size:12px;color:var(--gray-400);font-family:monospace">${t}</span>`;
+  }).filter(Boolean).join(', ');
+}
 
 function render(){
   const q=(document.getElementById('filterInput').value||'').toLowerCase();
@@ -141,6 +203,14 @@ function render(){
   if(q) data=data.filter(r=>(r.description+r.location+r.incidentType+r.id).toLowerCase().includes(q));
   if(tf) data=data.filter(r=>r.incidentType===tf);
   if(sf) data=data.filter(r=>r.status===sf);
+
+  if(sortCol){
+    data=data.slice().sort((a,b)=>{
+      const av=a[sortCol]||'', bv=b[sortCol]||'';
+      return av<bv?-sortDir:av>bv?sortDir:0;
+    });
+  }
+  updateSortArrows();
 
   const all=SMS.get('incidents');
   const now=new Date();
@@ -158,15 +228,16 @@ function render(){
   tb.innerHTML=data.map(r=>{
     const sc=r.severity||1;
     const stCls=r.status==='Closed'?'status-closed':r.status==='Under Investigation'?'status-in-progress':'status-open';
+    const carLinks=renderCarLinks(r.carRefs);
     return `<tr>
       <td style="font-family:monospace;font-size:12px;color:var(--gray-400)">${r.id}</td>
       <td style="white-space:nowrap">${SMS.fmtDate(r.dateTime)}</td>
       <td><span class="badge" style="background:${TYPE_COLOR[r.incidentType]||'#6B7280'}22;color:${TYPE_COLOR[r.incidentType]||'#6B7280'}">${r.incidentType||'—'}</span></td>
       <td><span class="badge sev-${sc}">${sc} — ${SEV_LABEL[sc]||''}</span></td>
-      <td class="wrap" style="max-width:220px;white-space:normal">${r.description||'—'}</td>
+      <td class="wrap" style="max-width:200px;white-space:normal">${r.description||'—'}${r.carRefs?`<br><span style="font-size:11px">CARs: ${carLinks}</span>`:''}</td>
       <td>${r.location||'—'}</td>
       <td>${r.reporterName||'—'}</td>
-      <td><span class="badge status-${(r.invStatus||'not-started').toLowerCase().replace(/ /g,'-')}">${r.invStatus||'Not Started'}</span>${r.pipelineReportUrl?` <a href="${r.pipelineReportUrl}" target="_blank" style="font-size:11px;color:#C53030;font-weight:700;text-decoration:none">🔬 Report (local)</a>`:''}</td>
+      <td><span class="badge status-${(r.invStatus||'not-started').toLowerCase().replace(/ /g,'-')}">${r.invStatus||'Not Started'}</span>${r.pipelineReportUrl?` <a href="${r.pipelineReportUrl}" target="_blank" style="font-size:11px;color:#C53030;font-weight:700;text-decoration:none">🔬 Report</a>`:''}</td>
       <td><span class="badge ${stCls}">${r.status||'Open'}</span></td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost" onclick="openForm('${r.id}')">Edit</button>
@@ -178,6 +249,7 @@ function render(){
 
 function openForm(id){
   editId=id||null;
+  dirty=false;
   document.getElementById('modalTitle').textContent=id?'Edit Incident':'Report Incident';
   const r=id?SMS.get('incidents').find(x=>x.id===id):{};
   const set=(i,v)=>{const el=document.getElementById(i);if(el)el.value=v||'';};
@@ -202,13 +274,19 @@ function openForm(id){
     note.innerHTML='🔬 Agent investigation complete — <a href="'+r.pipelineReportUrl+'" target="_blank" style="color:#C53030;font-weight:700;text-decoration:none">view full report</a>';
   }else if(r.pipelineJobId){
     note.style.display='block';
-    note.innerHTML='🔬 Agent investigation in progress (job '+r.pipelineJobId+'). Reopen this incident, or just reload the page, to pick up the finished report automatically.';
+    note.innerHTML='🔬 Agent investigation in progress (job '+r.pipelineJobId+'). Reload the page to pick up the finished report automatically.';
   }else{
     note.style.display='none'; note.innerHTML='';
   }
+  document.getElementById('btnSave').disabled=false;
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
-function closeForm(){document.getElementById('modalOverlay').classList.add('hidden');editId=null;}
+function closeForm(force){
+  if(!force&&dirty&&!confirm('Discard unsaved changes?')) return;
+  dirty=false;
+  document.getElementById('modalOverlay').classList.add('hidden');
+  editId=null;
+}
 
 function collectForm(){
   return {
@@ -228,23 +306,29 @@ function collectForm(){
   };
 }
 function saveForm(){
+  const btn=document.getElementById('btnSave');
+  if(btn.disabled) return;
   const f=collectForm();
   if(!f.description.trim()){alert('Description is required.');return;}
-  if(editId) SMS.update('incidents',editId,f); else SMS.add('incidents',f);
-  closeForm(); render();
+  btn.disabled=true;
+  const saved=editId?SMS.update('incidents',editId,f):SMS.add('incidents',f);
+  ObsidianSync.pushAndToast('incidents',saved);
+  dirty=false;
+  closeForm(true); render();
 }
 function openCAR(){
   const f=collectForm();
   if(!f.description.trim()){alert('Description is required.');return;}
   let rec; if(editId){rec=SMS.update('incidents',editId,f);}else{rec=SMS.add('incidents',f);}
-  closeForm(); render();
+  dirty=false;
+  closeForm(true); render();
   const params=new URLSearchParams({source:'Incident',sourceRef:rec.id,desc:f.description.slice(0,120)});
   window.location.href='corrective-actions.html?'+params.toString();
 }
 
 function openDelete(id){deleteId=id;document.getElementById('delOverlay').classList.remove('hidden');}
 function closeDelete(){document.getElementById('delOverlay').classList.add('hidden');deleteId=null;}
-function confirmDelete(){if(deleteId){SMS.remove('incidents',deleteId);deleteId=null;}closeDelete();render();}
+function confirmDelete(){if(deleteId){const rec=SMS.get('incidents').find(r=>r.id===deleteId);SMS.remove('incidents',deleteId);if(rec)ObsidianSync.remove('incidents',rec);deleteId=null;}closeDelete();render();}
 
 function doExport(){
   SMS.exportXlsx(SMS.get('incidents').map(r=>({
@@ -259,16 +343,36 @@ function doExport(){
 function doImport(input){
   if(!input.files[0]) return;
   SMS.importXlsx(input.files[0],rows=>{
-    rows.forEach(row=>{SMS.add('incidents',{dateTime:row['Date/Time']||row.dateTime||'',reportDate:row['Report Date']||'',incidentType:row.Type||row.incidentType||'Other',severity:row.Severity||row.severity||1,location:row.Location||row.location||'',reporterName:row.Reporter||row.reporterName||'',description:row.Description||row.description||'',injuries:row.Injuries||'',witnesses:row.Witnesses||'',immediateActions:row['Immediate Actions']||'',immediateCause:row['Immediate Cause']||'',rootCause:row['Root Cause']||'',invStatus:row['Investigation Status']||'Not Started',lessonsLearned:row['Lessons Learned']||'',carRefs:row['CAR Refs']||'',status:row.Status||'Open'});});
-    input.value=''; render();
+    let added=0;
+    rows.forEach(row=>{
+      const existing=row.ID&&SMS.get('incidents').find(r=>r.id===row.ID);
+      if(existing) return;
+      SMS.add('incidents',{id:row.ID||undefined,dateTime:row['Date/Time']||row.dateTime||'',reportDate:row['Report Date']||'',incidentType:row.Type||row.incidentType||'Other',severity:row.Severity||row.severity||1,location:row.Location||row.location||'',reporterName:row.Reporter||row.reporterName||'',description:row.Description||row.description||'',injuries:row.Injuries||'',witnesses:row.Witnesses||'',immediateActions:row['Immediate Actions']||'',immediateCause:row['Immediate Cause']||'',rootCause:row['Root Cause']||'',invStatus:row['Investigation Status']||'Not Started',lessonsLearned:row['Lessons Learned']||'',carRefs:row['CAR Refs']||'',status:row.Status||'Open'});
+      added++;
+    });
+    input.value='';
+    if(added>0) alert(added+' record'+(added!==1?'s':'')+' imported.');
+    else alert('No new records to import (all IDs already exist).');
+    render();
   });
 }
 
-// ---- VRTP Agent Investigation Pipeline (local only — requires start-incident-form.ps1 running) ----
-const PIPELINE_BASE = 'http://localhost:8765';
-let pipelinePoll = null, pipelineRecordId = null;
+// Settings
+function openSettings(){
+  document.getElementById('sPipelineUrl').value=getPipelineBase();
+  document.getElementById('settingsOverlay').classList.remove('hidden');
+}
+function closeSettings(){document.getElementById('settingsOverlay').classList.add('hidden');}
+function saveSettings(){
+  const url=document.getElementById('sPipelineUrl').value.trim();
+  if(url) localStorage.setItem('sms_pipeline_url',url);
+  else localStorage.removeItem('sms_pipeline_url');
+  closeSettings();
+}
 
-function setPStep(id, state, label){
+// Pipeline
+let pipelinePoll=null, pipelineRecordId=null;
+function setPStep(id,state,label){
   const icon=document.getElementById('picon-'+id), lbl=document.getElementById('plbl-'+id);
   if(!icon||!lbl) return;
   if(label) lbl.textContent=label;
@@ -283,7 +387,7 @@ function resetPSteps(){
     const lbl=document.getElementById('plbl-'+s); if(lbl){lbl.style.color='';lbl.style.fontWeight='400';}
   });
 }
-function openPipelinePanel(){resetPSteps();document.getElementById('pipelineTitle').textContent='Running Agent Investigation…';document.getElementById('pipelineHint').textContent='Connecting to local pipeline at localhost:8765…';document.getElementById('pipelineOverlay').classList.remove('hidden');}
+function openPipelinePanel(){resetPSteps();document.getElementById('pipelineTitle').textContent='Running Agent Investigation…';document.getElementById('pipelineHint').textContent='Connecting to local pipeline at '+getPipelineBase()+'…';document.getElementById('pipelineOverlay').classList.remove('hidden');}
 function closePipeline(){if(pipelinePoll)clearInterval(pipelinePoll);document.getElementById('pipelineOverlay').classList.add('hidden');}
 
 async function runPipeline(){
@@ -303,9 +407,9 @@ async function runPipeline(){
   };
   let res;
   try{
-    res=await fetch(PIPELINE_BASE+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    res=await fetch(getPipelineBase()+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   }catch(err){
-    document.getElementById('pipelineHint').textContent='Could not connect to the local pipeline (localhost:8765). Is start-incident-form.ps1 running on this machine? You can still use "Save Incident" to register this without the agent run.';
+    document.getElementById('pipelineHint').textContent='Could not connect to the local pipeline ('+getPipelineBase()+'). Is start-incident-form.ps1 running? Use ⚙ to change the URL. You can still use "Save Incident" to register this incident.';
     setPStep('start','error','Could not reach local pipeline');
     return;
   }
@@ -314,10 +418,9 @@ async function runPipeline(){
   document.getElementById('pipelineHint').textContent='Incident file created: '+result.filename;
   setPStep('start','done','Incident file created');
   setPStep('investigation','active','Investigation Agent running…');
-  // Persist the job link immediately — if this tab closes before the agents finish,
-  // checkPendingPipelines() will still pick up the result on next page load.
   const pf=Object.assign({},f,{pipelineJobId:result.jobId,invStatus:'In Progress'});
   if(editId) pipelineRecordId=SMS.update('incidents',editId,pf).id; else pipelineRecordId=SMS.add('incidents',pf).id;
+  dirty=false;
   render();
   pipelinePoll=setInterval(()=>pollPipeline(result.jobId),5000);
 }
@@ -325,7 +428,7 @@ async function runPipeline(){
 async function pollPipeline(jobId){
   let data;
   try{
-    const r=await fetch(PIPELINE_BASE+'/status/'+encodeURIComponent(jobId));
+    const r=await fetch(getPipelineBase()+'/status/'+encodeURIComponent(jobId));
     data=await r.json();
   }catch(err){return;}
   const step=data.step||'';
@@ -339,18 +442,18 @@ async function pollPipeline(jobId){
     setPStep('safetyCase',hasSC?'done':'skip',hasSC?'Safety Case Trigger check':'Safety Case check (not required)');
     setPStep('complete','done','Pipeline complete');
     document.getElementById('pipelineTitle').textContent='Pipeline Complete';
-    document.getElementById('pipelineHint').textContent='Investigation, compliance and safety-case outputs saved to the vault. Linking report to this incident record.';
+    document.getElementById('pipelineHint').textContent='Investigation, compliance and safety-case outputs saved. Linking report to this incident record.';
     clearInterval(pipelinePoll);
     if(pipelineRecordId){
       SMS.update('incidents',pipelineRecordId,{
         invStatus:'Complete', pipelineJobId:jobId,
-        pipelineReportUrl:PIPELINE_BASE+'/report/'+encodeURIComponent(jobId),
+        pipelineReportUrl:getPipelineBase()+'/report/'+encodeURIComponent(jobId),
         investigationFile:(data.outputs&&data.outputs.investigation)||'',
         complianceFile:(data.outputs&&data.outputs.compliance)||'',
         safetyCaseFile:(data.outputs&&data.outputs.safetyCase)||''
       });
     }
-    closeForm(); render();
+    closeForm(true); render();
   }
   if(data.status==='error'){
     clearInterval(pipelinePoll);
@@ -360,49 +463,43 @@ async function pollPipeline(jobId){
   }
 }
 
-// Manually attach a job ID to the incident being edited — recovers jobs that
-// finished before this version of the page existed, or that were submitted from
-// the standalone form in an earlier session.
 async function linkPipelineJob(){
   if(!editId){alert('Save this incident first (Save Incident), then reopen it to link a job.');return;}
-  const jobId=prompt('Enter the pipeline Job ID to link (e.g. Superman-20260618-Superman):');
+  const jobId=prompt('Enter the pipeline Job ID to link:');
   if(!jobId) return;
   SMS.update('incidents',editId,{pipelineJobId:jobId.trim(),invStatus:'In Progress'});
   await checkPendingPipelines();
   openForm(editId);
 }
 
-// Recover completed pipeline jobs whose tab was closed before the agents finished —
-// runs every time this page loads, so a finished investigation always surfaces here.
 async function checkPendingPipelines(){
-  const pending=SMS.get('incidents').filter(r=>r.pipelineJobId && r.invStatus!=='Complete');
+  const pending=SMS.get('incidents').filter(r=>r.pipelineJobId&&r.invStatus!=='Complete');
   if(!pending.length) return;
   let changed=false;
   for(const r of pending){
     try{
       const ctrl=new AbortController();
       const t=setTimeout(()=>ctrl.abort(),3000);
-      const res=await fetch(PIPELINE_BASE+'/status/'+encodeURIComponent(r.pipelineJobId),{signal:ctrl.signal});
+      const res=await fetch(getPipelineBase()+'/status/'+encodeURIComponent(r.pipelineJobId),{signal:ctrl.signal});
       clearTimeout(t);
       const data=await res.json();
       if(data.step==='complete'){
         SMS.update('incidents',r.id,{
           invStatus:'Complete',
-          pipelineReportUrl:PIPELINE_BASE+'/report/'+encodeURIComponent(r.pipelineJobId),
+          pipelineReportUrl:getPipelineBase()+'/report/'+encodeURIComponent(r.pipelineJobId),
           investigationFile:(data.outputs&&data.outputs.investigation)||'',
           complianceFile:(data.outputs&&data.outputs.compliance)||'',
           safetyCaseFile:(data.outputs&&data.outputs.safetyCase)||''
         });
         changed=true;
-      }else if(data.status==='error'){
-        changed=true; // surface nothing destructive, just re-render in case status text matters elsewhere
       }
-    }catch(err){ /* local pipeline not running right now — retried automatically next time this page loads */ }
+    }catch(err){}
   }
   if(changed) render();
 }
 
-// Pre-fill from query string (from incident page "Create CAR" redirect back)
+document.getElementById('modalOverlay').addEventListener('input',()=>{dirty=true;});
+document.getElementById('modalOverlay').addEventListener('change',()=>{dirty=true;});
 render();
 checkPendingPipelines();
 </script>

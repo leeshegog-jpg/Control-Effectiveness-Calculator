@@ -1,4 +1,4 @@
-/* TP Risk Management SMS — Shared Data Layer v1.0 */
+/* TP Risk Management SMS — Shared Data Layer v1.1 */
 const SMS = (() => {
   const KEYS   = { risks:'sms_risks', incidents:'sms_incidents', cars:'sms_cars', audits:'sms_audits' };
   const PREFIX = { risks:'R', incidents:'I', cars:'C', audits:'A' };
@@ -14,6 +14,7 @@ const SMS = (() => {
   function add(key, rec) {
     const data = get(key);
     rec.id = rec.id || nextId(key);
+    if (data.some(r => r.id === rec.id)) return data.find(r => r.id === rec.id); // dedup: skip if ID exists
     rec.created = rec.created || new Date().toISOString();
     rec.updated = new Date().toISOString();
     data.push(rec); save(key, data); return rec;
@@ -60,6 +61,28 @@ const SMS = (() => {
     r.readAsArrayBuffer(file);
   }
 
+  function exportAll() {
+    const snap = {};
+    Object.keys(KEYS).forEach(k => snap[k] = get(k));
+    snap._exported = new Date().toISOString();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(snap,null,2)],{type:'application/json'}));
+    a.download = 'sms-backup-'+new Date().toISOString().split('T')[0]+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+  function importAll(file, cb) {
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const snap = JSON.parse(e.target.result);
+        let count = 0;
+        Object.keys(KEYS).forEach(k => { if(Array.isArray(snap[k])) { save(k, snap[k]); count += snap[k].length; } });
+        if(cb) cb(null, count);
+      } catch(err) { if(cb) cb(err); }
+    };
+    r.readAsText(file);
+  }
+
   function stats() {
     const risks=get('risks'), incidents=get('incidents'), cars=get('cars'), audits=get('audits');
     const now = new Date(new Date().toDateString());
@@ -67,6 +90,7 @@ const SMS = (() => {
     return {
       riskTotal:risks.length, riskOpen:risks.filter(r=>r.status!=='Closed').length,
       riskCritical:risks.filter(r=>band(r)==='Critical').length, riskHigh:risks.filter(r=>band(r)==='High').length,
+      riskReviewsDue:risks.filter(r=>r.status!=='Closed'&&r.reviewDate&&new Date(r.reviewDate)<now).length,
       incidentTotal:incidents.length, incidentOpen:incidents.filter(i=>i.status!=='Closed').length,
       incidentThisMth:incidents.filter(i=>{const d=new Date(i.dateTime||i.created);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length,
       carTotal:cars.length, carOpen:cars.filter(c=>c.status!=='Closed').length,
@@ -78,5 +102,5 @@ const SMS = (() => {
   }
 
   return { get, save, add, update, remove, nextId, riskScore, riskBand, L_LABELS, C_LABELS,
-           fmtDate, isOverdue, today, exportXlsx, importXlsx, stats };
+           fmtDate, isOverdue, today, exportXlsx, importXlsx, exportAll, importAll, stats };
 })();

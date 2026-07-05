@@ -26,6 +26,9 @@
 <a href="incident-report.html">🔴 Incidents</a><a href="corrective-actions.html">✅ Corrective Actions</a>
 <a href="safety-dashboard.html" class="active">📊 Dashboard</a><a href="audit-inspection.html">📋 Audits</a>
 <a href="risk-report-generator.html">📄 Reports</a>
+<span class="module-nav-sep">|</span>
+<a href="flowchart.html">⬡ SFARP</a>
+<a href="GOHS4.1.8.X_FARSI_Control_Effectiveness_Calculator_v0.2.html">⬡ FARSI</a>
 </div></nav>
 <main class="container">
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
@@ -49,14 +52,25 @@
 </div>
 <p style="font-size:12px;color:var(--gray-400);margin-bottom:12px">VRTP Safety Performance Dashboard — upload the monthly injury/claims extract (.xlsx/.xls/.csv) for LTIFR, TRIFR, days lost, claims, location breakdown and 12-month trend analysis.</p>
 <div class="card" style="padding:0;overflow:hidden">
-<iframe id="vrtpFrame" src="injury-claims-dashboard.html" style="width:100%;height:1900px;border:0;display:block" title="VRTP Safety Performance Dashboard"></iframe>
+<iframe id="vrtpFrame" src="injury-claims-dashboard.html" style="width:100%;min-height:600px;height:1900px;border:0;display:block" title="VRTP Safety Performance Dashboard"></iframe>
 </div>
 </main>
 <footer class="site-footer">TP Risk Management SMS — Dashboard</footer>
 <script src="sms-shared.js"></script>
 <script>
+// Auto-resize iframe to its content (same-origin)
+(function(){
+  const frame=document.getElementById('vrtpFrame');
+  function resize(){
+    try{
+      const h=frame.contentWindow.document.documentElement.scrollHeight||frame.contentWindow.document.body.scrollHeight;
+      if(h>400) frame.style.height=h+'px';
+    }catch(e){}
+  }
+  frame.addEventListener('load',function(){resize();setTimeout(resize,800);});
+})();
+
 const COLORS={Critical:'#7F1D1D',High:'#D97706',Medium:'#2563EB',Low:'#16A34A'};
-const ALPHA=o=>o.replace(')',`,${0.15})`).replace('rgb','rgba');
 
 function buildSPIs(){
   const s=SMS.stats();
@@ -65,6 +79,7 @@ function buildSPIs(){
     {val:s.incidentOpen,label:'Open Incidents',color:s.incidentOpen>5?'#DC2626':'#D97706'},
     {val:s.riskCritical,label:'Critical Risks',color:s.riskCritical>0?'#7F1D1D':'#16A34A'},
     {val:s.riskHigh,label:'High Risks',color:s.riskHigh>5?'#DC2626':'#D97706'},
+    {val:s.riskReviewsDue,label:'Reviews Due',color:s.riskReviewsDue>0?'#DC2626':'#16A34A'},
     {val:s.carOverdue,label:'Overdue CARs',color:s.carOverdue>0?'#DC2626':'#16A34A'},
     {val:s.carOpen,label:'Open CARs',color:s.carOpen>10?'#D97706':'#2563EB'},
     {val:s.auditUpcoming,label:'Upcoming Audits',color:'#7C3AED'},
@@ -107,8 +122,9 @@ function buildCharts(){
   new Chart(document.getElementById('riskChart'),{type:'doughnut',data:{labels:Object.keys(bandCounts),datasets:[{data:Object.values(bandCounts),backgroundColor:['#7F1D1D','#D97706','#2563EB','#16A34A'],borderWidth:2}]},options:{plugins:{legend:{position:'bottom'}}}});
 
   // CAR status donut
+  const carComputeStatus=r=>{if(r.status==='Closed')return 'Closed';if(SMS.isOverdue(r.dueDate,r.status))return 'Overdue';return r.status||'Open';};
   const carStatus={Open:0,'In Progress':0,Overdue:0,Closed:0};
-  cars.forEach(r=>{const cs=r.status==='Closed'?'Closed':SMS.isOverdue(r.dueDate,r.status)?'Overdue':r.status||'Open';if(carStatus[cs]!==undefined)carStatus[cs]++;});
+  cars.forEach(r=>{const cs=carComputeStatus(r);if(carStatus[cs]!==undefined)carStatus[cs]++;});
   new Chart(document.getElementById('carChart'),{type:'doughnut',data:{labels:Object.keys(carStatus),datasets:[{data:Object.values(carStatus),backgroundColor:['#D97706','#7C3AED','#DC2626','#16A34A'],borderWidth:2}]},options:{plugins:{legend:{position:'bottom'}}}});
 
   // Incidents by type
@@ -121,7 +137,7 @@ function buildCharts(){
   const pris=['Critical','High','Medium','Low'];
   const statuses=['Open','In Progress','Overdue','Closed'];
   const stColors=['#D97706','#7C3AED','#DC2626','#16A34A'];
-  const datasets=statuses.map((st,si)=>({label:st,data:pris.map(p=>cars.filter(c=>c.priority===p&&(c.status===st||(st==='Overdue'&&SMS.isOverdue(c.dueDate,c.status)))).length),backgroundColor:stColors[si],borderRadius:2}));
+  const datasets=statuses.map((st,si)=>({label:st,data:pris.map(p=>cars.filter(c=>c.priority===p&&carComputeStatus(c)===st).length),backgroundColor:stColors[si],borderRadius:2}));
   new Chart(document.getElementById('carPriChart'),{type:'bar',data:{labels:pris,datasets},options:{plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true,ticks:{stepSize:1}}}}});
 }
 

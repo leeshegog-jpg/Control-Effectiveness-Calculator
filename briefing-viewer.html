@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Critical Risk Management Briefing — TP SMS</title>
+<link rel="stylesheet" href="styles.css"/><link rel="stylesheet" href="sms.css"/>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+.briefing-body{max-width:900px;margin:0 auto;background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);box-shadow:var(--shadow);padding:40px 48px;font-size:14.5px;line-height:1.7;color:var(--gray-800)}
+.briefing-body h1{font-size:26px;font-weight:800;color:var(--gray-800);margin:0 0 8px;border-bottom:3px solid #2563EB;padding-bottom:12px}
+.briefing-body h2{font-size:19px;font-weight:700;color:#1E3A8A;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--gray-200)}
+.briefing-body h3{font-size:15px;font-weight:700;color:var(--gray-700);margin:22px 0 8px}
+.briefing-body h4{font-size:13.5px;font-weight:700;color:var(--gray-600);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+.briefing-body p{margin:0 0 12px}
+.briefing-body ul,.briefing-body ol{margin:0 0 12px;padding-left:22px}
+.briefing-body li{margin-bottom:4px}
+.briefing-body blockquote{border-left:4px solid #2563EB;margin:16px 0;padding:10px 16px;background:#EFF6FF;color:#1E3A8A;font-style:italic;border-radius:0 4px 4px 0}
+.briefing-body code{background:#F3F4F6;padding:2px 5px;border-radius:3px;font-size:13px;font-family:monospace}
+.briefing-body pre{background:#F3F4F6;padding:14px 16px;border-radius:6px;overflow-x:auto;margin:0 0 14px}
+.briefing-body pre code{background:none;padding:0}
+.briefing-body table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:13.5px}
+.briefing-body th{background:#EFF6FF;color:#1E3A8A;font-weight:700;padding:8px 12px;text-align:left;border:1px solid #BFDBFE}
+.briefing-body td{padding:7px 12px;border:1px solid var(--gray-200);vertical-align:top}
+.briefing-body tr:nth-child(even) td{background:#F9FAFB}
+.briefing-body hr{border:none;border-top:2px solid var(--gray-200);margin:28px 0}
+.briefing-body a{color:#2563EB}
+#loadMsg{text-align:center;padding:48px;color:var(--gray-400);font-size:14px}
+@media(max-width:700px){.briefing-body{padding:20px 16px}}
+</style>
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+<div class="logo"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>TP Risk Management SMS</span></div>
+<p class="tagline">Critical Risk Management Briefing</p>
+</div></header>
+<nav class="module-nav"><div class="module-nav-inner">
+<a href="index.html">⬛ Hub</a>
+<a href="risk-register.html">⚠️ Risk Register</a>
+<a href="incident-report.html">🔴 Incidents</a>
+<a href="corrective-actions.html">✅ Corrective Actions</a>
+<a href="safety-dashboard.html">📊 Dashboard</a>
+<a href="audit-inspection.html">📋 Audits</a>
+<span class="module-nav-sep">|</span>
+<a href="flowchart.html">⬡ SFARP</a>
+<a href="GOHS4.1.8.X_FARSI_Control_Effectiveness_Calculator_v0.2.html">⬡ FARSI</a>
+</div></nav>
+<main class="container">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+<div style="font-size:12px;color:var(--gray-400)" id="loadMsg">Loading briefing…</div>
+<a href="CRITICAL_RISK_MANAGEMENT_BRIEFING.md" download style="font-size:12px;color:#2563EB;font-weight:600;text-decoration:none">⬇ Download .md</a>
+</div>
+<div class="briefing-body" id="briefingBody"></div>
+</main>
+<footer class="site-footer">TP Risk Management SMS — Critical Risk Management Reference</footer>
+<script>
+(async function(){
+  const body=document.getElementById('briefingBody');
+  const msg=document.getElementById('loadMsg');
+  try{
+    const res=await fetch('CRITICAL_RISK_MANAGEMENT_BRIEFING.md');
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const md=await res.text();
+    body.innerHTML=marked.parse(md);
+    msg.textContent='';
+  }catch(err){
+    msg.textContent='';
+    body.innerHTML=`<div style="text-align:center;padding:48px;color:var(--gray-400)">
+      <p style="font-size:15px;margin-bottom:12px">Unable to load the briefing document.</p>
+      <p style="font-size:13px">This viewer requires the app to be served from a local HTTP server (e.g. VS Code Live Server, Python http.server).</p>
+      <p style="font-size:13px;margin-top:12px"><a href="CRITICAL_RISK_MANAGEMENT_BRIEFING.md" style="color:#2563EB;font-weight:600">Download the .md file directly</a> and open it in any Markdown viewer.</p>
+    </div>`;
+  }
+})();
+</script>
+</body></html>

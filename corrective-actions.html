@@ -1,10 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Corrective Actions — TP SMS</title>
 <link rel="stylesheet" href="styles.css"/><link rel="stylesheet" href="sms.css"/>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>.th-sort{cursor:pointer;user-select:none}.th-sort:hover{background:var(--gray-100)}.sort-arr{font-size:10px;opacity:.5;margin-left:2px}</style>
 </head>
 <body>
 <header class="site-header"><div class="header-inner">
@@ -17,6 +18,9 @@
 <a href="corrective-actions.html" class="active">✅ Corrective Actions</a>
 <a href="safety-dashboard.html">📊 Dashboard</a><a href="audit-inspection.html">📋 Audits</a>
 <a href="risk-report-generator.html">📄 Reports</a>
+<span class="module-nav-sep">|</span>
+<a href="flowchart.html">⬡ SFARP</a>
+<a href="GOHS4.1.8.X_FARSI_Control_Effectiveness_Calculator_v0.2.html">⬡ FARSI</a>
 </div></nav>
 <main class="container">
 <div class="toolbar">
@@ -41,7 +45,17 @@
 </div>
 <div class="card table-card">
 <div class="table-wrap"><table>
-<thead><tr><th>ID</th><th>Source</th><th>Description</th><th>Priority</th><th>Assigned To</th><th>Due Date</th><th>Status</th><th>Effectiveness</th><th></th></tr></thead>
+<thead><tr>
+<th class="th-sort" onclick="setSort('id')">ID<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('source')">Source<span class="sort-arr">⇅</span></th>
+<th>Description</th>
+<th class="th-sort" onclick="setSort('priority')">Priority<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('assignedTo')">Assigned To<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('dueDate')">Due Date<span class="sort-arr">⇅</span></th>
+<th class="th-sort" onclick="setSort('_status')">Status<span class="sort-arr">⇅</span></th>
+<th>Effectiveness</th>
+<th></th>
+</tr></thead>
 <tbody id="tbody"></tbody>
 </table></div>
 <div class="table-footer"><span id="rowCount">0 CARs</span></div>
@@ -68,7 +82,7 @@
 </div>
 <div class="modal-footer">
 <button class="btn btn-outline" onclick="closeForm()">Cancel</button>
-<button class="btn btn-primary" onclick="saveForm()">Save CAR</button>
+<button class="btn btn-primary" id="btnSave" onclick="saveForm()">Save CAR</button>
 </div>
 </div>
 </div>
@@ -83,13 +97,27 @@
 
 <footer class="site-footer">TP Risk Management SMS — Corrective Action Register</footer>
 <script src="sms-shared.js"></script>
+<script src="obsidian-sync.js"></script>
 <script>
-let editId=null,deleteId=null;
+let editId=null, deleteId=null, dirty=false, sortCol=null, sortDir=1;
 
 function computeStatus(r){
   if(r.status==='Closed') return 'Closed';
   if(SMS.isOverdue(r.dueDate,r.status)) return 'Overdue';
   return r.status||'Open';
+}
+
+function setSort(col){
+  if(sortCol===col) sortDir=-sortDir; else{sortCol=col;sortDir=1;}
+  render();
+}
+function updateSortArrows(){
+  document.querySelectorAll('th[onclick]').forEach(th=>{
+    const sp=th.querySelector('.sort-arr'); if(!sp) return;
+    const m=th.getAttribute('onclick').match(/setSort\('(.+?)'\)/);
+    if(!m) return;
+    sp.textContent=m[1]===sortCol?(sortDir>0?' ▲':' ▼'):' ⇅';
+  });
 }
 
 function render(){
@@ -98,25 +126,25 @@ function render(){
   const sf=document.getElementById('statusFilter').value;
   let data=SMS.get('cars');
 
-  // update overdue statuses
-  data=data.map(r=>{
-    if(r.status!=='Closed'&&SMS.isOverdue(r.dueDate,r.status)&&r.status!=='Overdue'){
-      r=SMS.update('cars',r.id,{status:'Overdue'})||r;
-    }
-    return SMS.get('cars').find(x=>x.id===r.id)||r;
-  });
-  data=SMS.get('cars'); // reload after updates
-
   if(q) data=data.filter(r=>(r.description+r.assignedTo+r.source+r.id).toLowerCase().includes(q));
   if(pf) data=data.filter(r=>r.priority===pf);
   if(sf) data=data.filter(r=>computeStatus(r)===sf);
+
+  if(sortCol){
+    data=data.slice().sort((a,b)=>{
+      const av=sortCol==='_status'?computeStatus(a):(a[sortCol]||'');
+      const bv=sortCol==='_status'?computeStatus(b):(b[sortCol]||'');
+      return av<bv?-sortDir:av>bv?sortDir:0;
+    });
+  }
+  updateSortArrows();
 
   const all=SMS.get('cars');
   const now=new Date();
   const weekFromNow=new Date(now.getTime()+7*24*60*60*1000);
   document.getElementById('stTotal').textContent=all.length;
-  document.getElementById('stOpen').textContent=all.filter(r=>r.status==='Open').length;
-  document.getElementById('stIP').textContent=all.filter(r=>r.status==='In Progress').length;
+  document.getElementById('stOpen').textContent=all.filter(r=>computeStatus(r)==='Open').length;
+  document.getElementById('stIP').textContent=all.filter(r=>computeStatus(r)==='In Progress').length;
   document.getElementById('stOD').textContent=all.filter(r=>SMS.isOverdue(r.dueDate,r.status)).length;
   document.getElementById('stClosed').textContent=all.filter(r=>r.status==='Closed').length;
   document.getElementById('stDueThisWk').textContent=all.filter(r=>{
@@ -133,9 +161,10 @@ function render(){
     const cs=computeStatus(r);
     const stCls=cs==='Closed'?'status-closed':cs==='Overdue'?'status-overdue':cs==='In Progress'?'status-in-progress':'status-open';
     const od=cs==='Overdue';
+    const srcLink=r.sourceRef?` <a href="${srcHref(r.source,r.sourceRef)}" style="font-size:11px;color:#2563EB;font-family:monospace;text-decoration:none" title="Open source record">${r.sourceRef}</a>`:'';
     return `<tr class="${od?'row-overdue':''}">
       <td style="font-family:monospace;font-size:12px;color:var(--gray-400)">${r.id}</td>
-      <td><span style="font-size:12px">${r.source||'—'}</span>${r.sourceRef?`<br><span style="font-size:11px;color:var(--gray-400);font-family:monospace">${r.sourceRef}</span>`:''}</td>
+      <td><span style="font-size:12px">${r.source||'—'}</span>${srcLink}</td>
       <td class="wrap" style="max-width:200px;white-space:normal">${r.description||'—'}</td>
       <td><span class="badge ${PRI_C[r.priority]||''}">${r.priority||'—'}</span></td>
       <td>${r.assignedTo||'—'}</td>
@@ -150,12 +179,20 @@ function render(){
   }).join('');
 }
 
+function srcHref(source, ref){
+  if(!ref) return '#';
+  if(source==='Incident') return 'incident-report.html';
+  if(source==='Audit') return 'audit-inspection.html';
+  if(source==='Risk Review') return 'risk-register.html';
+  return '#';
+}
+
 function openForm(id){
   editId=id||null;
+  dirty=false;
   document.getElementById('modalTitle').textContent=id?'Edit CAR':'Add Corrective Action';
   const r=id?SMS.get('cars').find(x=>x.id===id):{};
   const set=(i,v)=>{const el=document.getElementById(i);if(el)el.value=v||'';};
-  // Check for URL params (from incident page)
   const p=new URLSearchParams(window.location.search);
   set('fSource',r.source||p.get('source')||'Incident');
   set('fSourceRef',r.sourceRef||p.get('sourceRef')||'');
@@ -165,14 +202,22 @@ function openForm(id){
   set('fAssigned',r.assignedTo); set('fDue',r.dueDate||'');
   set('fStatus',r.status||'Open'); set('fCompDate',r.completionDate);
   set('fEffective',r.effectiveness||'Not Reviewed'); set('fNotes',r.notes);
+  document.getElementById('btnSave').disabled=false;
   document.getElementById('modalOverlay').classList.remove('hidden');
-  // Clear URL params after reading
   if(p.has('source')) history.replaceState({},'',window.location.pathname);
 }
-function closeForm(){document.getElementById('modalOverlay').classList.add('hidden');editId=null;}
+function closeForm(force){
+  if(!force&&dirty&&!confirm('Discard unsaved changes?')) return;
+  dirty=false;
+  document.getElementById('modalOverlay').classList.add('hidden');
+  editId=null;
+}
 function saveForm(){
+  const btn=document.getElementById('btnSave');
+  if(btn.disabled) return;
   const desc=document.getElementById('fDesc').value.trim();
   if(!desc){alert('Description is required.');return;}
+  btn.disabled=true;
   const rec={
     source:document.getElementById('fSource').value, sourceRef:document.getElementById('fSourceRef').value,
     description:desc, rootCauseCategory:document.getElementById('fRCC').value,
@@ -181,12 +226,14 @@ function saveForm(){
     completionDate:document.getElementById('fCompDate').value,
     effectiveness:document.getElementById('fEffective').value, notes:document.getElementById('fNotes').value
   };
-  if(editId) SMS.update('cars',editId,rec); else SMS.add('cars',rec);
-  closeForm(); render();
+  const saved=editId?SMS.update('cars',editId,rec):SMS.add('cars',rec);
+  ObsidianSync.pushAndToast('cars',saved);
+  dirty=false;
+  closeForm(true); render();
 }
 function openDelete(id){deleteId=id;document.getElementById('delOverlay').classList.remove('hidden');}
 function closeDelete(){document.getElementById('delOverlay').classList.add('hidden');deleteId=null;}
-function confirmDelete(){if(deleteId){SMS.remove('cars',deleteId);deleteId=null;}closeDelete();render();}
+function confirmDelete(){if(deleteId){const rec=SMS.get('cars').find(r=>r.id===deleteId);SMS.remove('cars',deleteId);if(rec)ObsidianSync.remove('cars',rec);deleteId=null;}closeDelete();render();}
 function doExport(){
   SMS.exportXlsx(SMS.get('cars').map(r=>({
     ID:r.id,Source:r.source,'Source Ref':r.sourceRef,Description:r.description,
@@ -198,14 +245,28 @@ function doExport(){
 function doImport(input){
   if(!input.files[0]) return;
   SMS.importXlsx(input.files[0],rows=>{
-    rows.forEach(row=>{SMS.add('cars',{source:row.Source||'Other',sourceRef:row['Source Ref']||'',description:row.Description||'',rootCauseCategory:row['Root Cause Category']||'',priority:row.Priority||'Medium',assignedTo:row['Assigned To']||'',dueDate:row['Due Date']||'',status:row.Status||'Open',completionDate:row['Completion Date']||'',effectiveness:row.Effectiveness||'Not Reviewed',notes:row.Notes||''});});
-    input.value=''; render();
+    let added=0;
+    rows.forEach(row=>{
+      const existing=row.ID&&SMS.get('cars').find(r=>r.id===row.ID);
+      if(existing) return;
+      SMS.add('cars',{id:row.ID||undefined,source:row.Source||'Other',sourceRef:row['Source Ref']||'',description:row.Description||'',rootCauseCategory:row['Root Cause Category']||'',priority:row.Priority||'Medium',assignedTo:row['Assigned To']||'',dueDate:row['Due Date']||'',status:row.Status||'Open',completionDate:row['Completion Date']||'',effectiveness:row.Effectiveness||'Not Reviewed',notes:row.Notes||''});
+      added++;
+    });
+    input.value='';
+    if(added>0) alert(added+' record'+(added!==1?'s':'')+' imported.');
+    else alert('No new records to import (all IDs already exist).');
+    render();
   });
 }
 
-// Auto-open form if redirected from incident
+// Track dirty state via event delegation on the modal
+document.getElementById('modalOverlay').addEventListener('input',()=>{dirty=true;});
+document.getElementById('modalOverlay').addEventListener('change',()=>{dirty=true;});
+
+// Auto-open form if redirected from another module
 const qp=new URLSearchParams(window.location.search);
 if(qp.has('source')) openForm();
+else if(qp.has('editId')){const id=qp.get('editId');if(SMS.get('cars').find(r=>r.id===id)){openForm(id);history.replaceState({},'',window.location.pathname);}}
 render();
 </script>
 </body></html>
