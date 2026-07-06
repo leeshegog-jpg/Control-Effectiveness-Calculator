@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VRTP Safety Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary: #1a2744;
+  --accent:  #f5a800;
+  --bg:      #f0f2f5;
+  --card:    #ffffff;
+  --text:    #2c3e50;
+  --sub:     #7f8c8d;
+  --border:  #e0e0e0;
+  --good:    #27ae60;
+  --warn:    #e67e22;
+  --bad:     #e74c3c;
+  --blue:    #2980b9;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--primary);
+  color: #fff;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header-icon { color: var(--accent); font-size: 28px; line-height: 1; }
+.header h1 { font-size: 18px; font-weight: bold; }
+.header-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+.header-badge {
+  background: var(--accent);
+  color: var(--primary);
+  font-weight: bold;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ── UPLOAD ZONE ── */
+#uploadSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 60px);
+  padding: 40px 20px;
+}
+#uploadZone {
+  background: #fff;
+  border: 3px dashed var(--border);
+  border-radius: 14px;
+  padding: 60px 60px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  max-width: 560px;
+  width: 100%;
+}
+#uploadZone:hover, #uploadZone.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(245,168,0,0.15);
+}
+#uploadZone .upload-icon { font-size: 52px; margin-bottom: 16px; }
+#uploadZone h2 { font-size: 22px; margin-bottom: 10px; }
+#uploadZone p { color: var(--sub); margin-bottom: 22px; line-height: 1.6; }
+.btn-primary {
+  background: var(--accent);
+  color: var(--primary);
+  border: none;
+  padding: 12px 28px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.88; }
+.upload-hint { margin-top: 20px; font-size: 11px; color: #bbb; }
+#fileInput { display: none; }
+
+/* ── COLUMN MAPPER ── */
+#mapperSection {
+  display: none;
+  max-width: 960px;
+  margin: 24px auto;
+  background: #fff;
+  border-radius: 10px;
+  padding: 28px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+}
+#mapperSection h3 { font-size: 17px; margin-bottom: 6px; }
+#mapperSection .mapper-hint { font-size: 12px; color: var(--sub); margin-bottom: 18px; }
+.col-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.col-item label { display: block; font-size: 11px; font-weight: bold; color: var(--sub); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px; }
+.col-item select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fafafa;
+}
+.col-item select:focus { outline: none; border-color: var(--accent); }
+.req-star { color: var(--bad); }
+.btn-secondary {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-secondary:hover { opacity: 0.85; }
+.btn-ghost {
+  background: transparent;
+  color: var(--sub);
+  border: 1px solid var(--border);
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+.btn-ghost:hover { background: #f5f5f5; }
+
+/* ── CONTROL BAR ── */
+#controlBar {
+  display: none;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  background: #fff;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 56px;
+  z-index: 90;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+#controlBar label { font-size: 11px; font-weight: bold; color: var(--sub); text-transform: uppercase; letter-spacing: 0.4px; }
+#controlBar select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fafafa;
+}
+.ctrl-group { display: flex; align-items: center; gap: 8px; }
+.sep { color: var(--border); }
+.btn-update {
+  background: var(--accent);
+  color: var(--primary);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.btn-update:hover { opacity: 0.88; }
+.btn-action-sm {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+.btn-action-sm:hover { background: #f5f5f5; }
+.ctrl-right { margin-left: auto; display: flex; gap: 8px; }
+
+/* ── DASHBOARD ── */
+#dashboard {
+  display: none;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+/* KPI GRID */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.kpi-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 18px 20px;
+  border-left: 5px solid var(--blue);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.kpi-card.c-good  { border-left-color: var(--good); }
+.kpi-card.c-warn  { border-left-color: var(--warn); }
+.kpi-card.c-bad   { border-left-color: var(--bad); }
+.kpi-card.c-blue  { border-left-color: var(--blue); }
+.kpi-card.c-gold  { border-left-color: var(--accent); }
+.kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--sub); margin-bottom: 8px; font-weight: bold; }
+.kpi-value { font-size: 38px; font-weight: bold; line-height: 1; margin-bottom: 8px; }
+.kpi-delta { font-size: 12px; display: flex; align-items: center; gap: 4px; }
+.kpi-delta.d-good { color: var(--good); }
+.kpi-delta.d-bad  { color: var(--bad); }
+.kpi-delta.d-warn { color: var(--warn); }
+.kpi-delta.d-neu  { color: var(--sub); }
+.kpi-sub { font-size: 10px; color: var(--sub); margin-top: 4px; }
+
+/* CHART CARDS */
+.section-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--sub);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin: 0 0 12px 2px;
+}
+.chart-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.chart-card h3 { font-size: 14px; font-weight: bold; margin-bottom: 14px; color: var(--text); }
+.chart-canvas-wrap { position: relative; }
+
+.row-2col { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 18px; }
+.row-2col-eq { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+.row-1col { margin-bottom: 18px; }
+
+/* TABLE CARDS */
+.table-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  margin-bottom: 18px;
+  overflow-x: auto;
+}
+.table-card h3 { font-size: 14px; font-weight: bold; margin-bottom: 14px; color: var(--text); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th {
+  background: var(--primary);
+  color: #fff;
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+tbody td { padding: 8px 12px; border-bottom: 1px solid #f2f2f2; }
+tbody tr:hover td { background: #fafbfc; }
+tbody tr:last-child td { border-bottom: none; }
+.tnum { text-align: right; font-weight: bold; }
+.tnum-d { text-align: right; }
+.tpos { color: var(--good); text-align: right; font-weight: bold; }
+.tneg { color: var(--bad); text-align: right; font-weight: bold; }
+.tneu { color: var(--sub); text-align: right; }
+.ttotal td { font-weight: bold; background: #f8f9fa !important; }
+
+/* BADGES */
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-left: 6px;
+  font-weight: normal;
+  vertical-align: middle;
+}
+.badge-blue  { background: #e3f2fd; color: #1565c0; }
+.badge-gold  { background: #fff8e1; color: #e65100; }
+.badge-green { background: #e8f5e9; color: #2e7d32; }
+
+/* NOTIFICATION */
+#notification {
+  display: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+#notification.info  { background: #e3f2fd; border: 1px solid #90caf9; color: #1565c0; }
+#notification.error { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
+
+/* PRINT */
+@media print {
+  .header { position: relative !important; }
+  #controlBar, #uploadSection, .ctrl-right { display: none !important; }
+  body { background: #fff; }
+  .kpi-card, .chart-card, .table-card { box-shadow: none !important; break-inside: avoid; }
+  .row-2col, .row-2col-eq { break-inside: avoid; }
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .row-2col, .row-2col-eq { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .kpi-value { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ HEADER ══════════════════════ -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon">⬡</div>
+    <div>
+      <h1>VRTP Safety Performance Dashboard</h1>
+      <div class="header-sub">Incident · Injury · Case &amp; Claim Management</div>
+    </div>
+  </div>
+  <span class="header-badge" id="periodBadge">Load Data to Begin</span>
+</div>
+
+<!-- ══════════════════════ UPLOAD ══════════════════════ -->
+<div id="uploadSection">
+  <div id="uploadZone">
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    <div class="upload-icon">📊</div>
+    <h2>Upload Safety Data File</h2>
+    <p>Drag and drop your Excel file here, or click to select.<br>
+    <span style="font-size:12px">Supports .xlsx · .xls · .csv</span></p>
+    <button class="btn-primary" onclick="document.getElementById('fileInput').click()">Select File</button>
+    <div class="upload-hint">Each month upload the updated file — the dashboard auto-refreshes</div>
+  </div>
+</div>
+
+<!-- ══════════════════════ COLUMN MAPPER ══════════════════════ -->
+<div id="mapperSection">
+  <h3>Map Columns to Dashboard Fields</h3>
+  <div class="mapper-hint">Auto-detected where possible. Adjust any that are incorrect, then click Apply.</div>
+  <div class="col-grid" id="colGrid"></div>
+  <button class="btn-secondary" onclick="applyMap()">Apply &amp; Build Dashboard</button>
+  <button class="btn-ghost" onclick="resetToUpload()">Cancel</button>
+</div>
+
+<!-- ══════════════════════ CONTROL BAR ══════════════════════ -->
+<div id="controlBar">
+  <div class="ctrl-group">
+    <label>Sheet</label>
+    <select id="sheetSel" onchange="onSheetChange()"></select>
+  </div>
+  <div class="sep">|</div>
+  <div class="ctrl-group">
+    <label>Current Month</label>
+    <select id="curSel"></select>
+  </div>
+  <div class="ctrl-group">
+    <label>Compare To</label>
+    <select id="priSel"></select>
+  </div>
+  <button class="btn-update" onclick="buildDashboard()">Update Dashboard</button>
+  <div class="ctrl-right">
+    <button class="btn-action-sm" onclick="toggleMapper()">Edit Column Map</button>
+    <button class="btn-action-sm" onclick="window.print()">🖨 Print</button>
+    <button class="btn-action-sm" onclick="resetToUpload()">Load New File</button>
+  </div>
+</div>
+
+<!-- ══════════════════════ DASHBOARD ══════════════════════ -->
+<div id="dashboard">
+  <div id="notification"></div>
+
+  <!-- KPI Row 1: Counts -->
+  <div class="section-title">Current Month at a Glance</div>
+  <div class="kpi-grid" id="kpiRow1"></div>
+
+  <!-- KPI Row 2: Rates / Claims -->
+  <div class="kpi-grid" id="kpiRow2"></div>
+
+  <!-- Trend + Donut -->
+  <div class="row-2col">
+    <div class="chart-card">
+      <h3>12-Month Incident Trend <span class="badge badge-blue">Rolling</span></h3>
+      <div class="chart-canvas-wrap" style="height:280px"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Incident Breakdown <span class="badge badge-blue" id="donutLabel"></span></h3>
+      <div class="chart-canvas-wrap" style="height:280px"><canvas id="donutChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Location + Compare -->
+  <div class="row-2col">
+    <div class="chart-card">
+      <h3>Incidents by Location <span class="badge badge-blue" id="locLabel"></span></h3>
+      <div id="locChartWrap" class="chart-canvas-wrap" style="height:240px"><canvas id="locChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Month-on-Month Comparison <span class="badge badge-gold" id="compareLabel"></span></h3>
+      <div class="chart-canvas-wrap" style="height:240px"><canvas id="compareChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Summary Table -->
+  <div class="table-card">
+    <h3>Incident Type Summary — Current vs Prior Month <span class="badge badge-blue" id="tableLabel"></span></h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Incident Type</th>
+          <th class="tnum" id="thCur">Current</th>
+          <th class="tnum" id="thPri">Prior</th>
+          <th class="tnum-d">Change</th>
+          <th class="tnum">YTD Current Year</th>
+          <th class="tnum">YTD Prior Year</th>
+          <th class="tnum-d">YTD Change</th>
+        </tr>
+      </thead>
+      <tbody id="summaryTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Monthly Rolling Table -->
+  <div class="table-card">
+    <h3>Monthly Summary — Rolling 12 Months</h3>
+    <div id="monthlyTableWrap"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════ JAVASCRIPT ══════════════════════ -->
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────
+let allSheetData = {};   // { sheetName: [ rowObjects ] }
+let colMap = {};         // field → column header string
+let allPeriods = [];     // sorted 'YYYY-MM' strings
+let charts = {};
+
+// ── Column patterns ────────────────────────────────────────
+const PATTERNS = {
+  date:         ['date','month','incident date','report date','occurred','logged'],
+  location:     ['location','site','property','park','venue','area','department','dept','division'],
+  incidentType: ['type','classification','class','category','incident type','outcome type','incident class'],
+  severity:     ['severity','outcome','result','impact'],
+  daysLost:     ['days lost','day lost','calendar days','lost days','wc days'],
+  hoursWorked:  ['hours worked','hrs worked','exposure hours','man hours','manhours'],
+  claimId:      ['claim no','claim number','claim id','claim ref','claim'],
+  ltiFlag:      ['lti','lost time injury','lti flag'],
+  mtcFlag:      ['mtc','medical treatment','med treat'],
+  faFlag:       ['first aid','fa ','fac ','firstaid'],
+  nearMiss:     ['near miss','near_miss','nearmiss','nm ','hazard report','observation'],
+  daysRestricted:['restricted days','rwd days','modified days','restricted work days'],
+};
+
+// Classification rules (applied when no dedicated type column)
+const CLASSIFY_RULES = [
+  { re: /fatal|fatality|death/i,           label: 'Fatal' },
+  { re: /serious|severe|significant|critical/i, label: 'Serious Injury' },
+  { re: /lost.?time|lti(?!\w)/i,           label: 'Lost Time Injury' },
+  { re: /medical.?treat|mtc(?!\w)/i,       label: 'Medical Treatment' },
+  { re: /restrict|rwd|modified.?dut/i,     label: 'Restricted Work' },
+  { re: /first.?aid|fac(?!\w)|fa(?!\w)/i,  label: 'First Aid' },
+  { re: /near.?miss|nm(?!\w)/i,            label: 'Near Miss' },
+  { re: /hazard|observation|proactive/i,   label: 'Hazard Report' },
+  { re: /property.?damage|damage/i,        label: 'Property Damage' },
+  { re: /claim/i,                          label: 'Claim' },
+];
+
+const TYPE_COLORS = {
+  'Fatal':             '#7b0000',
+  'Serious Injury':    '#c0392b',
+  'Lost Time Injury':  '#e74c3c',
+  'Medical Treatment': '#e67e22',
+  'Restricted Work':   '#f39c12',
+  'First Aid':         '#f1c40f',
+  'Near Miss':         '#3498db',
+  'Hazard Report':     '#2ecc71',
+  'Property Damage':   '#95a5a6',
+  'Claim':             '#9b59b6',
+  'Unclassified':      '#bdc3c7',
+};
+const PALETTE = ['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e91e63','#34495e','#00bcd4','#ff5722'];
+function typeColor(t, i) { return TYPE_COLORS[t] || PALETTE[i % PALETTE.length]; }
+
+const TYPE_ORDER = ['Fatal','Serious Injury','Lost Time Injury','Medical Treatment','Restricted Work','First Aid','Near Miss','Hazard Report','Property Damage','Claim','Unclassified'];
+
+// ── File handling ──────────────────────────────────────────
+const uz = document.getElementById('uploadZone');
+const fi = document.getElementById('fileInput');
+
+uz.addEventListener('click', () => fi.click());
+uz.addEventListener('dragover',  e => { e.preventDefault(); uz.classList.add('drag-over'); });
+uz.addEventListener('dragleave', () => uz.classList.remove('drag-over'));
+uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fi.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+      allSheetData = {};
+      wb.SheetNames.forEach(n => {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { raw: false, defval: '' });
+        if (rows.length > 0) allSheetData[n] = rows;
+      });
+      if (!Object.keys(allSheetData).length) { showError('No data found in this file.'); return; }
+      initSheetSelector();
+      autoDetect(getBestSheet());
+    } catch(err) { showError('Could not read file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function getBestSheet() {
+  return Object.entries(allSheetData).sort((a,b) => b[1].length - a[1].length)[0][0];
+}
+
+function initSheetSelector() {
+  const sel = document.getElementById('sheetSel');
+  sel.innerHTML = '';
+  Object.keys(allSheetData).forEach(n => {
+    sel.appendChild(new Option(`${n} (${allSheetData[n].length} rows)`, n));
+  });
+  sel.value = getBestSheet();
+}
+
+function onSheetChange() { autoDetect(document.getElementById('sheetSel').value); }
+
+// ── Column auto-detect ─────────────────────────────────────
+function autoDetect(sheetName) {
+  const cols = Object.keys(allSheetData[sheetName][0] || {});
+  colMap = {};
+  Object.entries(PATTERNS).forEach(([field, pats]) => {
+    const m = cols.find(c => pats.some(p => c.toLowerCase().includes(p.toLowerCase())));
+    if (m) colMap[field] = m;
+  });
+  buildMapperUI(cols, sheetName);
+  // If we have at minimum a date column, go straight to dashboard
+  if (colMap.date) {
+    buildPeriods(allSheetData[sheetName]);
+    showDashboard();
+    buildDashboard();
+  } else {
+    showMapper();
+  }
+}
+
+// ── Mapper UI ──────────────────────────────────────────────
+const MAPPER_FIELDS = [
+  { key: 'date',          label: 'Date / Month',           req: true  },
+  { key: 'incidentType',  label: 'Incident Type / Category',req: false },
+  { key: 'location',      label: 'Location / Site',        req: false },
+  { key: 'severity',      label: 'Severity / Outcome',     req: false },
+  { key: 'daysLost',      label: 'Days Lost',              req: false },
+  { key: 'hoursWorked',   label: 'Hours Worked',           req: false },
+  { key: 'claimId',       label: 'Claim ID / Number',      req: false },
+  { key: 'ltiFlag',       label: 'LTI Flag',               req: false },
+  { key: 'mtcFlag',       label: 'Medical Treatment Flag', req: false },
+  { key: 'faFlag',        label: 'First Aid Flag',         req: false },
+  { key: 'nearMiss',      label: 'Near Miss / Hazard Flag',req: false },
+  { key: 'daysRestricted',label: 'Restricted Work Days',   req: false },
+];
+
+function buildMapperUI(cols, sheetName) {
+  const grid = document.getElementById('colGrid');
+  grid.innerHTML = '';
+  MAPPER_FIELDS.forEach(f => {
+    const opts = ['<option value="">(not mapped)</option>',
+      ...cols.map(c => `<option value="${c}"${colMap[f.key]===c?' selected':''}>${c}</option>`)
+    ].join('');
+    const div = document.createElement('div');
+    div.className = 'col-item';
+    div.innerHTML = `<label>${f.label}${f.req?' <span class="req-star">*</span>':''}</label><select id="m_${f.key}">${opts}</select>`;
+    grid.appendChild(div);
+  });
+}
+
+function applyMap() {
+  MAPPER_FIELDS.forEach(f => {
+    const el = document.getElementById('m_' + f.key);
+    if (el && el.value) colMap[f.key] = el.value;
+    else if (el) delete colMap[f.key];
+  });
+  if (!colMap.date) { showError('Date column is required.'); return; }
+  buildPeriods(allSheetData[document.getElementById('sheetSel').value]);
+  showDashboard();
+  buildDashboard();
+}
+
+function toggleMapper() {
+  const ms = document.getElementById('mapperSection');
+  ms.style.display = ms.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Show/hide sections ─────────────────────────────────────
+function showMapper() {
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('mapperSection').style.display = 'block';
+  document.getElementById('controlBar').style.display  = 'none';
+  document.getElementById('dashboard').style.display   = 'none';
+}
+function showDashboard() {
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('mapperSection').style.display = 'none';
+  document.getElementById('controlBar').style.display  = 'flex';
+  document.getElementById('dashboard').style.display   = 'block';
+}
+function resetToUpload() {
+  Object.values(charts).forEach(c => { try{ c.destroy(); }catch(e){} });
+  charts = {};
+  allSheetData = {}; colMap = {}; allPeriods = [];
+  document.getElementById('fileInput').value = '';
+  document.getElementById('uploadSection').style.display = 'flex';
+  document.getElementById('mapperSection').style.display = 'none';
+  document.getElementById('controlBar').style.display  = 'none';
+  document.getElementById('dashboard').style.display   = 'none';
+  document.getElementById('periodBadge').textContent   = 'Load Data to Begin';
+}
+
+// ── Date / period utilities ────────────────────────────────
+function toYM(val) {
+  if (!val) return null;
+  const s = String(val).trim();
+  if (!s) return null;
+  let d;
+  // ISO
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) { d = new Date(s); }
+  // dd/mm/yyyy (Qld standard)
+  else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+    const p = s.split('/');
+    d = new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`);
+  }
+  // mm/dd/yyyy fallback
+  else if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)) { d = new Date(s); }
+  // Month Year e.g. "May 2024" or "01-May-2024"
+  else if (/[A-Za-z]{3}/.test(s)) { d = new Date(s); }
+  // Excel serial
+  else if (/^\d{5}$/.test(s)) { d = new Date(Math.round((+s - 25569) * 86400000)); }
+  else { d = new Date(s); }
+  if (!d || isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  if (y < 2000 || y > 2035) return null;
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function ymLabel(ym) {
+  if (!ym) return '';
+  const [y,m] = ym.split('-');
+  return `${MON[+m-1]} ${y}`;
+}
+
+function buildPeriods(rows) {
+  const set = new Set();
+  rows.forEach(r => { const ym = toYM(r[colMap.date]); if (ym) set.add(ym); });
+  allPeriods = [...set].sort();
+
+  const cur = document.getElementById('curSel');
+  const pri = document.getElementById('priSel');
+  cur.innerHTML = '';
+  pri.innerHTML = '';
+  [...allPeriods].reverse().forEach(p => {
+    cur.appendChild(new Option(ymLabel(p), p));
+    pri.appendChild(new Option(ymLabel(p), p));
+  });
+  if (allPeriods.length >= 2) {
+    cur.value = allPeriods[allPeriods.length - 1];
+    pri.value = allPeriods[allPeriods.length - 2];
+  }
+}
+
+// ── Data filtering ─────────────────────────────────────────
+function rowsByPeriod(rows, ym) {
+  return rows.filter(r => toYM(r[colMap.date]) === ym);
+}
+function rowsYTD(rows, ym) {
+  const [yr, mo] = ym.split('-').map(Number);
+  return rows.filter(r => {
+    const p = toYM(r[colMap.date]);
+    if (!p) return false;
+    const [ry, rm] = p.split('-').map(Number);
+    return ry === yr && rm <= mo;
+  });
+}
+function rowsLast12(rows, ym) {
+  const idx = allPeriods.indexOf(ym);
+  const start = Math.max(0, idx - 11);
+  const window = new Set(allPeriods.slice(start, idx + 1));
+  return rows.filter(r => { const p = toYM(r[colMap.date]); return p && window.has(p); });
+}
+
+// ── Incident classification ────────────────────────────────
+function classify(row) {
+  const strOf = col => col ? String(row[col] || '').trim() : '';
+  const yesLike = v => /^(yes|y|1|true)$/i.test(v) || v.toLowerCase() === v.toLowerCase().replace(/[^a-z]/g,'') && v.length > 0 && v !== '0' && v !== 'no' && v !== 'n';
+
+  // Explicit boolean flags take priority
+  if (colMap.ltiFlag && yesLike(strOf(colMap.ltiFlag))) return 'Lost Time Injury';
+  if (colMap.mtcFlag && yesLike(strOf(colMap.mtcFlag))) return 'Medical Treatment';
+  if (colMap.faFlag  && yesLike(strOf(colMap.faFlag)))  return 'First Aid';
+  if (colMap.nearMiss && yesLike(strOf(colMap.nearMiss))) return 'Near Miss';
+
+  // Use type or severity column
+  const raw = strOf(colMap.incidentType) || strOf(colMap.severity);
+  if (!raw) return 'Unclassified';
+
+  for (const rule of CLASSIFY_RULES) {
+    if (rule.re.test(raw)) return rule.label;
+  }
+  // Return raw value capitalised (handles custom classification values)
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
+// ── KPI helpers ────────────────────────────────────────────
+function countType(rows, keyword) {
+  return rows.filter(r => classify(r).toLowerCase().includes(keyword.toLowerCase())).length;
+}
+function sumCol(rows, col) {
+  if (!col) return null;
+  const vals = rows.map(r => parseFloat(r[col])).filter(v => !isNaN(v));
+  return vals.reduce((a,b) => a+b, 0);
+}
+function deltaClass(delta, lowerBetter) {
+  if (delta === 0) return 'd-neu';
+  return (lowerBetter ? delta < 0 : delta > 0) ? 'd-good' : 'd-bad';
+}
+function cardClass(cur, pri, lowerBetter) {
+  if (pri === null || cur === pri) return 'c-blue';
+  const better = lowerBetter ? cur < pri : cur > pri;
+  const pct = Math.abs((cur - pri) / (pri || 1));
+  if (better) return 'c-good';
+  return pct > 0.25 ? 'c-bad' : 'c-warn';
+}
+function fmtDelta(delta, pct, lowerBetter, decimals) {
+  if (delta === 0) return '<span class="kpi-delta d-neu">→ No change</span>';
+  const arrow = delta > 0 ? '↑' : '↓';
+  const sign  = delta > 0 ? '+' : '';
+  const cls   = (lowerBetter ? delta < 0 : delta > 0) ? 'd-good' : 'd-bad';
+  const val   = decimals ? Math.abs(delta).toFixed(decimals) : Math.abs(delta);
+  const pctStr = pct !== null ? ` (${sign}${pct.toFixed(1)}%)` : '';
+  return `<span class="kpi-delta ${cls}">${arrow} ${sign}${decimals ? delta.toFixed(decimals) : delta}${pctStr} vs prior</span>`;
+}
+
+function renderKPICard(container, { label, cur, pri, lowerBetter, decimals, sub }) {
+  const cc = cardClass(cur, pri, lowerBetter);
+  const fmt = v => decimals ? v.toFixed(decimals) : v.toLocaleString();
+  const delta = pri !== null ? cur - pri : null;
+  const pct   = (delta !== null && pri > 0) ? (delta / pri * 100) : null;
+  const deltaHTML = delta !== null ? fmtDelta(delta, pct, lowerBetter, decimals) : '<span class="kpi-delta d-neu">—</span>';
+  container.insertAdjacentHTML('beforeend', `
+    <div class="kpi-card ${cc}">
+      <div class="kpi-label">${label}</div>
+      <div class="kpi-value">${fmt(cur)}</div>
+      ${deltaHTML}
+      ${sub ? `<div class="kpi-sub">${sub}</div>` : ''}
+    </div>`);
+}
+
+// ── Main dashboard build ───────────────────────────────────
+function buildDashboard() {
+  const sheetRows = allSheetData[document.getElementById('sheetSel').value] || [];
+  const curPer = document.getElementById('curSel').value;
+  const priPer = document.getElementById('priSel').value;
+  if (!curPer) return;
+
+  const curRows = rowsByPeriod(sheetRows, curPer);
+  const priRows = rowsByPeriod(sheetRows, priPer);
+  const ytdCur  = rowsYTD(sheetRows, curPer);
+  const ytdPri  = rowsYTD(sheetRows, priPer);
+
+  // Period labels
+  document.getElementById('periodBadge').textContent   = ymLabel(curPer);
+  document.getElementById('donutLabel').textContent     = ymLabel(curPer);
+  document.getElementById('locLabel').textContent       = ymLabel(curPer);
+  document.getElementById('compareLabel').textContent   = `${ymLabel(priPer)} → ${ymLabel(curPer)}`;
+  document.getElementById('tableLabel').textContent     = ymLabel(curPer);
+  document.getElementById('thCur').textContent          = ymLabel(curPer);
+  document.getElementById('thPri').textContent          = ymLabel(priPer);
+
+  renderKPIs(curRows, priRows, sheetRows, curPer, priPer);
+  renderTrendChart(sheetRows, curPer);
+  renderDonutChart(curRows);
+  renderLocationChart(curRows);
+  renderCompareChart(curRows, priRows, curPer, priPer);
+  renderSummaryTable(curRows, priRows, ytdCur, ytdPri, curPer, priPer);
+  renderMonthlyTable(sheetRows, curPer);
+
+  hideNotification();
+}
+
+// ── KPI rendering ──────────────────────────────────────────
+function renderKPIs(curRows, priRows, allRows, curPer, priPer) {
+  const r1 = document.getElementById('kpiRow1');
+  const r2 = document.getElementById('kpiRow2');
+  r1.innerHTML = ''; r2.innerHTML = '';
+
+  const lti1 = countType(curRows, 'lost time');
+  const lti0 = countType(priRows, 'lost time');
+  const mtc1 = countType(curRows, 'medical treat');
+  const mtc0 = countType(priRows, 'medical treat');
+  const rwd1 = countType(curRows, 'restricted');
+  const rwd0 = countType(priRows, 'restricted');
+  const fa1  = countType(curRows, 'first aid');
+  const fa0  = countType(priRows, 'first aid');
+  const nm1  = countType(curRows, 'near miss') + countType(curRows, 'hazard');
+  const nm0  = countType(priRows, 'near miss') + countType(priRows, 'hazard');
+  const ser1 = countType(curRows, 'serious') + countType(curRows, 'fatal');
+  const ser0 = countType(priRows, 'serious') + countType(priRows, 'fatal');
+
+  // Row 1 - primary metrics
+  renderKPICard(r1, { label: 'Total Incidents',           cur: curRows.length, pri: priRows.length, lowerBetter: true,  sub: `Prior: ${priRows.length} (${ymLabel(priPer)})` });
+  renderKPICard(r1, { label: 'Serious / Fatal',           cur: ser1,  pri: ser0,  lowerBetter: true  });
+  renderKPICard(r1, { label: 'Lost Time Injuries',        cur: lti1,  pri: lti0,  lowerBetter: true  });
+  renderKPICard(r1, { label: 'Medical Treatments',        cur: mtc1,  pri: mtc0,  lowerBetter: true  });
+  renderKPICard(r1, { label: 'First Aid Cases',           cur: fa1,   pri: fa0,   lowerBetter: true  });
+  renderKPICard(r1, { label: 'Near Miss / Hazard Reports',cur: nm1,   pri: nm0,   lowerBetter: false, sub: 'Higher = stronger reporting culture' });
+
+  // Row 2 - secondary metrics (only show if data exists)
+  const daysLostCur = colMap.daysLost ? (sumCol(curRows, colMap.daysLost) || 0) : null;
+  const daysLostPri = colMap.daysLost ? (sumCol(priRows, colMap.daysLost) || 0) : null;
+  const daysRwdCur  = colMap.daysRestricted ? (sumCol(curRows, colMap.daysRestricted) || 0) : null;
+  const daysRwdPri  = colMap.daysRestricted ? (sumCol(priRows, colMap.daysRestricted) || 0) : null;
+
+  if (rwd1 + rwd0 > 0) renderKPICard(r2, { label: 'Restricted Work Cases', cur: rwd1, pri: rwd0, lowerBetter: true });
+  if (daysLostCur !== null) renderKPICard(r2, { label: 'Days Lost', cur: daysLostCur, pri: daysLostPri, lowerBetter: true });
+  if (daysRwdCur  !== null) renderKPICard(r2, { label: 'Restricted Work Days', cur: daysRwdCur, pri: daysRwdPri, lowerBetter: true });
+
+  // LTIFR / TRIFR if hours available
+  if (colMap.hoursWorked) {
+    const hCur = sumCol(curRows, colMap.hoursWorked) || 0;
+    const hPri = sumCol(priRows, colMap.hoursWorked) || 0;
+    if (hCur > 0) {
+      const ltifr1 = (lti1 / hCur) * 1e6;
+      const ltifr0 = hPri > 0 ? (lti0 / hPri) * 1e6 : null;
+      const trifr1 = ((lti1 + mtc1 + rwd1) / hCur) * 1e6;
+      const trifr0 = hPri > 0 ? ((lti0 + mtc0 + rwd0) / hPri) * 1e6 : null;
+      renderKPICard(r2, { label: 'LTIFR', cur: ltifr1, pri: ltifr0, lowerBetter: true, decimals: 2, sub: 'Per million hours worked' });
+      renderKPICard(r2, { label: 'TRIFR', cur: trifr1, pri: trifr0, lowerBetter: true, decimals: 2, sub: 'Per million hours worked' });
+    }
+  }
+
+  // Claims
+  if (colMap.claimId) {
+    const sheetRows = allSheetData[document.getElementById('sheetSel').value];
+    const claims1 = rowsByPeriod(sheetRows, document.getElementById('curSel').value).filter(r => r[colMap.claimId] && String(r[colMap.claimId]).trim()).length;
+    const claims0 = rowsByPeriod(sheetRows, document.getElementById('priSel').value).filter(r => r[colMap.claimId] && String(r[colMap.claimId]).trim()).length;
+    renderKPICard(r2, { label: 'Claims Lodged', cur: claims1, pri: claims0, lowerBetter: true });
+  }
+}
+
+// ── Charts ─────────────────────────────────────────────────
+function dch(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function getUniqueTypes(rows) {
+  const set = new Set(rows.map(r => classify(r)));
+  return [...TYPE_ORDER.filter(t => set.has(t)), ...Array.from(set).filter(t => !TYPE_ORDER.includes(t))];
+}
+
+function renderTrendChart(rows, curPer) {
+  dch('trendChart');
+  const idx   = allPeriods.indexOf(curPer);
+  const perStart = Math.max(0, idx - 11);
+  const window  = allPeriods.slice(perStart, idx + 1);
+  const wRows   = rows.filter(r => { const p = toYM(r[colMap.date]); return p && window.includes(p); });
+  let types = getUniqueTypes(wRows);
+  if (types.length > 7) {
+    const cnt = {};
+    types.forEach(t => cnt[t] = wRows.filter(r => classify(r) === t).length);
+    types = types.sort((a,b) => (cnt[b]||0)-(cnt[a]||0)).slice(0, 7);
+  }
+  charts.trendChart = new Chart(document.getElementById('trendChart'), {
+    type: 'bar',
+    data: {
+      labels: window.map(ymLabel),
+      datasets: types.map((t, i) => ({
+        label: t,
+        data: window.map(p => rowsByPeriod(rows, p).filter(r => classify(r) === t).length),
+        backgroundColor: typeColor(t, i),
+        borderRadius: 3,
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } } },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 45 } },
+        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function renderDonutChart(curRows) {
+  dch('donutChart');
+  const types = getUniqueTypes(curRows);
+  const data  = types.map(t => curRows.filter(r => classify(r) === t).length);
+  const total = curRows.length;
+  charts.donutChart = new Chart(document.getElementById('donutChart'), {
+    type: 'doughnut',
+    data: {
+      labels: types,
+      datasets: [{ data, backgroundColor: types.map((t,i) => typeColor(t,i)), borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${total ? ((ctx.raw/total)*100).toFixed(0) : 0}%)` } }
+      }
+    }
+  });
+}
+
+function renderLocationChart(curRows) {
+  dch('locChart');
+  const wrap = document.getElementById('locChartWrap');
+  if (!colMap.location) {
+    wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--sub);font-size:13px;padding:20px;text-align:center">Map the Location / Site column to enable this chart</div>';
+    return;
+  }
+  wrap.innerHTML = '<canvas id="locChart"></canvas>';
+  const cnt = {};
+  curRows.forEach(r => { const v = String(r[colMap.location] || 'Unknown').trim(); if (v) cnt[v] = (cnt[v]||0)+1; });
+  const sorted = Object.entries(cnt).sort((a,b) => b[1]-a[1]).slice(0, 12);
+  charts.locChart = new Chart(document.getElementById('locChart'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(([l]) => l),
+      datasets: [{ data: sorted.map(([,c]) => c), backgroundColor: sorted.map((_,i) => `hsla(${210+i*18},55%,${52-i*2}%,0.85)`), borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function renderCompareChart(curRows, priRows, curPer, priPer) {
+  dch('compareChart');
+  const types = [...new Set([...curRows, ...priRows].map(r => classify(r)))];
+  const ordered = [...TYPE_ORDER.filter(t => types.includes(t)), ...types.filter(t => !TYPE_ORDER.includes(t))];
+  charts.compareChart = new Chart(document.getElementById('compareChart'), {
+    type: 'bar',
+    data: {
+      labels: ordered,
+      datasets: [
+        { label: ymLabel(curPer), data: ordered.map(t => curRows.filter(r => classify(r)===t).length), backgroundColor: 'rgba(26,39,68,0.85)', borderRadius: 3 },
+        { label: ymLabel(priPer), data: ordered.map(t => priRows.filter(r => classify(r)===t).length), backgroundColor: 'rgba(245,168,0,0.75)',  borderRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } } },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxRotation: 30 }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// ── Tables ─────────────────────────────────────────────────
+function renderSummaryTable(curRows, priRows, ytdCur, ytdPri, curPer, priPer) {
+  const types = [...new Set([...curRows, ...priRows].map(r => classify(r)))];
+  const ordered = [...TYPE_ORDER.filter(t => types.includes(t)), ...types.filter(t => !TYPE_ORDER.includes(t))];
+  const tbody = document.getElementById('summaryTbody');
+  tbody.innerHTML = '';
+  let tot = [0,0,0,0];
+
+  ordered.forEach(t => {
+    const c  = curRows.filter(r => classify(r)===t).length;
+    const p  = priRows.filter(r => classify(r)===t).length;
+    const yc = ytdCur.filter(r => classify(r)===t).length;
+    const yp = ytdPri.filter(r => classify(r)===t).length;
+    const d  = c - p;
+    const yd = yc - yp;
+    tot = [tot[0]+c, tot[1]+p, tot[2]+yc, tot[3]+yp];
+    const dc  = d === 0 ? 'tneu' : (d > 0 ? 'tneg' : 'tpos');
+    const dyc = yd === 0 ? 'tneu' : (yd > 0 ? 'tneg' : 'tpos');
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td>${t}</td>
+        <td class="tnum">${c}</td>
+        <td class="tnum">${p}</td>
+        <td class="${dc}">${d===0?'—':(d>0?'+':'')+d}</td>
+        <td class="tnum">${yc}</td>
+        <td class="tnum">${yp}</td>
+        <td class="${dyc}">${yd===0?'—':(yd>0?'+':'')+yd}</td>
+      </tr>`);
+  });
+
+  const td  = tot[0] - tot[1];
+  const tyd = tot[2] - tot[3];
+  const tdc  = td  === 0 ? 'tneu' : (td  > 0 ? 'tneg' : 'tpos');
+  const tydc = tyd === 0 ? 'tneu' : (tyd > 0 ? 'tneg' : 'tpos');
+  tbody.insertAdjacentHTML('beforeend', `
+    <tr class="ttotal">
+      <td>TOTAL</td>
+      <td class="tnum">${tot[0]}</td>
+      <td class="tnum">${tot[1]}</td>
+      <td class="${tdc}">${td===0?'—':(td>0?'+':'')+td}</td>
+      <td class="tnum">${tot[2]}</td>
+      <td class="tnum">${tot[3]}</td>
+      <td class="${tydc}">${tyd===0?'—':(tyd>0?'+':'')+tyd}</td>
+    </tr>`);
+}
+
+function renderMonthlyTable(rows, curPer) {
+  const idx   = allPeriods.indexOf(curPer);
+  const start = Math.max(0, idx - 11);
+  const window  = allPeriods.slice(start, idx + 1);
+  const wRows = rows.filter(r => { const p = toYM(r[colMap.date]); return p && window.includes(p); });
+  const types = getUniqueTypes(wRows);
+
+  let html = '<div style="overflow-x:auto"><table><thead><tr><th>Month</th>';
+  types.forEach(t => html += `<th style="text-align:right;white-space:nowrap">${t}</th>`);
+  html += '<th style="text-align:right">Total</th></tr></thead><tbody>';
+
+  [...window].reverse().forEach(p => {
+    const pr = rowsByPeriod(rows, p);
+    let rowTotal = 0;
+    const cells = types.map(t => { const c = pr.filter(r => classify(r)===t).length; rowTotal += c; return `<td class="tnum">${c||'—'}</td>`; });
+    const isCur = p === curPer;
+    html += `<tr${isCur?' style="background:#fff8e1"':''}><td><strong>${ymLabel(p)}${isCur?' <span class="badge badge-gold">Current</span>':''}</strong></td>${cells.join('')}<td class="tnum"><strong>${rowTotal}</strong></td></tr>`;
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('monthlyTableWrap').innerHTML = html;
+}
+
+// ── Notifications ──────────────────────────────────────────
+function showError(msg) {
+  const n = document.getElementById('notification');
+  n.className = 'error'; n.textContent = msg; n.style.display = 'block';
+}
+function hideNotification() {
+  document.getElementById('notification').style.display = 'none';
+}
+</script>
+</body>
+</html>

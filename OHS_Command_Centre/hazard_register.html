@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GOHS Hazard Register Builder — VRTP</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.2/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #1a1a1a; min-height: 100vh; }
+  #root { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+  :root {
+    --color-text-primary: #1a1a1a; --color-text-secondary: #666; --color-text-danger: #c0392b;
+    --color-text-success: #1e8449; --color-background-primary: #ffffff; --color-background-secondary: #f5f5f5;
+    --color-background-danger: #fdf2f2; --color-border-secondary: #ddd; --color-border-tertiary: #e8e8e8;
+    --color-border-danger: #e8a09a; --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  input, select, textarea, button { font-family: inherit; }
+  button:focus-visible { outline: 2px solid #004348; outline-offset: 2px; }
+  @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  .drop-zone { border: 2px dashed #ccc; border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.2s; }
+  .drop-zone.over { border-color: #004348; background: #f0f9f9; }
+  .ctrl-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .ctrl-table th { background: #004348; color: #fff; padding: 5px 8px; text-align: left; font-weight: 500; }
+  .ctrl-table td { padding: 5px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+  .ctrl-table tr:nth-child(even) td { background: #f9f9f9; }
+  .section-card { background: #fff; border-radius: 12px; padding: 1.25rem; border: 1px solid #eee; margin-bottom: 1rem; }
+  .br-section h3 { font-size: 13px; font-weight: 600; color: #004348; margin: 0 0 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+  .br-section p { font-size: 13px; color: #333; line-height: 1.5; margin: 0 0 6px; }
+  .br-tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin: 2px; }
+  .zone-badge { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="load-error" style="display:none;font-family:Arial,sans-serif;max-width:600px;margin:4rem auto;padding:2rem;background:#fdf2f2;border:1px solid #e8a09a;border-radius:10px;color:#7b241c;">
+  <strong style="font-size:15px;">⚠ Scripts failed to load</strong>
+  <p style="margin:8px 0 0;font-size:13px;">One or more CDN libraries (React, Babel) did not load. This usually means you are offline or a CDN is temporarily unreachable.</p>
+  <p style="margin:8px 0 0;font-size:13px;"><strong>Fix:</strong> Connect to the internet and reload the page (F5). If the problem persists, check your network or VPN settings.</p>
+</div>
+<script>
+// Show error banner if React/Babel fails to load within 10 seconds
+window._loadTimer = setTimeout(function() {
+  if (!window.React || !window.Babel) {
+    document.getElementById('load-error').style.display='block';
+  }
+}, 10000);
+</script>
+
+<script>
+window.storage = {
+  get: async (key) => { const v = localStorage.getItem("gohs__" + key); return v ? { key, value: v } : null; },
+  set: async (key, value) => { localStorage.setItem("gohs__" + key, value); return { key, value }; },
+  delete: async (key) => { localStorage.removeItem("gohs__" + key); return { key, deleted: true }; }
+};
+
+// ─── IndexedDB for folder handles ────────────────────────────────────────────
+window.folderDB = (() => {
+  let db = null;
+  const open = () => new Promise((res, rej) => {
+    if (db) return res(db);
+    const req = indexedDB.open("gohs-folders", 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore("folders", { keyPath: "ride" });
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror = () => rej(req.error);
+  });
+  const tx = async (mode, fn) => { const d = await open(); return new Promise((res,rej)=>{ const t=d.transaction("folders",mode); const s=t.objectStore("folders"); const r=fn(s); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); };
+  return {
+    getAll: async () => { const d = await open(); return new Promise((res,rej)=>{ const t=d.transaction("folders","readonly"); const s=t.objectStore("folders"); const r=s.getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); },
+    put: (rec) => tx("readwrite", s => s.put(rec)),
+    delete: (ride) => tx("readwrite", s => s.delete(ride)),
+  };
+})();
+// pdf.js worker
+if (window.pdfjsLib) {
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+</script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const teal = "#004348";
+// GOHS-LEG-001 V5 aligned labels
+const CONSEQUENCE = ["Insignificant","Minor","Moderate","Serious","Critical"];
+const LIKELIHOOD  = ["Rare","Unlikely","Possible","Likely","Almost Certain"];
+const CTRL_EFFECTIVENESS = ["1 — Highly Effective","2 — Effective","3 — Moderately Effective","4 — Partially Effective","5 — Not Effective"];
+const RATING = (l,c) => {
+  const s = l*c;
+  if (s>=15) return {label:"Extreme", color:"#c0392b"};
+  if (s>=10) return {label:"High",    color:"#e67e22"};
+  if (s>=5)  return {label:"Medium",  color:"#d4ac0d"};
+  return            {label:"Low",     color:"#27ae60"};
+};
+const DEFAULT_API_KEY = "";
+const HIERARCHY_OPTS = ["Elimination","Substitution","Isolation","Engineering","Administrative","PPE"];
+const CATEGORIES = ["Mechanical","Structural","Electrical","Operational","Environmental","Human Factors","Fire/Emergency","Water/Hydraulics","Maintenance","Crowd Management"];
+
+// ─── SYSTEM PROMPT — HAZARD REGISTER (GOHS-LEG-001 V5) ───────────────────────
+const SYSTEM_PROMPT = `You are a WHS safety expert for Village Roadshow Theme Parks (VRTP), Queensland, Australia. Apply GOHS-LEG-001 V5 Risk Assessment Writing Guide formatting standards for ALL output fields.
+
+LEGISLATIVE FRAMEWORK
+WHS Act 2011 (Qld): s 17–19 primary duty of care, PCBU obligations, notifiable incidents ss 35–38.
+WHS Regulation 2011 (Qld) Chapter 9A — Major Amusement Parks:
+- s 608B(2): ADI — serious injury, death, or device failure that could have caused either.
+- s 608K: duty to identify and record ADHs. s 608L: ADH assessment and control.
+ISO 17842: Parts 1–3 and ISO/TS 17929. AS 3533 SERIES: cl.3–8 (AS 3533.1), cl.4–7 (AS 3533.2), AS 3533.3, AS 3533.4.1–4.2.
+BS EN 13814: Parts 1–3. ISO 31000:2018 cls.3.1, 3.4–3.7. ISO 45001:2018 cls.6, 8, 9–10. GOHS2.1.2.
+CONTROLS: Hierarchy (WHS Act s 17): Eliminate > Substitute > Isolate > Engineering > Administrative > PPE. Minimum 4 controls across at least 2 hierarchy levels.
+
+WRITING STANDARDS — apply exactly:
+
+HAZARD FIELD: "The presence of [hazard source or unsafe condition] in [specific area, task, or process] may expose [person/group] to harm during [occurrence or circumstance]."
+- Name a single discrete hazard source. Do NOT describe events, injuries, or consequences here.
+
+RISK TITLE: Brief label 5–8 words identifying the core occurrence. No technical jargon.
+
+RISK FIELD (Risk Description + Risk Cause combined):
+Part 1 — Risk Description: "There is a risk that [occurrence] may occur, which could result in [primary consequence] and [secondary consequences], due to [context or conditions]."
+Part 2 — Risk Cause: "The risk may be caused by [immediate or technical causes], due to [underlying or systemic causes]."
+Write both parts as one continuous paragraph.
+
+CAUSES FIELD: "The risk may be caused by [immediate or technical causes], due to [underlying or systemic causes]." Include applicable standard clause.
+
+INHERENT CONSEQUENCE JUSTIFICATION: "A [Insignificant/Minor/Moderate/Serious/Critical] consequence is justified because [evidence or reasoning], consistent with the [matrix category] definition." Rate the worst credible foreseeable outcome (not most common). Anchor to VRTP matrix: Insignificant=1, Minor=2, Moderate=3, Serious=4 (serious injury or dangerous incident), Critical=5 (fatality or permanent disability).
+
+INHERENT LIKELIHOOD JUSTIFICATION: "The likelihood is rated as [Rare/Unlikely/Possible/Likely/Almost Certain] because [frequency, exposure, history, or conditions], consistent with the matrix definition." Assume NO controls in place. Quantify exposure. Matrix: Rare=1 (once per 10yr), Unlikely=2 (once per 5yr), Possible=3 (once per 2yr), Likely=4 (once per yr), Almost Certain=5 (once per 3mth).
+
+SFARP JUSTIFICATION (required for Extreme score 15–25 or High score 10–12 only): "The level of risk has been reduced so far as is reasonably practicable. All feasible controls have been considered in accordance with WHS Act s.18, having regard to the likelihood, degree of harm, state of knowledge, availability, suitability, and cost of additional controls." List implemented controls and why further measures are not reasonably practicable.
+
+RISK REDUCTION JUSTIFICATION: "The implemented controls reduce the risk by [eliminating/substituting/engineering/administratively controlling/protecting via PPE], resulting in a [specific reduction in likelihood and/or consequence] consistent with SFARP principles."
+
+CONTROLS — each control must be [Control] is in place to [prevent/reduce] [specific risk] by [mechanism of action]:
+- controlType: "Prevention" (acts before event, reduces likelihood) OR "Mitigation" (acts after event, reduces consequences)
+- isCritical: true only if control failure would likely result in fatality or catastrophic event AND it is the only or last reliable barrier
+- effectiveness: 1=Highly Effective (engineered/automated, no human reliance), 2=Effective (engineered + monitoring), 3=Moderately Effective (human action required), 4=Partially Effective (admin/compliance dependent), 5=Not Effective
+- accountability: Role responsible (control owner)
+- frequency: When applied — specific interval or trigger
+- parameters: Measurable pass/fail performance criteria (quantified where possible)
+- evidence: Auditable evidence — checklist ref, CMMS, inspection record
+- escalation: Failure escalation protocol — what triggers, who notified, what action at what threshold
+- standard: Applicable standard clause
+
+RISK SCORE: consequence × likelihood. Bands: Low 1–4, Medium 5–9, High 10–12, Extreme 15–25.
+
+OUTPUT: Respond ONLY with a valid JSON array. No preamble, no markdown fences. All strings properly JSON-escaped.
+{
+  "id": "placeholder",
+  "category": "Mechanical|Structural|Electrical|Operational|Environmental|Human Factors|Fire/Emergency|Water/Hydraulics|Maintenance|Crowd Management",
+  "hazardType": "Amusement Device|General Workplace|Both",
+  "riskTitle": "5–8 word risk title",
+  "hazard": "The presence of [hazard source] in [area/task/process] may expose [person/group] to harm during [circumstance].",
+  "risk": "There is a risk that [occurrence] may occur, which could result in [primary consequence] and [secondary consequences], due to [context]. The risk may be caused by [immediate causes], due to [underlying causes].",
+  "causes": "The risk may be caused by [immediate/technical causes], due to [underlying/systemic causes]. [applicable standard clause]",
+  "inherentConsequenceJustification": "A [rating] consequence is justified because [evidence/reasoning], consistent with the [matrix category] definition.",
+  "inherentLikelihoodJustification": "The likelihood is rated as [rating] because [frequency/exposure/history], consistent with the matrix definition.",
+  "sfarpJustification": "Required only for Extreme/High — otherwise empty string.",
+  "riskReductionJustification": "The implemented controls reduce the risk by [mechanism], resulting in [specific reduction] consistent with SFARP principles.",
+  "controls": [
+    {
+      "description": "[Control] is in place to [prevent/reduce] [specific risk] by [mechanism of action].",
+      "controlType": "Prevention",
+      "isCritical": true,
+      "hierarchy": "Engineering",
+      "effectiveness": 2,
+      "accountability": "Role — e.g. Attractions Supervisor / Maintenance Team",
+      "frequency": "When applied — e.g. Before each dispatch / Daily / Weekly",
+      "parameters": "Measurable pass/fail — e.g. Lap bar indicator green, wind < 40 km/h",
+      "evidence": "Auditable evidence — e.g. Pre-start checklist (94353-A), CMMS work order",
+      "escalation": "Failure protocol — e.g. Stop ride immediately, notify Shift Supervisor, raise CMMS fault, do not restart until rectified",
+      "standard": "AS 3533.2 cl.4.3"
+    }
+  ],
+  "consequence": 4,
+  "likelihood": 2,
+  "standards": ["Standard — specific clause"],
+  "adiTrigger": true,
+  "adhTrigger": true
+}`;
+
+// ─── SYSTEM PROMPT — BOUNDARY REPORT ─────────────────────────────────────────
+const BOUNDARY_SYSTEM_PROMPT = `You are a WHS safety expert for Village Roadshow Theme Parks (VRTP) Queensland, specialising in amusement device operations.
+
+Apply ISO 17842-1:2015, WHS Regulation 2011 (Qld) Chapter 9A, AS 3533.2, and the Qld Guide for Major Amusement Parks: Preparing a Safety Case.
+
+Generate a Device Boundary and Summary Report. Output ONLY a single JSON object. No preamble, no markdown.
+
+{
+  "deviceName": "string",
+  "manufacturer": "string",
+  "deviceType": "string — classification per AS 3533 / ISO 17842",
+  "location": "string — park location",
+  "regulatoryClass": "string — e.g. Major Amusement Device",
+  "physicalDescription": "string — concise technical description including height, mechanism, cycle",
+  "capacity": {"ridersPerCycle": 0, "cycleTimeSec": 0, "throughputPerHour": 0},
+  "safetyEnvelopeDefinition": "string — ISO 17842-1 based plain-language definition of the safety envelope/boundary for this specific device",
+  "boundaryIncludes": [
+    {"zone": "zone name", "description": "what this zone includes", "basis": "ISO/AS clause that supports inclusion"}
+  ],
+  "boundaryExcludes": [
+    {"item": "item name", "reason": "why excluded from device boundary"}
+  ],
+  "operationalZones": [
+    {"name": "zone name", "type": "footprint|envelope|safe_zone|maintenance|access|restricted", "description": "what it is", "accessConditions": "who can access and when", "envelopeWhenOperating": true}
+  ],
+  "riderRestrictions": [
+    {"category": "Height|Medical|Physical|Behaviour|Equipment", "restriction": "full restriction description", "rationale": "safety basis for restriction", "enforcedBy": "who/how enforced"}
+  ],
+  "teamStructure": [
+    {"role": "role title", "count": 1, "position": "where stationed", "responsibilities": ["responsibility 1", "responsibility 2"], "competencyRequired": "training/cert required"}
+  ],
+  "safetySystems": [
+    {"system": "system name", "type": "Hardware|Software|Procedural", "location": "physical location", "function": "what it does", "testFrequency": "how often tested"}
+  ],
+  "weatherLimits": [
+    {"condition": "condition type", "threshold": "measurable limit", "action": "required response"}
+  ],
+  "evacuationProcedures": [
+    {"scenario": "scenario name", "trigger": "when initiated", "steps": ["step 1", "step 2"], "equipment": ["equip 1"]}
+  ],
+  "adiDecisionFramework": {
+    "boundaryStatement": "plain language statement of what constitutes the device boundary for ADI purposes",
+    "step1_location": "Step 1 — Location test description",
+    "step2_involvement": "Step 2 — Device involvement test description",
+    "step3_foreseeability": "Step 3 — Foreseeability test per s 608B(2)",
+    "examples": [
+      {"scenario": "example scenario", "classification": "ADI|ADH|General", "reasoning": "brief reasoning"}
+    ]
+  },
+  "maintenanceRegime": {
+    "daily": ["check item 1"],
+    "weekly": ["check item 1"],
+    "monthly": ["check item 1"],
+    "annual": ["check item 1"]
+  },
+  "referencedDocuments": ["doc 1"],
+  "standards": ["standard 1"]
+}`;
+
+// ─── HAZARD BATCH DATA ────────────────────────────────────────────────────────
+// General workplace (non-device-specific)
+const HAZARD_BATCHES_GENERAL = [
+  `Device: General workplace / all park areas. hazardType "Both". Hazards: Structural failure (cracks, corrosion, fatigue); Fastener failure (bolts, pins, welds); Moving part entrapment (pinch, shear, crush); Excessive vibration; Control system failure or override misuse; PLC fault; Sensor failure; Emergency stop failure; Power loss or surging; Stored energy release (hydraulic, pneumatic, gravity).`,
+  `Device: General workplace. hazardType "Both". Hazards: Restraint failure or mis-locking; Degraded seat, harness, or belt material; Gate interlock failure; Platform fall risk during loading/unloading; Operator distraction or fatigue; Inadequate staffing or supervision; Procedural deviation; Inadequate training or competency; Poor communication between operators; Incomplete pre-start checks.`,
+  `Device: General workplace. hazardType "Both". Hazards: High winds affecting ride dynamics; Lightning strike risk; Rain reducing braking effectiveness; Heat affecting hydraulic or electrical systems; UV degradation of components; Ground movement or subsidence; Crowd surges in queues; Prams and mobility devices near ride envelopes; Unauthorised access to restricted areas; Weather evacuation failure; Emergency access obstruction.`,
+  `Device: General workplace. hazardType "Both". Hazards: Electrical shock from equipment; Inadequate bonding or earthing; Lighting failure; Pump room fire; Fuel storage risks; Inadequate isolation during maintenance; LOTO non-compliance; Deferred or incomplete inspections; Inadequate defect reporting; Use of non-approved parts; Contractor management failure; Change management failure.`
+];
+
+// ── SEA WORLD ──
+// Trident — SBF tower swinger 42m, hydraulic lift, rotating gondola, 36 riders
+const HAZARD_BATCHES_TOWER_SWINGER = [
+  `Device: Tower swinger (SBF 42m hydraulic lift, e.g. Trident, Sea World). hazardType "Amusement Device". ADI hazards — wire rope system: Wire rope crushing or fatigue failure leading to gondola drop; Wire rope hook or fastening failure; Wire rope pulley seizure or excessive wear; Return carriage rope pulley failure (9 pulleys); Middle column pulley failure (6 pulleys); Top column pulley failure (3 pulleys); Guide roller groove wear causing loss of gondola guidance.`,
+  `Device: Tower swinger. hazardType "Amusement Device". ADI/ADH hazards — gondola carriage: Centering wheel below minimum diameter (140mm limit) causing guidance failure; Vertical guide wheel below minimum (190mm) causing gondola instability; Rotating structure support wheel below minimum (140mm); Drive wheel below minimum (240mm) causing loss of rotation control; Auxiliary wheel below minimum (140mm); Resting pad/bump stop failure causing uncontrolled gondola descent to home position.`,
+  `Device: Tower swinger. hazardType "Amusement Device". ADI/ADH hazards — winch and lift: Winch assembly failure (6 winches) causing uncontrolled gondola movement; Hydraulic cylinder failure causing uncontrolled vertical drop; Hydraulic hose rupture causing loss of lift control; Oil separator or hydraulic power unit failure; Control system failure during ascent or descent; Unintended gondola movement while guests are boarding or alighting.`,
+  `Device: Tower swinger. hazardType "Amusement Device". ADI/ADH hazards — restraints and dispatch: Lap bar sensor lock failure — sensor indicates locked when lap bar not properly engaged; Seatbelt sensor lock failure — seatbelt not confirmed locked before dispatch; Restraint opened during ride cycle; Rider ejected from seat due to combined lap bar and seatbelt failure; Rider too small for restraint minimum close; Rider not holding with minimum 3 fingers on at least one natural arm; Guest dispatched without both lap bar and seatbelt at minimum close.`,
+  `Device: Tower swinger. hazardType "Amusement Device". ADH hazards — operational and environmental: Wind speed exceeding 40 km/h causing excessive bench swing on ascent or descent; Lightning/electrical storm during operation; Continuous rain causing gondola rotation speed reduction at beginning of rotating sequence; Loose items or clothing (scarves, long hair, lanyards) entangled in seat wires during rotation; Rider not seated in correct position (middle seat B for guests 105-140cm); Guest in restricted area or device envelope while ride is in motion.`,
+  `Device: Tower swinger. hazardType "Amusement Device". ADH hazards — maintenance platform and gondola platform: Fall from maintenance platform due to handrail failure, kick-rail failure, or inadequate fall arrest; Fall arrest attachment point failure on gondola platform (GREEN attachment points); Hardware hold-down bolt failure on maintenance platform; Ladder and fall arrest system failure on maintenance platform; LOTO non-compliance during inspection of wire rope system, pulleys, or winch assemblies; Theming structure at top of tower (trident theming) becoming loose and falling.`,
+  `Device: Tower swinger. hazardType "Amusement Device". ADH hazards — evacuation and emergency: High-level evacuation failure — guests trapped at height due to gondola stall or power failure; Manual seatbelt and restraint release (T-bar) failure or operator not trained in use; Emergency Gate Release Tool (E.G.R.T) unavailable or operator not trained in use; Interlocking gate system fault trapping guests in loading area; Power failure causing gondola to stall at height with guests on board; Fire in electrical room or hydraulic power room during operation.`
+];
+
+// Leviathan — wooden roller coaster, 909m track, 32m, 80km/h
+const HAZARD_BATCHES_WOODEN_COASTER = [
+  `Device: Wooden roller coaster (e.g. Leviathan, Sea World — 909m track, 32m, 80km/h). hazardType "Amusement Device". ADI hazards: Train derailment due to track misalignment or timber degradation; Restraint failure leading to rider ejection at speed or height; Structural failure of timber track elements or support bents; Train collision due to block system failure; Anti-rollback failure causing train rollback; Brake system failure causing overspeed or collision.`,
+  `Device: Wooden roller coaster. hazardType "Amusement Device". ADH hazards — structural and mechanical: Timber member degradation (rot, cracking, delamination) reducing structural integrity; Fastener failure (bolts, lag screws, through-bolts) in track or structure; Track gauge deviation causing wheel flanging and potential derailment; Excessive vibration or dynamic loading causing cumulative fatigue damage; Wheel flat spots causing impact loading; Axle or bearing failure; Lift chain failure or anti-rollback pawl failure.`,
+  `Device: Wooden roller coaster. hazardType "Amusement Device". ADH hazards — control and safety systems: Block system sensor failure allowing unsafe train spacing; Brake actuator failure (pneumatic or spring-applied brakes); PLC or safety relay failure in block control system; Trim brake failure causing excessive train speed at entry to block; Emergency stop failure or delayed response; CCTV or operator visibility obstruction at critical supervision points.`,
+  `Device: Wooden roller coaster. hazardType "Amusement Device". ADH hazards — operational: Loose articles (glasses, hats, phones) ejected from train striking guests or falling trackside; Incorrect rider restraint position (OTSR or lap bar not at minimum close); Rider outside height or weight restrictions; Weather effects — high winds causing structural stress; Inadequate track walk inspection missing defects; Insufficient crew for pre-start train walk procedures.`
+];
+
+// DC Rivals / steel hypercoaster
+const HAZARD_BATCHES_HYPERCOASTER = [
+  `Device: Steel hypercoaster (e.g. DC Rivals HyperCoaster, Movie World — Southern Hemisphere's tallest/fastest). hazardType "Amusement Device". ADI hazards: Restraint (OTSR/vest) unlocking or failing at high speed or maximum height; Train collision or rollback due to brake or block system failure; Overspeed through brakes due to actuator failure; Rider ejection through restraint failure on the beyond-vertical drop element; Medical emergency (cardiac) during extreme G-force sequence.`,
+  `Device: Steel hypercoaster. hazardType "Amusement Device". ADH hazards — restraints and control: Hydraulic or pneumatic OTSR/vest restraint fault — fails to lock or unlocks mid-cycle; Restraint locking pin or ratchet mechanism failure; Seat belt secondary restraint failure; Safety system interlock override or bypass; Block zone sensor failure allowing trains to close gap; Brake fin alignment fault reducing braking effectiveness; PLC or safety relay failure in block control.`,
+  `Device: Steel hypercoaster. hazardType "Amusement Device". ADH hazards — structural and environmental: High wind conditions (>defined limit) causing train speed deviation or structural stress on beyond-vertical element; Wheel assembly failure at high speed; Track surface discontinuity causing impact loading; Loose articles (shoes, phones) ejected at extreme speed causing serious injury to guests or bystanders; Inadequate rider size enforcement allowing guest whose body geometry prevents minimum close; Seat or frame corrosion reducing structural integrity.`
+];
+
+// Launched coasters (Superman Escape, Jet Rescue, Flash Speed Force)
+const HAZARD_BATCHES_LAUNCHED_COASTER = [
+  `Device: Launched coaster (e.g. Superman Escape — vertical launch 60m; Jet Rescue — 0-70km/h; Flash Speed Force — LIM/LSM launch). hazardType "Amusement Device". ADI hazards: Launch system failure causing incomplete launch — train stalls at height; Restraint failure or unlatching during launch acceleration; Uncontrolled rollback after failed launch — anti-rollback device failure; Overspeed due to launch system fault (hydraulic pressure, LIM/LSM over-energise); Rider ejection during high-G launch sequence.`,
+  `Device: Launched coaster. hazardType "Amusement Device". ADH hazards: Launch hydraulic accumulator failure or pressure surge; LIM/LSM motor or power supply fault causing partial launch; Anti-rollback dog or magnetic brake failure on launch track; Restraint (OTSR/lap bar) not at minimum close before dispatch; Rider posture deviation during launch causing spinal injury; Incorrect rider height/weight leading to inadequate restraint engagement; Station gate interlock failure allowing guest in launch envelope during cycle.`,
+  `Device: Launched coaster. hazardType "Amusement Device". ADH hazards — operational: Guest medical condition (cardiovascular, spinal) not identified before boarding; Loose articles ejected during 0-70+ km/h launch striking following guests or bystanders in queue; Inadequate operator view of all seats before dispatch; Communication failure between load operator and supervisor during fault condition; Incomplete abort procedure following failed launch leaving train stranded.`
+];
+
+// Inverted/suspended coaster (Arkham Asylum, Flight of Wicked Witch)
+const HAZARD_BATCHES_INVERTED_COASTER = [
+  `Device: Inverted or suspended coaster (e.g. Arkham Asylum inverted coaster; Flight of the Wicked Witch suspended coaster, Movie World). hazardType "Amusement Device". ADI hazards: Shoulder harness/vest restraint unlocking while inverted or at height; Head or limb strike on structural element due to clearance envelope breach; Train collision due to block system failure; Rider ejected through restraint failure while inverted; Loose footwear falling from inverted position onto guests below or on loading platform.`,
+  `Device: Inverted/suspended coaster. hazardType "Amusement Device". ADH hazards: Shoulder harness ratchet mechanism failure or pawl skipping under G-load; Secondary restraint (vest or crotch strap) failure; Locking pin or sensor fault indicating locked when harness not fully engaged; Rider torso size outside harness design range; Loose footwear, glasses or accessories falling from inverted position; Clearance envelope breach — maintenance equipment, theming, or vegetation within sweep path; Inadequate high-altitude evacuation procedures.`,
+  `Device: Inverted/suspended coaster. hazardType "Amusement Device". ADH hazards — operational: Rider neck or spinal injury from improper head position during inversion; Guest with medical condition (spinal, cardiovascular) not detected before boarding; Operator visibility of all seats from dispatch position; Incomplete pre-dispatch check of all restraints; Inadequate crew training for manual evacuation from inverted position; Structural fatigue in hanger/suspension assembly at inversion points.`
+];
+
+// Family coaster (Scooby-Doo Spooky Coaster, Kansas Twister)
+const HAZARD_BATCHES_FAMILY_COASTER = [
+  `Device: Family or boomerang coaster (e.g. Scooby-Doo Spooky Coaster; Kansas Twister family boomerang racer, Movie World). hazardType "Amusement Device". ADI hazards: Train collision in boomerang sequence (forward and reverse traverse); Restraint failure allowing ejection; Child ejected due to inadequate fit for lap bar minimum close; Rollback in boomerang element causing uncontrolled reverse travel; Brake failure on holding brake in boomerang spike.`,
+  `Device: Family coaster. hazardType "Amusement Device". ADH hazards: Lap bar ratchet failure or sensor indicating locked incorrectly; Child body size too small for minimum close creating ejection risk; Inadequate height enforcement allowing sub-minimum rider unaccompanied; Parent/guardian unable to physically assist child with restraint; Holding brake or trim brake failure; Boomerang spike catch mechanism failure; Ride cycle reversal without confirmed restraint re-check; Mixed train loading (adults with small children) causing uneven load distribution.`
+];
+
+// Water coaster (Storm Coaster)
+const HAZARD_BATCHES_WATER_COASTER = [
+  `Device: Water coaster (e.g. Storm Coaster, Sea World — combination coaster and water element). hazardType "Amusement Device". ADI hazards: Boat collision on lift section or launch element; Boat stalls in water channel causing rear-end collision; Rider ejected from boat during acceleration or water impact; Boat overturns at wave or channel transition; Guest in channel or water zone struck by boat.`,
+  `Device: Water coaster. hazardType "Amusement Device". ADH hazards: Pump or water jet failure causing boat stall; Conveyor lift drive failure; Boat restraint failure combined with water entry; Dispatch spacing failure allowing boats to close; Inadequate water depth at impact zone; Slippery boat surfaces causing slip during boarding; Rider standing or repositioning in boat during motion; Weather conditions (wind) causing boat speed deviation.`
+];
+
+// Log flume (Wild West Falls)
+const HAZARD_BATCHES_LOG_FLUME = [
+  `Device: Log flume / shoot-the-chutes (e.g. Wild West Falls, Movie World). hazardType "Amusement Device". ADI hazards: Boat collision in channel or at lift; Boat capsizes or overturns at drop entry or splashdown; Rider ejected during drop or sudden deceleration at splashdown; Rider or guest struck by boat; Boat stalls on lift conveyor causing rear-end collision.`,
+  `Device: Log flume. hazardType "Amusement Device". ADH hazards: Inadequate water depth at splashdown zone; Boat buoyancy or structural integrity failure; Conveyor lift chain failure causing boat rollback; Channel water flow failure causing stall; Rider standing in boat during motion; Slippery load/unload platforms; Loose items ejected at drop; Guest falling into channel from walkway; Inadequate queue management near channel edge; Boat seating configuration inadequate for guest size/weight distribution.`
+];
+
+// Dark ride / motion simulator (Justice League 3D)
+const HAZARD_BATCHES_DARK_RIDE = [
+  `Device: Dark ride or motion simulator (e.g. Justice League 3D interactive dark ride, Movie World). hazardType "Amusement Device". ADI hazards: Motion base failure causing uncontrolled movement; Lap bar or seat belt failure during dynamic motion sequence; Guest ejected or thrown forward during sudden stop or motion reversal; Guest struck by moving ride vehicle in enclosed dark environment; Medical emergency (cardiac, seizure) in enclosed dark ride vehicle.`,
+  `Device: Dark ride / motion simulator. hazardType "Amusement Device". ADH hazards: Vehicle dispatch system failure causing vehicles to close in track; Lap bar or secondary restraint not confirmed before dispatch; Motion system actuator failure causing unexpected jolt or tilt; Emergency lighting failure in enclosed ride environment; Evacuation pathway obstruction in dark or smoke-filled environment; Projection or strobe effects triggering photosensitive seizure; Ride vehicle door or gate failure trapping guest; Inadequate pre-boarding screening for guests with cardiovascular conditions.`
+];
+
+// Carousel and children's rides (Dora's Fiesta, Boots' Banana, Nickelodeon Land)
+const HAZARD_BATCHES_CAROUSEL_KIDS = [
+  `Device: Carousel and children's rides (e.g. Dora's Fiesta Carousel, Boots' Banana Boogie, Bikini Bottom rides, Nickelodeon Land). hazardType "Amusement Device". ADI hazards: Child ejected or falls from rotating carousel horse or seat; Child trapped between rotating platform and fixed structure; Parent or guardian steps onto moving platform causing fall; Child seat or harness failure while in motion; Child falls from elevated vehicle on flying/spinning ride.`,
+  `Device: Carousel / children's rides. hazardType "Amusement Device". ADH hazards: Carousel speed controller failure causing overspeed; Mounting step or handrail failure on moving platform; Child released from seat by parent before rotation stops; Inadequate supervision during loading with mixed age groups; Foreign object (pram, bag) brought into ride envelope; Child below minimum height or above maximum weight limit; Inadequate operator view of all positions during cycle; Loose items on ride becoming projectile; Mechanical failure of centrepost or drive assembly.`
+];
+
+// Flying bikes / elevated cycle ride (Ninja Flyers)
+const HAZARD_BATCHES_FLYING_BIKES = [
+  `Device: Elevated cycling / flying bikes (e.g. Ninja Flyers, Sea World). hazardType "Amusement Device". ADI hazards: Rider loses control causing collision with another vehicle or structure; Rider falls from elevated cycling track; Mechanical failure of pedal or drive mechanism causing sudden stop and ejection; Elevated vehicle derails from guide rail; Structural failure of elevated track or support column.`,
+  `Device: Flying bikes. hazardType "Amusement Device". ADH hazards: Pedal or drive mechanism seizure causing abrupt stop; Inadequate rider physical strength assessment for pedalling requirement; Elevated fall exposure — inadequate restraint or secondary retention; Vehicle spacing failure allowing vehicle collision; Guest unable to complete ride cycle stopping in elevated position; Inadequate emergency rescue access to elevated track; Wind effects on elevated vehicles; Loose clothing or hair entanglement in drive mechanism.`
+];
+
+// Spinning flat ride (Vortex)
+const HAZARD_BATCHES_SPINNING_FLAT = [
+  `Device: Spinning or inverting flat ride (e.g. Vortex — 15m, high-speed twists/turns/spins, Sea World). hazardType "Amusement Device". ADI hazards: Restraint (OTSR or vest) failure during inversion or high-G sequence; Gondola structural failure at speed causing ejection; Drive or bearing failure causing uncontrolled rotation or stop; Hydraulic or pneumatic actuator failure causing uncontrolled gondola tilt or inversion; Rider ejected during spin sequence.`,
+  `Device: Spinning flat ride. hazardType "Amusement Device". ADH hazards: OTSR ratchet or locking pin failure under G-load; Secondary restraint failure; Rider torso outside harness design envelope; Excessive rotational or inversion speed due to control system fault; Wind-induced instability during elevated spin sequence; Loose articles ejected during spin; Rider medical condition (cardiovascular, inner ear) exacerbated by spin sequence; Evacuation of gondola in tilted or inverted position; Drive motor or gearbox failure; Mounting hardware fatigue on gondola arm.`
+];
+
+// Wet'n'Wild body and racing slides
+const HAZARD_BATCHES_BODY_SLIDES = [
+  `Device: Body slides and racing slides (e.g. Double Barrel, Constrictor, Blackhole, Zoom Zone, Super 8 Aqua Racer, Wet'n'Wild). hazardType "Amusement Device". ADI hazards: Rider collision with side wall at high speed in enclosed slide causing head or spinal injury; Rider stops mid-slide causing rear-end collision by following rider; Rider ejected from slide exit at excessive speed striking splashdown structure; Rider exits slide in incorrect position causing neck or head impact.`,
+  `Device: Body slides / racing slides. hazardType "Amusement Device". ADH hazards: Inadequate dispatch spacing — insufficient time between riders; Slide surface degradation (joint step-up, surface crack, fiberglass delamination) causing abrasion injury; Water flow failure causing rider stoppage mid-slide; Incorrect riding position (head-first, sitting up in foot-first slide); Rider size outside design envelope causing excessive speed or contact; Rider weight above maximum causing excessive speed; Inadequate operator visibility at dispatch point; Slippery stairs and platform surfaces leading to slide entry.`
+];
+
+// Multi-person raft slides (Mammoth Falls, River Rapids)
+const HAZARD_BATCHES_RAFT_SLIDES = [
+  `Device: Multi-person raft slides (e.g. Mammoth Falls, River Rapids, Wet'n'Wild). hazardType "Amusement Device". ADI hazards: Raft collision at confluence or channel junction; Raft overturns or flips in water channel or at drop; Rider ejected from raft during drop or high-G turn; Rider trapped under overturned raft in water; Rear-end raft collision at stall point.`,
+  `Device: Raft slides. hazardType "Amusement Device". ADH hazards: Dispatch spacing failure allowing raft gap to close; Weight imbalance in multi-rider raft causing instability; Raft structural failure (handle failure, seam separation); Inadequate water depth at splashdown; Pump or valve failure reducing flow causing stall; Rider leaning outside raft perimeter; Rider not seated correctly before dispatch; Slippery boarding platform; Inadequate minimum weight enforcement for raft stability; Operator visibility at critical channel sections.`
+];
+
+// Wave pool / aquatic (Wet'n'Wild)
+const HAZARD_BATCHES_WAVE_AQUATIC = [
+  `Device: Wave pool, lazy river, and interactive water play (Wet'n'Wild Gold Coast). hazardType "Amusement Device". Hazards: Wave surge causing guest knock-down or submersion; Non-swimmer entering deep or wave zones; Fatigue from sustained wave action; Inadequate lifeguard zone coverage during wave cycles; Entrapment at suction outlets or gratings; Slippery pool deck causing fall and head injury; Poor depth marking; Lazy river current speed exceeding safe level; Guest collisions in narrow lazy river sections; Interactive play structure failure; Water cannon or tipping bucket striking unaware guest; Chemical imbalance (pH, chlorine) causing injury; Poor water clarity reducing lifeguard visibility; Inadequate emergency response equipment.`
+];
+
+// ── SOURCE LIBRARY CATALOGUE ──────────────────────────────────────────────────
+// Groups by park/type. hardcoded:true = uses TORNADO_ENTRIES directly (no API call)
+const SOURCE_LIBRARY = [
+  { group: "Sea World", items: [
+    { id:"sw_trident",      label:"Trident",                       sub:"Tower swinger — SBF 42m, hydraulic lift, 36 riders",           batches: HAZARD_BATCHES_TOWER_SWINGER },
+    { id:"sw_leviathan",    label:"Leviathan",                     sub:"Wooden roller coaster — 909m track, 32m, 80 km/h",              batches: HAZARD_BATCHES_WOODEN_COASTER },
+    { id:"sw_jet_rescue",   label:"Jet Rescue",                    sub:"Launched steel coaster — 0–70 km/h",                            batches: HAZARD_BATCHES_LAUNCHED_COASTER },
+    { id:"sw_storm",        label:"Storm Coaster",                 sub:"Water coaster — coaster/water hybrid",                          batches: HAZARD_BATCHES_WATER_COASTER },
+    { id:"sw_vortex",       label:"Vortex",                        sub:"Spinning flat ride — 15m, inversion/spin",                      batches: HAZARD_BATCHES_SPINNING_FLAT },
+    { id:"sw_ninja",        label:"Ninja Flyers",                  sub:"Elevated cycling / flying bikes",                               batches: HAZARD_BATCHES_FLYING_BIKES },
+    { id:"sw_carousel",     label:"Nickelodeon Land / Carousel",   sub:"Carousel, spinning kiddie rides, children's attractions",       batches: HAZARD_BATCHES_CAROUSEL_KIDS },
+  ]},
+  { group: "Movie World", items: [
+    { id:"mw_dc_rivals",    label:"DC Rivals HyperCoaster",        sub:"Steel hypercoaster — tallest/fastest in Southern Hemisphere",   batches: HAZARD_BATCHES_HYPERCOASTER },
+    { id:"mw_superman",     label:"Superman Escape / Flash Speed Force", sub:"Launched coaster — vertical launch / LIM",               batches: HAZARD_BATCHES_LAUNCHED_COASTER },
+    { id:"mw_arkham",       label:"Arkham Asylum / Flight Wicked Witch", sub:"Inverted coaster / suspended coaster",                   batches: HAZARD_BATCHES_INVERTED_COASTER },
+    { id:"mw_scooby",       label:"Scooby-Doo / Kansas Twister",   sub:"Family coaster / boomerang racer",                             batches: HAZARD_BATCHES_FAMILY_COASTER },
+    { id:"mw_wild_west",    label:"Wild West Falls",               sub:"Log flume / shoot-the-chutes",                                 batches: HAZARD_BATCHES_LOG_FLUME },
+    { id:"mw_justice",      label:"Justice League 3D",             sub:"Dark ride / motion simulator",                                 batches: HAZARD_BATCHES_DARK_RIDE },
+  ]},
+  { group: "Wet'n'Wild", items: [
+    { id:"wnw_tornado",     label:"Tornado",                       sub:"WhiteWater funnel slide — hardcoded ADI/ADH entries (no API)",  batches: null, hardcoded: true },
+    { id:"wnw_body",        label:"Body & Racing Slides",          sub:"Double Barrel, Constrictor, Blackhole, Zoom Zone, Super 8",     batches: HAZARD_BATCHES_BODY_SLIDES },
+    { id:"wnw_raft",        label:"Raft Slides",                   sub:"Mammoth Falls, River Rapids — multi-person raft",               batches: HAZARD_BATCHES_RAFT_SLIDES },
+    { id:"wnw_aquatic",     label:"Wave Pool & Aquatic",           sub:"Wave pool, lazy river, interactive water play",                 batches: HAZARD_BATCHES_WAVE_AQUATIC },
+  ]},
+  { group: "General / All Parks", items: [
+    { id:"general",         label:"General Workplace",             sub:"Non-device hazards: slips, falls, manual handling, electrical, fire, contractor, change management", batches: HAZARD_BATCHES_GENERAL },
+  ]},
+];
+const TORNADO_ENTRIES = [
+  { id:"placeholder", category:"Operational", hazardType:"Amusement Device",
+    hazard:"Rear-end raft collision in funnel — WhiteWater Tornado (ProSlide funnel slide)",
+    risk:"Head injury, spinal injury, or ejection from raft leading to serious injury or fatality",
+    causes:"Dispatch control failure or operator error; inadequate dispatch spacing combined with variable raft speed",
+    controls:["Dispatch timing system with minimum interval (Engineering) [AS 3533.2 cl.4.3] (CRITICAL CONTROL)","Operator visual confirmation of funnel clear before each dispatch (Administrative) [AS 3533.2 cl.5.2]","Water flow set within manufacturer limits (Engineering) [ISO 17842-3 cl.5]","Operator training and competency sign-off (Administrative) [ISO 45001 cl.7.2]"],
+    consequence:5, likelihood:2, standards:["WHS Reg 2011 (Qld) s 608B(2)","AS 3533.2 cl.4.3","ISO 17842-3 cl.5"], adiTrigger:true, adhTrigger:true },
+  { id:"placeholder", category:"Operational", hazardType:"Amusement Device",
+    hazard:"Rider ejection from raft in funnel — WhiteWater Tornado",
+    risk:"Serious head injury or fatality; rider partially or fully ejected during funnel traverse",
+    causes:"Incorrect rider positioning or restraint non-compliance; excessive lateral forces in funnel",
+    controls:["Operator visual check of rider position before each dispatch (Administrative) [AS 3533.2 cl.5.2] (CRITICAL CONTROL)","Mandatory rider positioning briefing at load platform (Administrative) [ISO 17842-3 cl.7]","Physical restraint design — raft handles and seating configuration (Engineering) [ISO 17842-2 cl.6]","Clear signage at load platform with position requirements (Administrative) [AS 3533.1 cl.5]"],
+    consequence:5, likelihood:2, standards:["WHS Reg 2011 (Qld) s 608B(2)","AS 3533.2 cl.5.2","ISO 17842-2 cl.6"], adiTrigger:true, adhTrigger:true },
+  { id:"placeholder", category:"Water/Hydraulics", hazardType:"Amusement Device",
+    hazard:"Raft stalls in funnel leading to collision risk — WhiteWater Tornado (near miss ADI)",
+    risk:"Collision-related injuries or panic and unsafe movement in funnel; near-miss ADI",
+    causes:"Pump failure, valve malfunction, or flow imbalance causing insufficient water flow",
+    controls:["Water flow monitoring system with automated low-flow alarm (Engineering) [ISO 17842-3 cl.5] (CRITICAL CONTROL)","Minimum water flow specification documented and enforced (Administrative) [AS 3533.4.1 cl.5]","Operator authority and procedure to stop dispatch immediately on alarm (Administrative) [AS 3533.2 cl.4.3]","Flow trend data review for early fault detection (Administrative) [ISO 31000 cl.6.6]"],
+    consequence:4, likelihood:2, standards:["WHS Reg 2011 (Qld) s 608B(2)","AS 3533.4.1 cl.5","ISO 17842-3 cl.5"], adiTrigger:true, adhTrigger:true },
+  { id:"placeholder", category:"Operational", hazardType:"Amusement Device",
+    hazard:"Slip or fall at load platform during raft boarding — WhiteWater Tornado",
+    risk:"Fracture or head injury from slip while boarding raft on wet platform",
+    causes:"Inadequate surface friction or poor loading control; wet surfaces and dynamic raft movement",
+    controls:["Non-slip flooring on load platform to specified friction coefficient (Engineering) [AS 3533.1 cl.5.3] (CRITICAL CONTROL)","Operator assistance and physical guidance during boarding (Administrative) [AS 3533.2 cl.5.2]","Controlled water spray management to minimise excess pooling at platform (Engineering) [ISO 17842-3 cl.7]","Daily platform surface condition check on pre-start checklist (Administrative) [AS 3533.2 cl.4]"],
+    consequence:4, likelihood:3, standards:["WHS Reg 2011 (Qld) s 608B(2)","AS 3533.1 cl.5.3","AS 3533.2 cl.4"], adiTrigger:true, adhTrigger:false }
+];
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+// Snap any AI-generated category string to the nearest valid CATEGORIES value
+const normalizeCategory = (raw) => {
+  if (!raw) return "Operational";
+  const s = String(raw).toLowerCase().trim();
+  if (/structural/.test(s) && /mechanical/.test(s)) return "Mechanical";
+  if (/mechanical|wire.?rope|bearing|gearbox|pulley|wheel|track|brake|restraint|lap.?bar|harness|gondola|chain|winch|hydraulic.?cyl|actuator|pump.?fail/.test(s)) return "Mechanical";
+  if (/structural|timber|corros|fatigue|weld|fastenr|bolt|crack|settlement|subsidence/.test(s)) return "Structural";
+  if (/electric|plc|sensor|control.?system|software|wiring|earthing|bonding|lighting|power.?loss/.test(s)) return "Electrical";
+  if (/hydraulic|pneumatic|water.?flow|pump|valve|flume|hose.?rupture|fluid/.test(s)) return "Water/Hydraulics";
+  if (/mainten|loto|isolat|inspection|defect|cmms|work.?order|service/.test(s)) return "Maintenance";
+  if (/fire|evacuat|emergenc|rescue/.test(s)) return "Fire/Emergency";
+  if (/environ|weather|wind|lightning|rain|heat|uv|temperature/.test(s)) return "Environmental";
+  if (/crowd|queue|access|unauthor|public|patron.?behav/.test(s)) return "Crowd Management";
+  if (/human.?factor|train|competen|fatigue|distract|communic|procedur|supervis/.test(s)) return "Human Factors";
+  if (/operat|dispatch|boarding|staffing|rider|guest|load|unload/.test(s)) return "Operational";
+  // Last resort: exact match or default
+  const exact = CATEGORIES.find(c => c.toLowerCase() === s);
+  return exact || "Operational";
+};
+
+const normalizeControl = (c) => {
+  if (typeof c === 'string') {
+    const isCritical = c.includes('CRITICAL CONTROL');
+    const hm = c.match(/\((Engineering|Administrative|PPE|Isolation|Substitution|Elimination)\)/i);
+    const sm = c.match(/\[([^\]]+)\]/);
+    const desc = c.replace(/\s*\(CRITICAL CONTROL\)\s*/gi,'').trim();
+    return { description: desc, isCritical, hierarchy: hm?hm[1]:'Administrative', accountability:'', frequency:'', parameters:'', evidence:'', escalation:'', standard: sm?sm[1]:'' };
+  }
+  return { description:'', isCritical:false, hierarchy:'Administrative', accountability:'', frequency:'', parameters:'', evidence:'', escalation:'', standard:'', ...c };
+};
+
+const normalizeEntry = (e) => ({
+  riskTitle: '', inherentConsequenceJustification: '', inherentLikelihoodJustification: '',
+  sfarpJustification: '', riskReductionJustification: '',
+  device: '', park: '', isCommon: false,
+  ...e,
+  category: normalizeCategory(e.category),
+  controls: (e.controls||[]).map(c => {
+    const nc = normalizeControl(c);
+    return { controlType:'Prevention', effectiveness:3, ...nc };
+  })
+});
+
+const parseAndSalvage = (raw) => {
+  let s = raw.replace(/```json[\s\S]*?```|```/g,"").trim();
+  // Strip control chars that break JSON (but keep \n \r \t which JSON handles)
+  s = s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, ' ');
+  if (!s.startsWith("[")) { const i=s.indexOf("["); s=i>=0?s.slice(i):"["+s; }
+  // Find the last complete object, close the array
+  if (!s.endsWith("]")) { const i=s.lastIndexOf("}"); s=i>=0?s.slice(0,i+1)+"]":s+"]"; }
+  try { return JSON.parse(s); } catch(e1) {
+    // Try fixing unescaped newlines inside JSON string values
+    try {
+      const fixed = s.replace(/"([^"\\]*(\\.[^"\\]*)*)"/gs, (m) =>
+        m.replace(/\n/g,'\\n').replace(/\r/g,'\\r').replace(/\t/g,'\\t'));
+      return JSON.parse(fixed);
+    } catch(e2) {
+      // Last resort: extract individual objects
+      const objects = [];
+      const re = /\{[\s\S]*?\}(?=\s*[,\]])/g;
+      let match;
+      while ((match = re.exec(s)) !== null) {
+        try { objects.push(JSON.parse(match[0])); } catch {}
+      }
+      if (objects.length > 0) return objects;
+      throw new Error("JSON parse failed after all recovery attempts. " + e1.message);
+    }
+  }
+};
+
+const callAPI = async (apiKey, system, userMsg, maxTokens=4000) => {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:maxTokens,system,messages:[{role:"user",content:userMsg}]})
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+};
+
+const genBatch = async (hazardText, runningBase, apiKey, extraContext) => {
+  const ctx = extraContext ? `\n\nContext for this register:\n${extraContext}` : "";
+  const raw = await callAPI(apiKey, SYSTEM_PROMPT,
+    `For EACH hazard listed, generate one complete hazard register entry. Return ONLY a valid JSON array. No preamble, no markdown fences. IMPORTANT: All string values must be properly JSON-escaped — no literal newlines, tabs, or unescaped quotes inside strings.${ctx}\n\nHazards:\n${hazardText}`);
+  const arr = parseAndSalvage(raw);
+  // Filter out skeleton objects that survived JSON recovery but have no real content
+  const valid = arr.filter(e => e && typeof e.hazard === 'string' && e.hazard.trim().length > 5);
+  return valid.map((e,i)=>normalizeEntry({
+    consequence: 1, likelihood: 1,  // safe defaults so rating never shows NaN
+    ...e,
+    id:`H-${String(runningBase+i+1).padStart(3,"0")}`
+  }));
+};
+
+const parseAndSalvageBoundaryObject = (raw) => {
+  let s = raw.replace(/```json|```/g,"").trim();
+  s = s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, ' ');
+  const start = s.indexOf('{');
+  if (start < 0) throw new Error("No JSON object found in response");
+  s = s.slice(start);
+  // Try direct parse
+  try { return JSON.parse(s); } catch {}
+  // Properly track parser state to find last safe cut point
+  let inStr = false, esc = false, objDepth = 0, arrDepth = 0, lastTopComma = -1;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (esc) { esc = false; continue; }
+    if (ch === '\\' && inStr) { esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === '{') objDepth++;
+    else if (ch === '}') objDepth--;
+    else if (ch === '[') arrDepth++;
+    else if (ch === ']') arrDepth--;
+    else if (ch === ',' && objDepth === 1 && arrDepth === 0) lastTopComma = i;
+  }
+  // Cut at last top-level comma and close
+  const cutAt = lastTopComma > 0 ? lastTopComma : s.lastIndexOf('}');
+  if (cutAt > 0) {
+    let cut = s.slice(0, cutAt);
+    // Recount depths for closing
+    let od = 0, ad = 0; inStr = false; esc = false;
+    for (const ch of cut) {
+      if (esc) { esc = false; continue; }
+      if (ch === '\\' && inStr) { esc = true; continue; }
+      if (ch === '"') { inStr = !inStr; continue; }
+      if (inStr) continue;
+      if (ch === '{') od++; else if (ch === '}') od--;
+      else if (ch === '[') ad++; else if (ch === ']') ad--;
+    }
+    cut += ']'.repeat(Math.max(0,ad)) + '}'.repeat(Math.max(0,od));
+    try { return JSON.parse(cut); } catch {}
+    // Last resort: fix unescaped newlines inside strings
+    try {
+      const fixed = cut.replace(/"((?:[^"\\]|\\.)*)"/gs,
+        (_,g) => '"'+g.replace(/\n/g,'\\n').replace(/\r/g,'\\r').replace(/\t/g,'\\t')+'"');
+      return JSON.parse(fixed);
+    } catch {}
+  }
+  throw new Error("Boundary report JSON unrecoverable — try again");
+};
+
+const callAPIHighOutput = async (apiKey, system, userMsg, maxTokens=8000) => {
+  // claude-sonnet-4-6 supports up to 64k output tokens
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-beta":"output-128k-2025-02-19","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:maxTokens,system,messages:[{role:"user",content:userMsg}]})
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    // Fallback to sonnet-4-5 if model unavailable
+    if (res.status === 404 || res.status === 400) {
+      const res2 = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-opus-4-5",max_tokens:8000,system,messages:[{role:"user",content:userMsg}]})
+      });
+      if (!res2.ok) throw new Error(`API ${res2.status}: ${await res2.text()}`);
+      const d2 = await res2.json();
+      return d2.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+    }
+    throw new Error(`API ${res.status}: ${errText}`);
+  }
+  const data = await res.json();
+  const text = data.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+  if (!text) throw new Error(`Empty response (stop_reason: ${data.stop_reason})`);
+  return text;
+};
+
+const generateBoundaryReport = async (deviceName, docs, apiKey, extraCtx) => {
+  const cleanDoc = (text) => text.replace(/[\r\n\t]+/g,' ').replace(/[""]/g,'"').replace(/['']/g,"'").replace(/\s+/g,' ').trim();
+  const docContext = docs.length>0
+    ? `\n\nDevice documentation extracts:\n${docs.map(d=>`[${d.name}]: ${cleanDoc(d.text).slice(0,600)}`).join('\n')}`
+    : '';
+  const msg = `Generate a Device Boundary and Summary Report for: ${deviceName}${extraCtx?`\n\nAdditional context: ${extraCtx}`:''}${docContext}\n\nReturn ONLY valid JSON. Each string value max 150 chars. Each array max 5 items.`;
+  const raw = await callAPIHighOutput(apiKey, BOUNDARY_SYSTEM_PROMPT, msg, 8000);
+  const first300 = raw.slice(0,300).replace(/\n/g,' ');
+  if (!raw.includes('{')) throw new Error(`API returned no JSON. Raw: "${first300}"`);
+  return parseAndSalvageBoundaryObject(raw);
+};
+
+const generateLibrarySuggestions = async (newDevice, libraryEntries, apiKey) => {
+  const lib = libraryEntries.map(e=>`${e.id}: ${e.hazard} — ${e.risk}`).join('\n');
+  const msg = `I have a hazard library with these entries:\n${lib}\n\nNew device: "${newDevice}"\n\nWhich library entries are likely applicable to this new device? Return a JSON array of {id, reason} objects for applicable entries only. No preamble.`;
+  const raw = await callAPI(apiKey,
+    `You are a WHS expert for VRTP amusement devices. Analyse a hazard library and identify entries applicable to a new device.`,
+    msg, 2000);
+  const s = raw.replace(/```json|```/g,'').trim();
+  const i = s.indexOf('['), j = s.lastIndexOf(']');
+  return JSON.parse(s.slice(i, j+1));
+};
+
+const extractPDF = async (file) => {
+  if (!window.pdfjsLib) throw new Error('pdf.js not loaded');
+  const ab = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({data: ab}).promise;
+  let text = '';
+  for (let i=1; i<=pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item=>item.str).join(' ') + '\n';
+  }
+  return text;
+};
+
+const extractDOCX = async (file) => {
+  if (!window.mammoth) throw new Error('mammoth.js not loaded');
+  const ab = await file.arrayBuffer();
+  const result = await window.mammoth.extractRawText({arrayBuffer: ab});
+  return result.value;
+};
+
+// ─── Folder helpers ───────────────────────────────────────────────────────────
+const extractFileText = async (file) => {
+  const n = file.name.toLowerCase();
+  if (n.endsWith('.pdf')) return extractPDF(file);
+  if (n.endsWith('.docx') || n.endsWith('.doc')) return extractDOCX(file);
+  return file.text();
+};
+
+const SUPPORTED_EXT = ['.pdf','.docx','.doc','.txt','.md'];
+const isSupportedFile = (name) => SUPPORTED_EXT.some(e => name.toLowerCase().endsWith(e));
+
+// Read all supported files from a folder handle, return [{name, text, size}]
+// If a .md file exists for a PDF/DOCX, the .md is used and the original is skipped
+// (run convert_docs.py with markitdown to pre-convert your PDFs for best results)
+const readFolderDocs = async (dirHandle, onProgress) => {
+  // First pass: catalogue all files
+  const allEntries = [];
+  const mdBasenames = new Set(); // base names (no ext) that have a .md file
+  for await (const entry of dirHandle.values()) {
+    if (entry.kind !== 'file') continue;
+    allEntries.push(entry);
+    if (entry.name.toLowerCase().endsWith('.md')) {
+      mdBasenames.add(entry.name.toLowerCase().slice(0, -3));
+    }
+  }
+  // Second pass: skip PDF/DOCX/DOC when a .md counterpart already exists
+  const filtered = allEntries.filter(entry => {
+    const lower = entry.name.toLowerCase();
+    const isHeavy = lower.endsWith('.pdf') || lower.endsWith('.docx') || lower.endsWith('.doc');
+    if (isHeavy) {
+      const base = lower.replace(/\.(pdf|docx|doc)$/, '');
+      if (mdBasenames.has(base)) return false; // md version exists — skip original
+    }
+    return isSupportedFile(entry.name);
+  });
+  const mdCount = filtered.filter(e => e.name.toLowerCase().endsWith('.md')).length;
+  const rawCount = filtered.filter(e => !e.name.toLowerCase().endsWith('.md')).length;
+  if (mdCount > 0) onProgress && onProgress(`Reading ${mdCount} pre-converted .md file${mdCount!==1?'s':''} (markitdown)…`);
+  const docs = [];
+  for (const entry of filtered) {
+    try {
+      const file = await entry.getFile();
+      onProgress && onProgress(`Reading ${entry.name}…`);
+      const text = await extractFileText(file);
+      docs.push({ name: entry.name, text, size: file.size });
+    } catch(e) { console.warn(`Skip ${entry.name}:`, e.message); }
+  }
+  return docs;
+};
+
+// Request permission for a stored handle (needed after page reload)
+const verifyPermission = async (handle) => {
+  const opts = { mode: 'read' };
+  if ((await handle.queryPermission(opts)) === 'granted') return true;
+  if ((await handle.requestPermission(opts)) === 'granted') return true;
+  return false;
+};
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+function App() {
+  const [entries,       setEntries]       = useState([]);
+  const [apiKey,        setApiKey]        = useState(DEFAULT_API_KEY || localStorage.getItem("gohs__apikey") || "");
+  const [showKey,       setShowKey]       = useState(!DEFAULT_API_KEY && !localStorage.getItem("gohs__apikey"));
+  const [genLoading,    setGenLoading]    = useState(false);
+  const [genProgress,   setGenProgress]   = useState(null);
+  const [error,         setError]         = useState(null);
+  const [topic,         setTopic]         = useState("");
+  const [extras,        setExtras]        = useState("");
+  const [selected,      setSelected]      = useState(null);
+  const [editMode,      setEditMode]      = useState(false);
+  const [editEntry,     setEditEntry]     = useState(null);
+  const [tab,           setTab]           = useState("register");
+  const [docxStatus,    setDocxStatus]    = useState(null);
+  const [sourceSet,     setSourceSet]     = useState("sw_trident");
+  const [storageStatus, setStorageStatus] = useState(null);
+  const [search,        setSearch]        = useState("");
+  const [filterCat,     setFilterCat]     = useState("All");
+  const [filterFlag,    setFilterFlag]    = useState("All");
+  const [filterDevice,  setFilterDevice]  = useState("All");
+  const [filterPark,    setFilterPark]    = useState("All");
+  const [park,          setPark]          = useState(localStorage.getItem("gohs__park")||"");
+  const [uploadedDocs,  setUploadedDocs]  = useState([]);  // legacy drop-zone fallback
+  const [rideFolders,   setRideFolders]   = useState([]);  // [{ride, handle, fileCount, status}]
+  const [docUploading,  setDocUploading]  = useState(false);
+  const [docError,      setDocError]      = useState(null);
+  const [folderProgress,setFolderProgress]= useState(null);
+  const [deviceName,    setDeviceName]    = useState(localStorage.getItem("gohs__devicename") || "");
+  const [boundaryReport,setBoundaryReport]= useState(null);
+  const [boundaryLoading,setBoundaryLoading]= useState(false);
+  const [boundaryError, setBoundaryError] = useState(null);
+  const [boundaryDevName,setBoundaryDevName]= useState("");
+  const [boundaryExtras, setBoundaryExtras]= useState("");
+  const [libDevice,     setLibDevice]     = useState("");
+  const [libSuggestions,setLibSuggestions]= useState(null);
+  const [libLoading,    setLibLoading]    = useState(false);
+  const [newRideName,   setNewRideName]   = useState("");
+  const loadedRef = useRef(false);
+
+  useEffect(()=>{
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    (async()=>{
+      try {
+        const r = await window.storage.get("gohs-hazard-register");
+        if (r?.value) {
+          const saved = JSON.parse(r.value);
+          if (Array.isArray(saved) && saved.length>0) {
+            setEntries(saved.map(normalizeEntry));
+            setStorageStatus("loaded");
+            setTimeout(()=>setStorageStatus(null),3000);
+          }
+        }
+        // Load legacy drop-zone docs (backward compat)
+        const d = await window.storage.get("gohs-uploaded-docs");
+        if (d?.value) { const docs=JSON.parse(d.value); if(Array.isArray(docs)) setUploadedDocs(docs); }
+        // Load folder handles from IndexedDB
+        try {
+          const folders = await window.folderDB.getAll();
+          if (folders.length>0) setRideFolders(folders.map(f=>({...f, status:'saved', fileCount:f.fileCount||0})));
+        } catch {}
+      } catch {}
+    })();
+  },[]);
+
+  const saveKey = (k) => { setApiKey(k); localStorage.setItem("gohs__apikey",k); };
+  const saveDeviceName = (n) => { setDeviceName(n); localStorage.setItem("gohs__devicename",n); };
+  const savePark = (p) => { setPark(p); localStorage.setItem("gohs__park",p); };
+
+  const saveToStorage = async (u) => {
+    setStorageStatus("saving");
+    try { await window.storage.set("gohs-hazard-register",JSON.stringify(u)); setStorageStatus("saved"); setTimeout(()=>setStorageStatus(null),2500); }
+    catch { setStorageStatus("error"); setTimeout(()=>setStorageStatus(null),3000); }
+  };
+  const clearStorage = async () => {
+    if (!window.confirm("Clear all entries and delete saved register? This cannot be undone.")) return;
+    try { await window.storage.delete("gohs-hazard-register"); } catch {}
+    setEntries([]); setStorageStatus(null);
+  };
+
+  const clearAndRegenerate = async () => {
+    if (!apiKey) { setError("Enter your Anthropic API key first."); return; }
+    const sel = SOURCE_LIBRARY.flatMap(g=>g.items).find(i=>i.id===sourceSet);
+    const label = sel ? sel.label : "selected device";
+    const msg = entries.length > 0
+      ? `This will DELETE all ${entries.length} existing entries and replace with a fresh "${label}" register.\n\nThis cannot be undone. Continue?`
+      : `Generate fresh "${label}" register?`;
+    if (!window.confirm(msg)) return;
+    try { await window.storage.delete("gohs-hazard-register"); } catch {}
+    setStorageStatus(null);
+    await generate(true);  // replaceAll=true — skips stale entries closure, IDs from 0
+  };
+
+  const nextId = () => {
+    const nums = entries.map(e=>parseInt(e.id.replace(/[^0-9]/g,""))||0);
+    return `H-${String(Math.max(0,...nums)+1).padStart(3,"0")}`;
+  };
+
+  const blankControl = () => ({ description:'', controlType:'Prevention', isCritical:false, hierarchy:'Administrative', effectiveness:3, accountability:'', frequency:'', parameters:'', evidence:'', escalation:'', standard:'' });
+  const blank = () => ({
+    id:nextId(), category:"Operational", hazardType:"General Workplace",
+    riskTitle:"", hazard:"", risk:"", causes:"",
+    inherentConsequenceJustification:"", inherentLikelihoodJustification:"",
+    sfarpJustification:"", riskReductionJustification:"",
+    controls:[blankControl()], consequence:3, likelihood:3, standards:[""], adiTrigger:false, adhTrigger:false
+  });
+
+  const generate = async (replaceAll=false) => {
+    if (!apiKey) { setError("Enter your Anthropic API key first."); return; }
+    setGenLoading(true); setError(null);
+    // Look up selected device in SOURCE_LIBRARY catalogue
+    const selectedItem = SOURCE_LIBRARY.flatMap(g=>g.items).find(i=>i.id===sourceSet) || SOURCE_LIBRARY[SOURCE_LIBRARY.length-1].items[0];
+    // When replacing, base ID always starts from 0
+    const existingEntries = replaceAll ? [] : entries;
+    if (selectedItem.hardcoded) {
+      const base = existingEntries.length ? Math.max(...existingEntries.map(e=>parseInt(e.id.replace(/[^0-9]/g,""))||0)) : 0;
+      const reId = TORNADO_ENTRIES.map((e,i)=>normalizeEntry({...e,id:`H-${String(base+i+1).padStart(3,"0")}`}));
+      if (replaceAll) { setEntries(()=>{ saveToStorage(reId); return reId; }); }
+      else { setEntries(prev=>{ const u=[...prev,...reId]; saveToStorage(u); return u; }); }
+      setGenLoading(false); setTab("register"); return;
+    }
+    const BATCHES = selectedItem.batches || HAZARD_BATCHES_GENERAL;
+    try {
+      let allNew=[];
+      // Clean doc text: collapse whitespace, strip quotes/special chars that can break JSON output
+      const cleanDoc = (text) => text.replace(/[\r\n\t]+/g,' ').replace(/[""]/g,'"').replace(/['']/g,"'").replace(/\s+/g,' ').trim();
+      const rideDocsForGen = await getDocsForRide(deviceName);
+      const docCtx = rideDocsForGen.length>0
+        ? `Device documentation extracts (use for context only — output must be valid JSON):\n${rideDocsForGen.map(d=>`[${d.name}]: ${cleanDoc(d.text).slice(0,500)}`).join('\n')}`
+        : '';
+      const extraCtx = [topic&&`Focus: ${topic}`, extras&&`Context: ${extras}`, deviceName&&`Device: ${deviceName}`, docCtx].filter(Boolean).join('\n\n');
+      for (let b=0;b<BATCHES.length;b++) {
+        setGenProgress(`Processing batch ${b+1} of ${BATCHES.length}…`);
+        const base=(existingEntries.length?Math.max(...existingEntries.map(e=>parseInt(e.id.replace(/[^0-9]/g,""))||0)):0)+allNew.length;
+        const batch = await genBatch(BATCHES[b],base,apiKey,extraCtx||null);
+        allNew=[...allNew,...batch.map(e=>({...e, device: deviceName||"", park: park||"", isCommon: false}))];
+      }
+      if (replaceAll) { setEntries(()=>{ saveToStorage(allNew); return allNew; }); }
+      else { setEntries(prev=>{ const u=[...prev,...allNew]; saveToStorage(u); return u; }); }
+      setGenProgress(null); setTab("register");
+    } catch(e) { setGenProgress(null); setError("Generation failed: "+e.message); }
+    setGenLoading(false);
+  };
+
+  // ── Folder management ──────────────────────────────────────────────────────
+  const detectRideFromText = async (text) => {
+    if (!apiKey) return { ride: "", confidence: "low" };
+    try {
+      const snippet = text.slice(0, 600).replace(/\s+/g,' ').trim();
+      const raw = await callAPI(apiKey,
+        `You identify which VRTP (Village Roadshow Theme Parks) amusement ride or device a document relates to. Reply ONLY with valid JSON: {"ride":"ride name or empty string","confidence":"high|medium|low"}. No other text.`,
+        `Document text:\n${snippet}`, 80);
+      const j = JSON.parse(raw.replace(/```json|```/g,'').trim());
+      return { ride: (j.ride||"").trim(), confidence: j.confidence||"low" };
+    } catch { return { ride: "", confidence: "low" }; }
+  };
+
+  const addRideFolder = async (rideName) => {
+    if (!window.showDirectoryPicker) { setDocError("Folder picker not supported in this browser. Use Chrome or Edge."); return; }
+    try {
+      const handle = await window.showDirectoryPicker({ mode: 'read' });
+      // Collect files
+      const fileEntries = [];
+      for await (const entry of handle.values()) {
+        if (entry.kind === 'file' && isSupportedFile(entry.name)) fileEntries.push(entry);
+      }
+      let finalRide = rideName.trim();
+      // Auto-detect ride name if not provided
+      if (!finalRide && apiKey && fileEntries.length > 0) {
+        setFolderProgress("Auto-detecting ride name from documents…");
+        const sample = fileEntries.slice(0, 3);
+        const detections = [];
+        for (const entry of sample) {
+          try {
+            const file = await entry.getFile();
+            const text = await extractFileText(file);
+            const result = await detectRideFromText(text);
+            if (result.ride && result.confidence !== "low") detections.push(result.ride);
+          } catch {}
+        }
+        // Pick most common detection
+        if (detections.length > 0) {
+          const freq = {};
+          detections.forEach(r => freq[r] = (freq[r]||0) + 1);
+          finalRide = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0][0];
+        }
+        setFolderProgress(null);
+      }
+      if (!finalRide) { setDocError("Could not detect ride name — please type it in the field above."); return; }
+      const rec = { ride: finalRide, handle, fileCount: fileEntries.length, status: 'saved' };
+      await window.folderDB.put({ ride: rec.ride, handle, fileCount: fileEntries.length });
+      setRideFolders(prev => { const f=prev.filter(f=>f.ride!==rec.ride); return [...f, rec]; });
+      setNewRideName("");
+    } catch(e) {
+      setFolderProgress(null);
+      if (e.name !== 'AbortError') setDocError("Folder error: " + e.message);
+    }
+  };
+
+  const removeRideFolder = async (ride) => {
+    await window.folderDB.delete(ride);
+    setRideFolders(prev => prev.filter(f=>f.ride!==ride));
+  };
+
+  // Read docs STRICTLY for a single ride — no cross-ride bleed.
+  // If targetRide is blank, returns nothing (caller should warn user).
+  const getDocsForRide = async (targetRide) => {
+    const cleanDoc = (text) => text.replace(/[\r\n\t]+/g,' ').replace(/[""]/g,'"').replace(/['']/g,"'").replace(/\s+/g,' ').trim();
+    const target = (targetRide||"").trim().toLowerCase();
+    if (!target) return [];   // no ride specified → no docs (keep registers isolated)
+    const docs = [];
+    // Folder handles — strict ride match only
+    for (const folder of rideFolders) {
+      if (folder.ride.trim().toLowerCase() !== target) continue;
+      try {
+        const ok = await verifyPermission(folder.handle);
+        if (!ok) { console.warn(`No permission for folder: ${folder.ride}`); continue; }
+        setFolderProgress(`Reading ${folder.ride} folder…`);
+        const read = await readFolderDocs(folder.handle, msg => setFolderProgress(msg));
+        docs.push(...read.map(d=>({...d, ride: folder.ride, text: cleanDoc(d.text)})));
+      } catch(e) { console.warn(`Folder read error (${folder.ride}):`, e.message); }
+    }
+    setFolderProgress(null);
+    // Legacy uploaded docs — strict ride match only
+    const legacyMatch = uploadedDocs.filter(d => d.ride && d.ride.trim().toLowerCase() === target);
+    docs.push(...legacyMatch.map(d=>({...d, text: cleanDoc(d.text)})));
+    return docs;
+  };
+
+  // ── Legacy drop-zone (fallback when no folders set) ─────────────────────────
+  const handleFiles = async (files) => {
+    setDocUploading(true); setDocError(null);
+    const arr = Array.from(files);
+    const newDocs = [];
+    for (const file of arr) {
+      try {
+        const text = await extractFileText(file);
+        // Auto-detect ride; fall back to current deviceName, then blank
+        let ride = deviceName||"";
+        let confidence = ride ? "manual" : "low";
+        if (!ride && apiKey) {
+          setFolderProgress(`Detecting ride for ${file.name}…`);
+          const det = await detectRideFromText(text);
+          ride = det.ride;
+          confidence = det.confidence;
+        }
+        newDocs.push({ id: Date.now()+Math.random(), name: file.name, text, size: file.size, date: new Date().toISOString(), ride, confidence });
+      } catch(e) { setDocError(`Failed to read ${file.name}: ${e.message}`); }
+    }
+    setFolderProgress(null);
+    if (newDocs.length>0) {
+      setUploadedDocs(prev=>{
+        const updated = [...prev, ...newDocs];
+        try { window.storage.set("gohs-uploaded-docs", JSON.stringify(updated.map(d=>({...d, text:d.text.slice(0,20000)})))); } catch{}
+        return updated;
+      });
+    }
+    setDocUploading(false);
+  };
+
+  const removeDoc = (id) => setUploadedDocs(prev=>{ const u=prev.filter(d=>d.id!==id); window.storage.set("gohs-uploaded-docs",JSON.stringify(u)); return u; });
+  const updateDocRide = (id, ride) => setUploadedDocs(prev=>{ const u=prev.map(d=>d.id===id?{...d,ride}:d); window.storage.set("gohs-uploaded-docs",JSON.stringify(u)); return u; });
+
+  const runBoundaryReport = async () => {
+    if (!apiKey) { setBoundaryError("API key required."); return; }
+    const targetRide = (boundaryDevName||deviceName||"").trim();
+    if (!targetRide) { setBoundaryError("Enter a device/ride name — docs are matched by ride name."); return; }
+    setBoundaryLoading(true); setBoundaryError(null);
+    try {
+      const rideDocs = await getDocsForRide(targetRide);
+      const report = await generateBoundaryReport(targetRide, rideDocs, apiKey, boundaryExtras);
+      setBoundaryReport(report);
+    } catch(e) { setBoundaryError("Generation failed: "+e.message); }
+    setBoundaryLoading(false);
+  };
+
+  const runLibrarySuggestions = async () => {
+    if (!apiKey || !libDevice.trim() || entries.length===0) return;
+    setLibLoading(true); setLibSuggestions(null);
+    try {
+      const suggestions = await generateLibrarySuggestions(libDevice, entries, apiKey);
+      setLibSuggestions(suggestions);
+    } catch(e) { setLibSuggestions({error: e.message}); }
+    setLibLoading(false);
+  };
+
+  const deleteEntry=(id)=>setEntries(prev=>{const u=prev.filter(e=>e.id!==id);saveToStorage(u);return u;});
+  const saveEdit=()=>{if(!editEntry)return;setEntries(prev=>{const u=prev.map(e=>e.id===editEntry.id?editEntry:e);saveToStorage(u);return u;});setEditMode(false);setEditEntry(null);setSelected(null);};
+  const addEntry=()=>{setEditEntry(blank());setEditMode(true);setTab("register");};
+  const saveNew=()=>{if(!editEntry?.hazard?.trim())return;setEntries(prev=>{const u=[...prev,editEntry];saveToStorage(u);return u;});setEditMode(false);setEditEntry(null);};
+
+  const exportDocx = async () => {
+    setDocxStatus("loading");
+    const {Document,Packer,Paragraph,Table,TableRow,TableCell,TextRun,WidthType,ShadingType} = window.docx;
+    const hdrSh={type:ShadingType.SOLID,color:"004348",fill:"004348"};
+    const altSh={type:ShadingType.SOLID,color:"F0F7F7",fill:"F0F7F7"};
+    const rSh=(l,c)=>{const r=RATING(l,c).label;return r==="Extreme"?{type:ShadingType.SOLID,color:"FADBD8",fill:"FADBD8"}:r==="High"?{type:ShadingType.SOLID,color:"FDEBD0",fill:"FDEBD0"}:r==="Medium"?{type:ShadingType.SOLID,color:"FEFDE7",fill:"FEFDE7"}:{type:ShadingType.SOLID,color:"EAFAF1",fill:"EAFAF1"};};
+    const cell=(text,bold=false,sh=null,color="000000")=>new TableCell({shading:sh||undefined,margins:{top:80,bottom:80,left:100,right:100},children:[new Paragraph({children:[new TextRun({text:String(text||""),bold,color,size:18})]})]});
+    const hcell=(t)=>cell(t,true,hdrSh,"FFFFFF");
+
+    // Controls as formatted text for Word
+    const fmtControls=(ctrls)=>(ctrls||[]).map((c,i)=>{
+      const cc = typeof c==='string' ? normalizeControl(c) : c;
+      const crit = cc.isCritical ? ' ★ CRITICAL' : '';
+      let parts = [`${i+1}. ${cc.description}${crit}`];
+      if(cc.accountability) parts.push(`  Accountability: ${cc.accountability}`);
+      if(cc.frequency) parts.push(`  Frequency: ${cc.frequency}`);
+      if(cc.parameters) parts.push(`  Parameters: ${cc.parameters}`);
+      if(cc.evidence) parts.push(`  Evidence: ${cc.evidence}`);
+      if(cc.escalation) parts.push(`  Escalation: ${cc.escalation}`);
+      return parts.join('\n');
+    }).join('\n\n');
+
+    const cols=[500,900,1800,1800,1800,3200,600,600,600,700,1500,600,600];
+    const headerRow=new TableRow({tableHeader:true,children:[hcell("ID"),hcell("Category"),hcell("Hazard"),hcell("Risk"),hcell("Causes"),hcell("Controls (with Critical Control details)"),hcell("Type"),hcell("C"),hcell("L"),hcell("Score"),hcell("Standards"),hcell("ADI?"),hcell("ADH?")]});
+    const dataRows=entries.map((e,i)=>{
+      const s=e.consequence*e.likelihood;
+      const sh=i%2===0?null:altSh;
+      const htColor=e.hazardType==="Amusement Device"?"004348":e.hazardType==="Both"?"1a3a6b":"333333";
+      return new TableRow({children:[
+        cell(e.id,false,sh),cell(e.category,false,sh),cell(e.hazard,false,sh),cell(e.risk,false,sh),cell(e.causes,false,sh),
+        cell(fmtControls(e.controls),false,sh),
+        cell(e.hazardType||"General Workplace",true,null,htColor),
+        cell(CONSEQUENCE[e.consequence-1],false,sh),cell(LIKELIHOOD[e.likelihood-1],false,sh),
+        cell(`${s} — ${RATING(e.likelihood,e.consequence).label}`,true,rSh(e.likelihood,e.consequence)),
+        cell((e.standards||[]).filter(Boolean).join("; "),false,sh),
+        cell(e.adiTrigger?"YES":"No",e.adiTrigger,e.adiTrigger?{type:ShadingType.SOLID,color:"FADBD8",fill:"FADBD8"}:sh,e.adiTrigger?"C0392B":"000000"),
+        cell(e.adhTrigger?"YES":"No",e.adhTrigger,e.adhTrigger?{type:ShadingType.SOLID,color:"F5EEF8",fill:"F5EEF8"}:sh,e.adhTrigger?"7D3C98":"000000")
+      ]});
+    });
+    const today=new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"long",year:"numeric"});
+    const doc=new Document({sections:[{children:[
+      new Paragraph({children:[new TextRun({text:"Village Roadshow Theme Parks — Group OHS & Environment",bold:true,size:28,color:"004348"})]}),
+      new Paragraph({children:[new TextRun({text:`Hazard & Risk Register${deviceName?` — ${deviceName}`:''}  |  Generated: ${today}  |  ${entries.length} entries`,size:18,color:"666666"})]}),
+      new Paragraph({children:[new TextRun({text:" "})]}),
+      new Paragraph({children:[new TextRun({text:"Standards: AS 3533 series · ISO 17842 Parts 1–3 · BS EN 13814 · WHS Reg 2011 (Qld) Ch.9A · Qld CoPs · ISO 45001:2018 · ISO 31000:2018",size:16,color:"004348"})]}),
+      new Paragraph({children:[new TextRun({text:" "})]}),
+      new Table({width:{size:cols.reduce((a,b)=>a+b,0),type:WidthType.DXA},columnWidths:cols,rows:[headerRow,...dataRows]}),
+      new Paragraph({children:[new TextRun({text:" "})]}),
+      new Paragraph({children:[new TextRun({text:"C: 1=Insignificant · 2=Minor · 3=Moderate · 4=Major · 5=Catastrophic  |  L: 1=Rare · 2=Unlikely · 3=Possible · 4=Likely · 5=Almost Certain  |  Rating: Low 1–4 · Medium 5–9 · High 10–14 · Extreme 15–25  |  ★ = Critical Control",size:16,color:"666666"})]}),
+      new Paragraph({children:[new TextRun({text:" "})]}),
+      new Paragraph({children:[new TextRun({text:"Human review required. ADI/ADH classifications and SFARP determinations must be confirmed by a competent person (GOHS-PRO-AI-001).",size:16,color:"993C1D",bold:true})]}),
+    ]}]});
+    const blob=await Packer.toBlob(doc);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url;
+    a.download=`GOHS_Hazard_Register${deviceName?'_'+deviceName.replace(/\s+/g,'_'):''}_${new Date().toISOString().slice(0,10)}.docx`;
+    a.click(); URL.revokeObjectURL(url);
+    setDocxStatus("done"); setTimeout(()=>setDocxStatus(null),3000);
+  };
+
+  const exportBoundaryDocx = async () => {
+    if (!boundaryReport) return;
+    const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType,ShadingType,HeadingLevel} = window.docx;
+    const hdrSh={type:ShadingType.SOLID,color:"004348",fill:"004348"};
+    const cell=(t,bold=false,sh=null,color="000000")=>new TableCell({shading:sh||undefined,margins:{top:60,bottom:60,left:100,right:100},children:[new Paragraph({children:[new TextRun({text:String(t||""),bold,color,size:18})]})]});
+    const hcell=(t)=>cell(t,true,hdrSh,"FFFFFF");
+    const br = boundaryReport;
+    const today=new Date().toLocaleDateString("en-AU",{day:"2-digit",month:"long",year:"numeric"});
+    const p=(txt,bold=false,size=22,color="1a1a1a")=>new Paragraph({children:[new TextRun({text:txt,bold,size,color})]});
+    const h2=(txt)=>new Paragraph({heading:HeadingLevel.HEADING_2,children:[new TextRun({text:txt,bold:true,color:"004348",size:24})]});
+    const gap=()=>p(" ",false,14);
+
+    const sections = [
+      p("Village Roadshow Theme Parks — Group OHS & Environment",true,28,"004348"),
+      p(`Device Boundary & Summary Report  |  ${br.deviceName||''}  |  Generated: ${today}`,false,18,"666666"),
+      gap(),
+      h2("1. Device Identification"),
+      p(`Device: ${br.deviceName||'—'}`,false,20),
+      p(`Manufacturer: ${br.manufacturer||'—'}`,false,20),
+      p(`Type: ${br.deviceType||'—'}`,false,20),
+      p(`Location: ${br.location||'—'}`,false,20),
+      p(`Regulatory Class: ${br.regulatoryClass||'—'}`,false,20),
+      gap(),
+      h2("2. Physical Description"),
+      p(br.physicalDescription||'—',false,20),
+      gap(),
+    ];
+
+    if (br.capacity) {
+      sections.push(h2("3. Capacity & Throughput"),
+        p(`Riders per cycle: ${br.capacity.ridersPerCycle||'—'}`,false,20),
+        p(`Cycle time: ${br.capacity.cycleTimeSec||'—'}s`,false,20),
+        p(`Throughput: ${br.capacity.throughputPerHour||'—'} pax/hr`,false,20), gap());
+    }
+
+    sections.push(h2("4. Safety Envelope / Device Boundary Definition"),
+      p(br.safetyEnvelopeDefinition||'—',false,20), gap());
+
+    if ((br.boundaryIncludes||[]).length>0) {
+      sections.push(h2("5. What is Inside the Boundary"));
+      const incTable=new Table({width:{size:9000,type:WidthType.DXA},columnWidths:[3000,4000,2000],rows:[
+        new TableRow({tableHeader:true,children:[hcell("Zone"),hcell("Description"),hcell("Basis (Standard)")]}),
+        ...(br.boundaryIncludes).map(z=>new TableRow({children:[cell(z.zone),cell(z.description),cell(z.basis)]}))
+      ]});
+      sections.push(incTable, gap());
+    }
+
+    if ((br.boundaryExcludes||[]).length>0) {
+      sections.push(h2("6. What is Outside the Boundary"));
+      const excTable=new Table({width:{size:9000,type:WidthType.DXA},columnWidths:[3500,5500],rows:[
+        new TableRow({tableHeader:true,children:[hcell("Item"),hcell("Reason Excluded")]}),
+        ...(br.boundaryExcludes).map(z=>new TableRow({children:[cell(z.item),cell(z.reason)]}))
+      ]});
+      sections.push(excTable, gap());
+    }
+
+    if ((br.operationalZones||[]).length>0) {
+      sections.push(h2("7. Operational Zones"));
+      const zoneTable=new Table({width:{size:9000,type:WidthType.DXA},columnWidths:[2000,1500,2500,2000,1000],rows:[
+        new TableRow({tableHeader:true,children:[hcell("Zone"),hcell("Type"),hcell("Description"),hcell("Access Conditions"),hcell("Envelope?")]}),
+        ...(br.operationalZones).map(z=>new TableRow({children:[cell(z.name),cell(z.type),cell(z.description),cell(z.accessConditions),cell(z.envelopeWhenOperating?"Yes":"No")]}))
+      ]});
+      sections.push(zoneTable, gap());
+    }
+
+    if ((br.riderRestrictions||[]).length>0) {
+      sections.push(h2("8. Rider Restrictions"));
+      const rrTable=new Table({width:{size:9000,type:WidthType.DXA},columnWidths:[1500,3500,2500,1500],rows:[
+        new TableRow({tableHeader:true,children:[hcell("Category"),hcell("Restriction"),hcell("Rationale"),hcell("Enforced By")]}),
+        ...(br.riderRestrictions).map(r=>new TableRow({children:[cell(r.category),cell(r.restriction),cell(r.rationale),cell(r.enforcedBy)]}))
+      ]});
+      sections.push(rrTable, gap());
+    }
+
+    if ((br.teamStructure||[]).length>0) {
+      sections.push(h2("9. Team Structure"));
+      const tsTable=new Table({width:{size:9000,type:WidthType.DXA},columnWidths:[2000,1000,2000,2500,1500],rows:[
+        new TableRow({tableHeader:true,children:[hcell("Role"),hcell("Count"),hcell("Position"),hcell("Key Responsibilities"),hcell("Competency")]}),
+        ...(br.teamStructure).map(r=>new TableRow({children:[cell(r.role),cell(r.count),cell(r.position),cell((r.responsibilities||[]).join('; ')),cell(r.competencyRequired)]}))
+      ]});
+      sections.push(tsTable, gap());
+    }
+
+    if ((br.weatherLimits||[]).length>0) {
+      sections.push(h2("10. Weather Operational Limits"));
+      const wlTable=new Table({width:{size:9000,type:WidthType.DXA},columnWidths:[2500,3000,3500],rows:[
+        new TableRow({tableHeader:true,children:[hcell("Condition"),hcell("Threshold"),hcell("Required Action")]}),
+        ...(br.weatherLimits).map(w=>new TableRow({children:[cell(w.condition),cell(w.threshold),cell(w.action)]}))
+      ]});
+      sections.push(wlTable, gap());
+    }
+
+    if (br.adiDecisionFramework) {
+      const f=br.adiDecisionFramework;
+      sections.push(h2("11. ADI/ADH Decision Framework"),
+        p(f.boundaryStatement||'',false,20), gap(),
+        p(f.step1_location||'',false,20),
+        p(f.step2_involvement||'',false,20),
+        p(f.step3_foreseeability||'',false,20), gap());
+      if ((f.examples||[]).length>0) {
+        const exTable=new Table({width:{size:9000,type:WidthType.DXA},columnWidths:[3000,2000,4000],rows:[
+          new TableRow({tableHeader:true,children:[hcell("Scenario"),hcell("Classification"),hcell("Reasoning")]}),
+          ...(f.examples).map(ex=>new TableRow({children:[cell(ex.scenario),cell(ex.classification),cell(ex.reasoning)]}))
+        ]});
+        sections.push(exTable, gap());
+      }
+    }
+
+    if (br.referencedDocuments?.length>0) {
+      sections.push(h2("12. Referenced Documents"));
+      br.referencedDocuments.forEach(d=>sections.push(p(`• ${d}`,false,20)));
+      sections.push(gap());
+    }
+
+    sections.push(p("This report has been generated with AI assistance and must be reviewed by a competent person before use in a Safety Case or regulatory submission.",true,18,"993C1D"));
+
+    const doc=new Document({sections:[{children:sections}]});
+    const blob=await Packer.toBlob(doc);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url;
+    a.download=`DeviceBoundaryReport_${(br.deviceName||'Device').replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.docx`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const allCats=[...new Set(entries.map(e=>e.category))].sort();
+  const allDevices = [...new Set(entries.map(e=>e.device||"").filter(Boolean))].sort();
+  const allParks   = [...new Set(entries.map(e=>e.park||"").filter(Boolean))].sort();
+  const commonCount = entries.filter(e=>e.isCommon).length;
+
+  const filtered = entries.filter(e=>{
+    const q=search.toLowerCase();
+    const ctrlText=(e.controls||[]).map(c=>typeof c==='string'?c:(c.description||'')).join(' ');
+    const matchSearch=!q||(e.hazard+e.risk+e.causes+ctrlText).toLowerCase().includes(q);
+    const matchCat=filterCat==="All"||e.category===filterCat;
+    const matchFlag=filterFlag==="All"||(filterFlag==="ADI"&&e.adiTrigger)||(filterFlag==="ADH"&&e.adhTrigger)||(filterFlag==="Extreme/High"&&["Extreme","High"].includes(RATING(e.likelihood,e.consequence).label));
+    const matchDevice=filterDevice==="All"
+      ||(filterDevice==="Common"&&e.isCommon)
+      ||(filterDevice!=="Common"&&filterDevice!=="All"&&(e.device===filterDevice||e.isCommon));
+    const matchPark=filterPark==="All"||e.park===filterPark||e.isCommon;
+    return matchSearch&&matchCat&&matchFlag&&matchDevice&&matchPark;
+  });
+  const cats=[...new Set(filtered.map(e=>e.category))].sort();
+  const iS={width:"100%",boxSizing:"border-box",padding:"7px 10px",fontSize:13,borderRadius:7,border:"1px solid #ddd",fontFamily:"inherit",background:"#fff",color:"#1a1a1a"};
+
+  const TabBtn=({id,label,icon,badge})=>(
+    <button onClick={()=>setTab(id)} style={{padding:"8px 14px",fontSize:13,border:"none",cursor:"pointer",borderBottom:tab===id?`2px solid ${teal}`:"2px solid transparent",background:"transparent",fontFamily:"inherit",color:tab===id?teal:"#666",fontWeight:tab===id?500:400,display:"flex",alignItems:"center",gap:5,whiteSpace:"nowrap"}}>
+      <i className={`ti ti-${icon}`} style={{fontSize:14}}/>{label}
+      {badge!=null && <span style={{fontSize:10,background:teal,color:"#fff",borderRadius:8,padding:"1px 5px",marginLeft:2}}>{badge}</span>}
+    </button>
+  );
+
+  return (
+    <div style={{fontFamily:"inherit"}}>
+      {/* Header */}
+      <div style={{background:teal,color:"#fff",borderRadius:12,padding:"1.25rem 1.5rem",marginBottom:"1.5rem",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:200}}>
+          <p style={{fontWeight:600,fontSize:16,margin:0}}>GOHS Hazard Register Builder</p>
+          <p style={{fontSize:11,margin:"2px 0 0",opacity:0.8}}>VRTP · AS 3533 · ISO 17842 · BS EN 13814 · WHS Reg 2011 Qld Ch.9A · ISO 45001 · ISO 31000</p>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6,flex:1,minWidth:220}}>
+          <select value={park} onChange={e=>savePark(e.target.value)} style={{...iS,fontSize:12,padding:"5px 8px",flex:"0 0 auto",width:140}}>
+            <option value="">Park…</option>
+            <option>Sea World</option>
+            <option>Movie World</option>
+            <option>Wet'n'Wild</option>
+            <option>Paradise Country</option>
+            <option>Corporate</option>
+          </select>
+          <input value={deviceName} onChange={e=>saveDeviceName(e.target.value)} placeholder="Device / ride name" style={{...iS,fontSize:12,flex:1,padding:"5px 8px"}}/>
+        </div>
+        {storageStatus && (
+          <span style={{fontSize:11,padding:"3px 10px",borderRadius:10,fontWeight:500,background:storageStatus==="saved"||storageStatus==="loaded"?"#EAFAF1":storageStatus==="saving"?"#EAF0FB":"#FADBD8",color:storageStatus==="saved"||storageStatus==="loaded"?"#1e8449":storageStatus==="saving"?"#1a3a6b":"#922B21"}}>
+            {storageStatus==="saving"?"Saving…":storageStatus==="saved"?"Saved ✓":storageStatus==="loaded"?`Loaded ${entries.length} entries ✓`:"Save error"}
+          </span>
+        )}
+        {entries.length>0 && <button onClick={exportDocx} disabled={docxStatus==="loading"} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",fontSize:13,background:"#fff",color:teal,border:"none",borderRadius:8,cursor:"pointer",fontWeight:500}}><i className="ti ti-file-word" style={{fontSize:14}}/>{docxStatus==="loading"?"Building…":docxStatus==="done"?"Downloaded ✓":"Export Register"}</button>}
+        {entries.length>0 && <button onClick={clearStorage} style={{display:"flex",alignItems:"center",gap:4,padding:"7px 10px",fontSize:12,border:"1px solid rgba(255,255,255,0.4)",borderRadius:8,background:"transparent",cursor:"pointer",color:"#fff"}}><i className="ti ti-trash" style={{fontSize:12}}/>Clear</button>}
+      </div>
+
+      {/* API Key */}
+      {showKey && (
+        <div style={{background:"#fffbea",border:"1px solid #f1c40f",borderRadius:10,padding:"1rem 1.25rem",marginBottom:"1.25rem"}}>
+          <p style={{fontSize:13,fontWeight:500,margin:"0 0 8px",color:"#7d6608"}}>Anthropic API key required for AI generation</p>
+          <div style={{display:"flex",gap:8}}>
+            <input type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="sk-ant-..." style={{...iS,flex:1}}/>
+            <button onClick={()=>{saveKey(apiKey);setShowKey(false);}} style={{padding:"7px 14px",background:teal,color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:13}}>Save</button>
+          </div>
+          <p style={{fontSize:11,margin:"4px 0 0",color:"#c0392b",fontWeight:500}}>⚠ Browser-side: API key visible in DevTools. For shared deployments use a server-side proxy.</p>
+        </div>
+      )}
+      {!showKey && apiKey && <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"0.75rem"}}><button onClick={()=>setShowKey(true)} style={{fontSize:11,color:"#888",background:"none",border:"none",cursor:"pointer"}}>API key set · change</button></div>}
+
+      {/* Stats */}
+      {entries.length>0 && (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8,marginBottom:"1.25rem"}}>
+          {[{label:"Total hazards",val:entries.length},{label:"Common hazards",val:commonCount,color:"#6c3483",click:()=>setFilterDevice("Common")},{label:"ADI triggers",val:entries.filter(e=>e.adiTrigger).length,color:"#c0392b"},{label:"ADH triggers",val:entries.filter(e=>e.adhTrigger).length,color:"#8e44ad"},{label:"Amusement Device",val:entries.filter(e=>["Amusement Device","Both"].includes(e.hazardType)).length,color:teal},{label:"Extreme / High",val:entries.filter(e=>["Extreme","High"].includes(RATING(e.likelihood,e.consequence).label)).length,color:"#e67e22"}].map(s=>(
+            <div key={s.label} onClick={s.click||null} style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #eee",cursor:s.click?"pointer":"default"}}>
+              <p style={{fontSize:11,color:"#888",margin:"0 0 2px"}}>{s.label}</p>
+              <p style={{fontSize:22,fontWeight:600,margin:0,color:s.color||teal}}>{s.val}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{display:"flex",borderBottom:"1px solid #e8e8e8",marginBottom:"1.25rem",background:"#fff",borderRadius:"10px 10px 0 0",padding:"0 0.5rem",overflowX:"auto"}}>
+        <TabBtn id="register" label="Register" icon="table" badge={entries.length||null}/>
+        <TabBtn id="documents" label="Documents" icon="files" badge={(rideFolders.length+uploadedDocs.length)||null}/>
+        <TabBtn id="generate" label="AI Generate" icon="wand"/>
+        <TabBtn id="boundary" label="Boundary Report" icon="map-2"/>
+        <TabBtn id="library"  label="Library" icon="book"/>
+        <TabBtn id="add"      label="Add Manual" icon="plus"/>
+      </div>
+
+      {error && <div style={{background:"#fdf2f2",border:"1px solid #e8a09a",borderRadius:8,padding:"10px 14px",marginBottom:"1rem",fontSize:13,color:"#c0392b"}}><i className="ti ti-alert-circle" style={{marginRight:6,verticalAlign:-2}}/>{error}<button onClick={()=>setError(null)} style={{float:"right",background:"none",border:"none",cursor:"pointer",color:"#c0392b",fontSize:16}}>×</button></div>}
+
+      {/* ── DOCUMENTS TAB ── */}
+      {tab==="documents" && (
+        <div>
+          {/* Folder-per-ride section */}
+          <div className="section-card" style={{marginBottom:"1rem"}}>
+            <p style={{fontSize:14,fontWeight:500,margin:"0 0 4px",color:"#1a1a1a"}}>Ride Document Folders</p>
+            <p style={{fontSize:12,color:"#666",margin:"0 0 8px"}}>Point each ride to a folder on your computer. Documents are read on-demand at generation time — no storage limits. Works in Chrome / Edge.</p>
+            <div style={{fontSize:12,padding:"8px 12px",background:"#f0f9f9",borderRadius:7,border:`1px solid #b2d8da`,marginBottom:"1rem",lineHeight:1.6}}>
+              <strong style={{color:"#004348"}}>Tip — faster PDF extraction with markitdown</strong><br/>
+              Run these commands in <strong>PowerShell</strong> (not here — this is a browser app). Pre-converting your PDFs to Markdown gives cleaner text and skips slow in-browser PDF parsing. When a <code>.md</code> file exists alongside a PDF, the app reads the <code>.md</code> directly.<br/>
+              <code style={{display:"block",marginTop:6,padding:"6px 10px",background:"#1a1a1a",borderRadius:5,color:"#a8d8a8",fontSize:11,lineHeight:1.8,whiteSpace:"pre"}}>
+                {"# Step 1 — install once (PowerShell)\npip install markitdown\n\n# Step 2 — IMPORTANT: must start with 'python' (or 'py')\npython \"D:\\OneDrive - Village Roadshow Limited\\01_Claude\\CLAUDE COWORK\\convert_docs.py\" \"D:\\path\\to\\your\\ride\\folder\"\n\n# Example — Scooby-Doo assessment documents\npython \"D:\\OneDrive - Village Roadshow Limited\\01_Claude\\CLAUDE COWORK\\convert_docs.py\" \"D:\\Village Roadshow Limited\\OHS Team - 2026 Safety Case Risk Assessment updates\\Movie World\\Scooby\\Scooby Assessment Documents\"\n\n# If 'python' is not recognised, try 'py' instead\npy \"D:\\OneDrive - Village Roadshow Limited\\01_Claude\\CLAUDE COWORK\\convert_docs.py\" \"D:\\path\\to\\folder\""}
+              </code>
+              <span style={{fontSize:11,color:"#666",display:"block",marginTop:5}}>Then come back here, pick the same folder, and the app reads the .md files — no PDF parsing needed.</span>
+            </div>
+            {rideFolders.length>0 && (
+              <div style={{marginBottom:"1rem"}}>
+                {rideFolders.map(f=>(
+                  <div key={f.ride} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"#f0f9f9",borderRadius:8,marginBottom:6,border:`1px solid ${teal}33`}}>
+                    <i className="ti ti-folder" style={{fontSize:20,color:teal,flexShrink:0}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{fontSize:13,fontWeight:600,margin:0,color:teal}}>{f.ride}</p>
+                      <p style={{fontSize:11,color:"#666",margin:0}}>{f.fileCount} supported file{f.fileCount!==1?'s':''} · docs read at generation time</p>
+                    </div>
+                    <button onClick={()=>removeRideFolder(f.ride)} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b",fontSize:18,padding:0,flexShrink:0}} title="Remove folder">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Add folder row */}
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <input
+                value={newRideName}
+                onChange={e=>setNewRideName(e.target.value)}
+                placeholder={apiKey?"Ride name — or leave blank to auto-detect":"Ride name (e.g. Trident)"}
+                style={{flex:1,fontSize:13,border:"1px solid #ddd",borderRadius:6,padding:"7px 10px"}}
+              />
+              <button
+                onClick={()=>addRideFolder(newRideName)}
+                style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",background:teal,color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:500,whiteSpace:"nowrap"}}
+              >
+                <i className="ti ti-folder-plus" style={{fontSize:15}}/>Pick Folder
+              </button>
+            </div>
+            {apiKey && <p style={{fontSize:11,color:"#888",margin:"5px 0 0"}}>Leave ride name blank — the app will read up to 3 documents and detect the ride automatically.</p>}
+            {docError && <p style={{fontSize:12,color:"#c0392b",margin:"8px 0 0"}}>{docError}</p>}
+            {folderProgress && <p style={{fontSize:12,color:teal,margin:"8px 0 0"}}><i className="ti ti-loader-2" style={{fontSize:12,animation:"spin 1s linear infinite",marginRight:4}}/>{folderProgress}</p>}
+          </div>
+
+          {/* Legacy drop-zone fallback */}
+          <div className="section-card">
+            <p style={{fontSize:13,fontWeight:500,margin:"0 0 4px",color:"#555"}}>Or upload individual files</p>
+            <p style={{fontSize:12,color:"#888",margin:"0 0 1rem"}}>Use this if folder picker is unavailable, or for one-off documents. Files stored in browser memory.</p>
+            <DocumentDropZone onFiles={handleFiles} loading={docUploading}/>
+            {uploadedDocs.length>0 && (
+              <div style={{marginTop:"1rem"}}>
+                <p style={{fontSize:12,fontWeight:500,color:"#666",margin:"0 0 8px"}}>{uploadedDocs.length} uploaded file{uploadedDocs.length!==1?'s':''}</p>
+                {uploadedDocs.map(d=>(
+                  <div key={d.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#f9f9f9",borderRadius:8,marginBottom:6,border:"1px solid #eee"}}>
+                    <i className={`ti ti-${d.name.endsWith('.pdf')?'file-type-pdf':d.name.endsWith('.docx')||d.name.endsWith('.doc')?'file-word':'file-text'}`} style={{fontSize:18,color:teal}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{fontSize:13,fontWeight:500,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.name}</p>
+                      <p style={{fontSize:11,color:"#888",margin:0}}>{(d.size/1024).toFixed(1)} KB · {new Date(d.date).toLocaleDateString("en-AU")}</p>
+                      <div style={{display:"flex",alignItems:"center",gap:4,marginTop:3,flexWrap:"wrap"}}>
+                        <i className="ti ti-tag" style={{fontSize:11,color:"#aaa"}}/>
+                        <input value={d.ride||""} onChange={e=>updateDocRide(d.id,e.target.value)} placeholder="Ride name"
+                          style={{fontSize:11,border:`1px solid ${!d.ride?"#e67e22":"#ddd"}`,borderRadius:4,padding:"1px 6px",width:150,background:"#fff",color:"#555"}}/>
+                        {d.ride && d.confidence==="high" && <span style={{fontSize:10,background:"#eafaf1",color:"#1e8449",borderRadius:10,padding:"1px 7px",fontWeight:500}}>✓ {d.ride}</span>}
+                        {d.ride && d.confidence==="medium" && <span style={{fontSize:10,background:"#fef9e7",color:"#b7770d",borderRadius:10,padding:"1px 7px",fontWeight:500}}>~ {d.ride}</span>}
+                        {d.ride && (d.confidence==="low"||d.confidence==="manual") && <span style={{fontSize:10,background:"#e8f4f8",color:teal,borderRadius:10,padding:"1px 7px",fontWeight:500}}>{d.ride}</span>}
+                        {!d.ride && <span style={{fontSize:10,color:"#e67e22",fontWeight:500}}>⚠ Needs ride tag</span>}
+                        {d.confidence==="medium" && d.ride && <span style={{fontSize:10,color:"#b7770d"}}>— check this</span>}
+                      </div>
+                    </div>
+                    <button onClick={()=>removeDoc(d.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b",fontSize:18,padding:0,flexShrink:0}}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── GENERATE TAB ── */}
+      {tab==="generate" && (
+        <div className="section-card">
+          <p style={{fontSize:14,fontWeight:500,margin:"0 0 1rem",color:"#1a1a1a"}}>AI-generate standard-referenced hazards</p>
+          {(rideFolders.length>0||uploadedDocs.length>0) && (()=>{
+            const matchFolders=rideFolders.filter(f=>!f.ride||!deviceName||f.ride.trim().toLowerCase()===deviceName.trim().toLowerCase());
+            const matchLegacy=uploadedDocs.filter(d=>!d.ride||!deviceName||d.ride.trim().toLowerCase()===deviceName.trim().toLowerCase());
+            const totalFiles=matchFolders.reduce((s,f)=>s+f.fileCount,0)+matchLegacy.length;
+            return(<p style={{fontSize:12,color:"#1e8449",margin:"0 0 1rem",padding:"6px 10px",background:"#eafaf1",borderRadius:6}}>
+              <i className="ti ti-check" style={{marginRight:4}}/>
+              {matchFolders.length>0?`${matchFolders.length} folder${matchFolders.length!==1?'s':''} (≈${totalFiles} files) matched to `:`${matchLegacy.length} file${matchLegacy.length!==1?'s':''} matched to `}
+              <strong>{deviceName||"this device"}</strong> — read at generation time
+            </p>);
+          })()}
+          <div style={{marginBottom:"0.75rem"}}>
+            <label style={{fontSize:12,color:"#666",display:"block",marginBottom:8}}>Hazard source library — select device type</label>
+            {SOURCE_LIBRARY.map(group=>(
+              <div key={group.group} style={{marginBottom:10}}>
+                <div style={{fontSize:11,fontWeight:600,color:"#888",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4,paddingLeft:2}}>{group.group}</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+                  {group.items.map(opt=>{
+                    const sel = sourceSet===opt.id;
+                    return (
+                      <button key={opt.id} onClick={()=>setSourceSet(opt.id)}
+                        title={opt.sub}
+                        style={{padding:"7px 10px",fontSize:12,borderRadius:8,cursor:"pointer",textAlign:"left",
+                          background:sel?teal:"#f7f7f7",color:sel?"#fff":"#333",
+                          border:sel?`1px solid ${teal}`:"1px solid #e0e0e0",
+                          transition:"all 0.15s"}}>
+                        <div style={{fontWeight:sel?600:500,marginBottom:1}}>{opt.label}</div>
+                        <div style={{fontSize:10,opacity:sel?0.85:0.6,lineHeight:1.3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{opt.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{marginBottom:"0.75rem"}}>
+            <label style={{fontSize:12,color:"#666",display:"block",marginBottom:4}}>Specific focus (optional)</label>
+            <input value={topic} onChange={e=>setTopic(e.target.value)} style={iS} placeholder="e.g. tower swinger gondola restraints, wire rope inspection"/>
+          </div>
+          <div style={{marginBottom:"1rem"}}>
+            <label style={{fontSize:12,color:"#666",display:"block",marginBottom:4}}>Additional context (optional)</label>
+            <textarea value={extras} onChange={e=>setExtras(e.target.value)} rows={2} style={{...iS,resize:"vertical"}} placeholder="e.g. SBF tower swinger 42m, hydraulic lift, 36 riders per cycle"/>
+          </div>
+          <button onClick={()=>generate(false)} disabled={genLoading} style={{width:"100%",padding:"10px 0",borderRadius:8,background:genLoading?"#eee":teal,color:genLoading?"#999":"#fff",border:"none",cursor:genLoading?"not-allowed":"pointer",fontSize:14,fontWeight:500,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            {genLoading?<><i className="ti ti-loader-2" style={{fontSize:16,animation:"spin 1s linear infinite"}}/>{genProgress||"Generating…"}</>:<><i className="ti ti-wand" style={{fontSize:16}}/>Generate — append to register</>}
+          </button>
+          <button onClick={clearAndRegenerate} disabled={genLoading} style={{width:"100%",marginTop:6,padding:"9px 0",borderRadius:8,background:genLoading?"#eee":"#fff",color:genLoading?"#999":"#b03030",border:"1px solid #e0b0b0",cursor:genLoading?"not-allowed":"pointer",fontSize:13,fontWeight:500,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            <i className="ti ti-refresh-alert" style={{fontSize:15}}/>Replace all — clear &amp; regenerate from scratch
+          </button>
+          <p style={{fontSize:11,color:"#888",margin:"8px 0 0",textAlign:"center"}}>Append adds to existing register. Replace clears all wrong-device entries and regenerates fresh. Controls include accountability, frequency, parameters, evidence, and escalation.</p>
+        </div>
+      )}
+
+      {/* ── BOUNDARY REPORT TAB ── */}
+      {tab==="boundary" && (
+        <div>
+          <div className="section-card">
+            <p style={{fontSize:14,fontWeight:500,margin:"0 0 4px",color:"#1a1a1a"}}>Device Boundary & Summary Report</p>
+            <p style={{fontSize:12,color:"#666",margin:"0 0 1rem"}}>Generates a regulator-defensible device boundary report per ISO 17842-1, WHS Reg 2011 (Qld) Ch.9A, and the Qld Safety Case Guide. Uses uploaded documents as source material.</p>
+            {rideFolders.length===0&&uploadedDocs.length===0 && <p style={{fontSize:12,color:"#e67e22",margin:"0 0 1rem",padding:"6px 10px",background:"#fef9e7",borderRadius:6}}><i className="ti ti-alert-triangle" style={{marginRight:4}}/>No documents — add ride folders or upload files on the Documents tab for a richer report.</p>}
+            {(rideFolders.length>0||uploadedDocs.length>0) && (()=>{
+              const tgt=(boundaryDevName||deviceName||"").trim().toLowerCase();
+              const matchFolders=rideFolders.filter(f=>!f.ride||!tgt||f.ride.trim().toLowerCase()===tgt);
+              const matchLegacy=uploadedDocs.filter(d=>!d.ride||!tgt||d.ride.trim().toLowerCase()===tgt);
+              const totalFiles=matchFolders.reduce((s,f)=>s+f.fileCount,0)+matchLegacy.length;
+              return(<p style={{fontSize:12,color:"#1e8449",margin:"0 0 1rem",padding:"6px 10px",background:"#eafaf1",borderRadius:6}}>
+                <i className="ti ti-check" style={{marginRight:4}}/>
+                {matchFolders.length>0?`${matchFolders.length} folder${matchFolders.length!==1?'s':''} (≈${totalFiles} files) matched to `:`${matchLegacy.length} file${matchLegacy.length!==1?'s':''} matched to `}
+                <strong>{boundaryDevName||deviceName||"this device"}</strong> — read at generation time
+              </p>);
+            })()}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px",marginBottom:"0.75rem"}}>
+              <div>
+                <label style={{fontSize:12,color:"#666",display:"block",marginBottom:4}}>Device name</label>
+                <input value={boundaryDevName||deviceName} onChange={e=>setBoundaryDevName(e.target.value)} placeholder="e.g. Trident" style={iS}/>
+              </div>
+              <div>
+                <label style={{fontSize:12,color:"#666",display:"block",marginBottom:4}}>Additional context (optional)</label>
+                <input value={boundaryExtras} onChange={e=>setBoundaryExtras(e.target.value)} placeholder="e.g. SBF 42m tower swinger, Sea World" style={iS}/>
+              </div>
+            </div>
+            <button onClick={runBoundaryReport} disabled={boundaryLoading} style={{width:"100%",padding:"10px 0",borderRadius:8,background:boundaryLoading?"#eee":teal,color:boundaryLoading?"#999":"#fff",border:"none",cursor:boundaryLoading?"not-allowed":"pointer",fontSize:14,fontWeight:500,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              {boundaryLoading?<><i className="ti ti-loader-2" style={{fontSize:16,animation:"spin 1s linear infinite"}}/>Generating report…</>:<><i className="ti ti-map-2" style={{fontSize:16}}/>Generate Boundary Report</>}
+            </button>
+            {boundaryError && <p style={{fontSize:12,color:"#c0392b",margin:"8px 0 0"}}>{boundaryError}</p>}
+          </div>
+          {boundaryReport && <BoundaryReportView report={boundaryReport} onExport={exportBoundaryDocx}/>}
+        </div>
+      )}
+
+      {/* ── LIBRARY TAB ── */}
+      {tab==="library" && (
+        <div>
+          <div className="section-card">
+            <p style={{fontSize:14,fontWeight:500,margin:"0 0 4px",color:"#1a1a1a"}}>Cross-Device Hazard Library</p>
+            <p style={{fontSize:12,color:"#666",margin:"0 0 1rem"}}>Your current register ({entries.length} entries) forms the library. Enter a different device type to get AI suggestions on which library hazards may apply.</p>
+            <div style={{display:"flex",gap:8}}>
+              <input value={libDevice} onChange={e=>setLibDevice(e.target.value)} placeholder="New device type — e.g. Sea Viper roller coaster, Carousel" style={{...iS,flex:1}}/>
+              <button onClick={runLibrarySuggestions} disabled={libLoading||!libDevice.trim()||entries.length===0||!apiKey} style={{padding:"7px 14px",background:teal,color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:13,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6}}>
+                {libLoading?<><i className="ti ti-loader-2" style={{fontSize:13,animation:"spin 1s linear infinite"}}/>Analysing…</>:<><i className="ti ti-search" style={{fontSize:13}}/>Suggest applicable</>}
+              </button>
+            </div>
+            {libSuggestions && !libSuggestions.error && Array.isArray(libSuggestions) && (
+              <div style={{marginTop:"1rem"}}>
+                <p style={{fontSize:12,fontWeight:500,color:"#666",margin:"0 0 8px"}}>{libSuggestions.length} library hazard{libSuggestions.length!==1?'s':''} suggested as applicable to "{libDevice}"</p>
+                {libSuggestions.map((s,i)=>{
+                  const entry=entries.find(e=>e.id===s.id);
+                  return (
+                    <div key={i} style={{padding:"8px 12px",background:"#f0f9f9",borderRadius:8,marginBottom:6,border:"1px solid #c8e6e8"}}>
+                      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
+                        <span style={{fontSize:11,fontWeight:600,color:teal}}>{s.id}</span>
+                        <span style={{fontSize:12,flex:1}}>{entry?.hazard||s.id}</span>
+                      </div>
+                      <p style={{fontSize:12,color:"#555",margin:0}}><strong>Why applicable:</strong> {s.reason}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {libSuggestions?.error && <p style={{fontSize:12,color:"#c0392b",margin:"8px 0 0"}}>Error: {libSuggestions.error}</p>}
+          </div>
+          {entries.length>0 && (
+            <div className="section-card">
+              <p style={{fontSize:13,fontWeight:500,color:"#666",margin:"0 0 8px"}}>Library entries ({entries.length} total)</p>
+              {entries.map(e=>{
+                const r=RATING(e.likelihood,e.consequence);
+                const libHighlight=libSuggestions&&Array.isArray(libSuggestions)&&libSuggestions.some(s=>s.id===e.id);
+                return (
+                  <div key={e.id} style={{padding:"6px 10px",borderRadius:6,marginBottom:4,background:libHighlight?"#f0f9f9":"#fafafa",border:libHighlight?"1px solid #c8e6e8":"1px solid #eee",display:"flex",gap:8,alignItems:"center"}}>
+                    <span style={{fontSize:11,fontWeight:600,color:teal,minWidth:44}}>{e.id}</span>
+                    <span style={{fontSize:12,flex:1,color:"#333"}}>{e.hazard}</span>
+                    <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:r.color+"22",color:r.color,whiteSpace:"nowrap"}}>{r.label}</span>
+                    {libHighlight && <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:"#004348",color:"#fff"}}>Suggested</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ADD MANUAL TAB ── */}
+      {tab==="add" && (
+        <div className="section-card">
+          {!editMode
+            ? <div style={{textAlign:"center",padding:"1rem 0"}}>
+                <p style={{fontSize:14,margin:"0 0 1rem",color:"#666"}}>Manually add a hazard to the register</p>
+                <button onClick={addEntry} style={{padding:"8px 20px",background:teal,color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:13}}>Add new entry</button>
+              </div>
+            : <ManualForm entry={editEntry} onChange={setEditEntry} onSave={()=>{saveNew();setTab("register");}} onCancel={()=>{setEditMode(false);setEditEntry(null);}} isNew={true} iS={iS} blankControl={blankControl}/>
+          }
+        </div>
+      )}
+
+      {/* ── REGISTER TAB ── */}
+      {tab==="register" && (
+        <div>
+          {entries.length>0 && (
+            <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap"}}>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search hazards, risks, controls…" style={{...iS,flex:2,minWidth:180}}/>
+              {allParks.length>0 && (
+                <select value={filterPark} onChange={e=>setFilterPark(e.target.value)} style={{...iS,flex:1,minWidth:120}}>
+                  <option value="All">All parks</option>
+                  {allParks.map(p=><option key={p}>{p}</option>)}
+                </select>
+              )}
+              {allDevices.length>0 && (
+                <select value={filterDevice} onChange={e=>setFilterDevice(e.target.value)} style={{...iS,flex:1,minWidth:130}}>
+                  <option value="All">All devices</option>
+                  <option value="Common">⭐ Common only</option>
+                  {allDevices.map(d=><option key={d}>{d}</option>)}
+                </select>
+              )}
+              <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{...iS,flex:1,minWidth:130}}>
+                <option value="All">All categories</option>
+                {allCats.map(c=><option key={c}>{c}</option>)}
+              </select>
+              <select value={filterFlag} onChange={e=>setFilterFlag(e.target.value)} style={{...iS,flex:1,minWidth:120}}>
+                <option value="All">All flags</option>
+                <option value="ADI">ADI only</option>
+                <option value="ADH">ADH only</option>
+                <option value="Extreme/High">Extreme / High</option>
+              </select>
+              {(search||filterCat!=="All"||filterFlag!=="All"||filterDevice!=="All"||filterPark!=="All") && <button onClick={()=>{setSearch("");setFilterCat("All");setFilterFlag("All");setFilterDevice("All");setFilterPark("All");}} style={{padding:"7px 12px",fontSize:12,border:"1px solid #ddd",borderRadius:7,background:"transparent",cursor:"pointer",color:"#888"}}>Clear</button>}
+            </div>
+          )}
+          {editMode && editEntry && entries.some(e=>e.id===editEntry.id) && (
+            <div className="section-card" style={{marginBottom:"1rem"}}>
+              <p style={{fontSize:14,fontWeight:500,margin:"0 0 1rem"}}>Edit — {editEntry.id}</p>
+              <ManualForm entry={editEntry} onChange={setEditEntry} onSave={saveEdit} onCancel={()=>{setEditMode(false);setEditEntry(null);}} isNew={false} iS={iS} blankControl={blankControl}/>
+            </div>
+          )}
+          {entries.length===0
+            ? <div style={{textAlign:"center",padding:"3rem 1rem",color:"#888",background:"#fff",borderRadius:12,border:"1px solid #eee"}}>
+                <p style={{fontSize:14,margin:"0 0 8px"}}>No entries yet</p>
+                <p style={{fontSize:12,margin:"0 0 1.5rem"}}>Upload device documents, then use AI Generate — or add entries manually</p>
+                <button onClick={()=>setTab("documents")} style={{padding:"8px 16px",background:teal,color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:13,marginRight:8}}>Upload Documents</button>
+                <button onClick={()=>setTab("generate")} style={{padding:"8px 16px",background:"transparent",color:teal,border:`1px solid ${teal}`,borderRadius:8,cursor:"pointer",fontSize:13,marginRight:8}}>AI Generate</button>
+                <button onClick={()=>{addEntry();setTab("add");}} style={{padding:"8px 16px",background:"transparent",color:"#666",border:"1px solid #ddd",borderRadius:8,cursor:"pointer",fontSize:13}}>Add Manually</button>
+              </div>
+            : filtered.length===0
+            ? <div style={{textAlign:"center",padding:"2rem 1rem",color:"#888",background:"#fff",borderRadius:12,border:"1px solid #eee"}}>
+                <p style={{fontSize:13,margin:0}}>No entries match filters</p>
+              </div>
+            : cats.map(cat=>(
+                <div key={cat} style={{marginBottom:"1.25rem"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                    <span style={{fontSize:11,fontWeight:500,background:`${teal}15`,color:teal,padding:"2px 10px",borderRadius:20}}>{cat}</span>
+                    <span style={{fontSize:11,color:"#888"}}>{filtered.filter(e=>e.category===cat).length} entries</span>
+                  </div>
+                  {filtered.filter(e=>e.category===cat).map(e=>(
+                    <HazardCard key={e.id} entry={e} selected={selected===e.id}
+                      onSelect={()=>setSelected(selected===e.id?null:e.id)}
+                      onEdit={()=>{setEditEntry(normalizeEntry({...e}));setEditMode(true);}}
+                      onDelete={()=>deleteEntry(e.id)}
+                      onToggleCommon={()=>setEntries(prev=>{const u=prev.map(x=>x.id===e.id?{...x,isCommon:!x.isCommon}:x);saveToStorage(u);return u;})}/>
+                  ))}
+                </div>
+              ))
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── DOCUMENT DROP ZONE ───────────────────────────────────────────────────────
+function DocumentDropZone({onFiles, loading}) {
+  const [dragOver, setDragOver] = useState(false);
+  return (
+    <div
+      className={`drop-zone${dragOver?' over':''}`}
+      onDragOver={e=>{e.preventDefault();setDragOver(true);}}
+      onDragLeave={()=>setDragOver(false)}
+      onDrop={e=>{e.preventDefault();setDragOver(false);if(!loading)onFiles(e.dataTransfer.files);}}
+    >
+      <input type="file" accept=".pdf,.docx,.doc,.txt" multiple onChange={e=>{if(!loading)onFiles(e.target.files);e.target.value='';}} id="fileInput" style={{display:'none'}}/>
+      <label htmlFor="fileInput" style={{cursor:'pointer',display:'block'}}>
+        {loading
+          ? <><i className="ti ti-loader-2" style={{fontSize:24,display:'block',margin:'0 auto 8px',animation:'spin 1s linear infinite',color:teal}}/><p style={{fontSize:13,color:'#666',margin:0}}>Extracting text…</p></>
+          : <><i className="ti ti-cloud-upload" style={{fontSize:32,display:'block',margin:'0 auto 8px',color:dragOver?teal:'#bbb'}}/><p style={{fontSize:13,color:'#666',margin:0}}>Drop PDF, DOCX, or TXT files here<br/><span style={{fontSize:12,color:'#aaa'}}>or click to browse</span></p></>
+        }
+      </label>
+    </div>
+  );
+}
+
+// ─── HAZARD CARD ──────────────────────────────────────────────────────────────
+function HazardCard({entry:e, selected, onSelect, onEdit, onDelete, onToggleCommon}) {
+  const s=e.consequence*e.likelihood;
+  const r=RATING(e.likelihood,e.consequence);
+  const controls=(e.controls||[]).map(normalizeControl);
+  const criticals=controls.filter(c=>c.isCritical);
+  return (
+    <div style={{background:"#fff",border:`1px solid ${e.isCommon?"#6c3483":selected?teal:"#e8e8e8"}`,borderRadius:10,marginBottom:6,overflow:"hidden"}}>
+      <div onClick={onSelect} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",flexWrap:"wrap"}}>
+        <span style={{fontSize:11,fontWeight:600,color:teal,minWidth:44}}>{e.id}</span>
+        <span style={{flex:1,minWidth:120}}>
+          {e.riskTitle && <span style={{fontSize:11,fontWeight:600,color:teal,display:"block",marginBottom:1}}>{e.riskTitle}</span>}
+          <span style={{fontSize:13,color:"#1a1a1a"}}>{e.hazard}</span>
+        </span>
+        {e.device && <span style={{fontSize:10,fontWeight:500,padding:"2px 7px",borderRadius:10,whiteSpace:"nowrap",background:"#f0f0f0",color:"#555"}}><i className="ti ti-device-gamepad-2" style={{fontSize:9,marginRight:3}}/>{e.device}</span>}
+        {e.isCommon && <span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:10,whiteSpace:"nowrap",background:"#f5eef8",color:"#6c3483"}}>⭐ Common</span>}
+        {e.hazardType && <span style={{fontSize:10,fontWeight:500,padding:"2px 7px",borderRadius:10,whiteSpace:"nowrap",background:e.hazardType==="Amusement Device"?"#E8F4F8":e.hazardType==="Both"?"#EAF0FB":"#F4F4F4",color:e.hazardType==="Amusement Device"?teal:e.hazardType==="Both"?"#1a3a6b":"#555"}}>{e.hazardType}</span>}
+        {e.adiTrigger && <span style={{fontSize:10,fontWeight:500,background:"#FADBD8",color:"#922B21",padding:"2px 7px",borderRadius:10,whiteSpace:"nowrap"}}>ADI</span>}
+        {e.adhTrigger && <span style={{fontSize:10,fontWeight:500,background:"#F5EEF8",color:"#7D3C98",padding:"2px 7px",borderRadius:10,whiteSpace:"nowrap"}}>ADH</span>}
+        {criticals.length>0 && <span style={{fontSize:10,fontWeight:500,background:"#FEF9E7",color:"#B7770D",padding:"2px 7px",borderRadius:10,whiteSpace:"nowrap"}}>★ {criticals.length} Critical</span>}
+        <span style={{fontSize:11,fontWeight:500,padding:"2px 8px",borderRadius:10,whiteSpace:"nowrap",background:r.color+"22",color:r.color}}>{s} — {r.label}</span>
+        <i className={`ti ti-chevron-${selected?"up":"down"}`} style={{fontSize:14,color:"#888"}}/>
+      </div>
+      {selected && (
+        <div style={{borderTop:"1px solid #eee",padding:"12px 14px",fontSize:13}}>
+          {/* Risk description + causes */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 16px",marginBottom:8}}>
+            <Field label="Risk description" val={e.risk}/>
+            <Field label="Causes" val={e.causes}/>
+          </div>
+          {/* Inherent rating justifications */}
+          {(e.inherentConsequenceJustification||e.inherentLikelihoodJustification) && (
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 16px",marginBottom:8,padding:"8px 10px",background:"#f9f9f9",borderRadius:7,border:"1px solid #eee"}}>
+              <Field label="Inherent consequence justification" val={e.inherentConsequenceJustification}/>
+              <Field label="Inherent likelihood justification" val={e.inherentLikelihoodJustification}/>
+            </div>
+          )}
+          {/* SFARP — Extreme/High only */}
+          {e.sfarpJustification && (
+            <div style={{marginBottom:8,padding:"8px 10px",background:"#fff8f0",borderRadius:7,border:"1px solid #f5cba7"}}>
+              <Field label="SFARP justification (Extreme/High)" val={e.sfarpJustification}/>
+            </div>
+          )}
+          {/* Controls list */}
+          <div style={{marginBottom:8}}>
+            <p style={{fontSize:11,color:"#888",margin:"0 0 6px"}}>Controls ({controls.length})</p>
+            {controls.map((c,i)=>{
+              const effColor=c.effectiveness<=2?"#1e8449":c.effectiveness===3?"#b7770d":c.effectiveness>=4?"#c0392b":"#888";
+              return (
+                <div key={i} style={{display:"flex",gap:6,marginBottom:4,alignItems:"flex-start"}}>
+                  <span style={{fontSize:11,color:"#888",minWidth:18}}>{i+1}.</span>
+                  <span style={{fontSize:12,flex:1,color:"#1a1a1a",lineHeight:1.4}}>{c.description}</span>
+                  {c.isCritical && <span style={{fontSize:10,background:"#FEF9E7",color:"#B7770D",padding:"1px 6px",borderRadius:8,whiteSpace:"nowrap",fontWeight:500}}>★ Critical</span>}
+                  <span style={{fontSize:10,background:c.controlType==="Prevention"?"#e8f4f8":"#fef0f8",color:c.controlType==="Prevention"?teal:"#7d3c98",padding:"1px 6px",borderRadius:8,whiteSpace:"nowrap"}}>{c.controlType||"Prevention"}</span>
+                  <span style={{fontSize:10,background:"#f0f0f0",color:"#666",padding:"1px 6px",borderRadius:8,whiteSpace:"nowrap"}}>{c.hierarchy}</span>
+                  {c.effectiveness && <span style={{fontSize:10,color:effColor,fontWeight:500,whiteSpace:"nowrap"}}>E{c.effectiveness}</span>}
+                </div>
+              );
+            })}
+          </div>
+          {/* Critical controls bowtie table */}
+          {criticals.length>0 && (
+            <div style={{marginBottom:10}}>
+              <p style={{fontSize:11,color:"#888",margin:"0 0 6px",fontWeight:500}}>Critical Controls — verification detail</p>
+              <div style={{overflowX:"auto"}}>
+                <table className="ctrl-table">
+                  <thead><tr>
+                    <th style={{minWidth:180}}>Control</th>
+                    <th style={{minWidth:80}}>Type</th>
+                    <th style={{minWidth:60}}>Eff.</th>
+                    <th style={{minWidth:120}}>Accountability</th>
+                    <th style={{minWidth:100}}>Frequency</th>
+                    <th style={{minWidth:150}}>Parameters (perf. criteria)</th>
+                    <th style={{minWidth:150}}>Evidence / verification</th>
+                    <th style={{minWidth:200}}>Escalation on failure</th>
+                    <th style={{minWidth:100}}>Standard</th>
+                  </tr></thead>
+                  <tbody>
+                    {criticals.map((c,i)=>{
+                      const effColor=c.effectiveness<=2?"#1e8449":c.effectiveness===3?"#b7770d":"#c0392b";
+                      return (
+                        <tr key={i}>
+                          <td style={{fontWeight:500}}>{c.description}</td>
+                          <td><span style={{fontSize:10,background:c.controlType==="Prevention"?"#e8f4f8":"#fef0f8",color:c.controlType==="Prevention"?teal:"#7d3c98",padding:"1px 5px",borderRadius:6}}>{c.controlType||"Prevention"}</span></td>
+                          <td style={{color:effColor,fontWeight:600,textAlign:"center"}}>{c.effectiveness||"—"}</td>
+                          <td>{c.accountability||"—"}</td>
+                          <td>{c.frequency||"—"}</td>
+                          <td>{c.parameters||"—"}</td>
+                          <td>{c.evidence||"—"}</td>
+                          <td style={{color:"#c0392b"}}>{c.escalation||"—"}</td>
+                          <td style={{color:"#666",fontSize:11}}>{c.standard||"—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {/* Risk reduction justification */}
+          {e.riskReductionJustification && (
+            <div style={{marginBottom:8,padding:"8px 10px",background:"#eafaf1",borderRadius:7,border:"1px solid #a9dfbf"}}>
+              <Field label="Risk reduction justification (SFARP)" val={e.riskReductionJustification}/>
+            </div>
+          )}
+          {(e.standards||[]).filter(Boolean).length>0 && (
+            <div style={{marginTop:8}}>
+              <p style={{fontSize:11,color:"#888",margin:"0 0 4px"}}>Standards referenced</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{e.standards.filter(Boolean).map((s,i)=><span key={i} style={{fontSize:11,background:"#f5f5f5",padding:"2px 8px",borderRadius:6,color:"#666"}}>{s}</span>)}</div>
+            </div>
+          )}
+          <div style={{display:"flex",gap:8,marginTop:10,justifyContent:"flex-end",flexWrap:"wrap"}}>
+            <button onClick={onToggleCommon} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",fontSize:12,border:`1px solid ${e.isCommon?"#6c3483":"#ddd"}`,borderRadius:6,background:e.isCommon?"#f5eef8":"transparent",cursor:"pointer",color:e.isCommon?"#6c3483":"#555"}}>
+              {e.isCommon?"⭐ Common (click to remove)":"☆ Mark as Common"}
+            </button>
+            <button onClick={onEdit} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",fontSize:12,border:"1px solid #ddd",borderRadius:6,background:"transparent",cursor:"pointer"}}><i className="ti ti-edit" style={{fontSize:13}}/>Edit</button>
+            <button onClick={onDelete} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",fontSize:12,border:"1px solid #e8a09a",borderRadius:6,background:"transparent",cursor:"pointer",color:"#c0392b"}}><i className="ti ti-trash" style={{fontSize:13}}/>Delete</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({label,val}) {
+  return (
+    <div>
+      <p style={{fontSize:11,color:"#888",margin:"0 0 2px"}}>{label}</p>
+      <p style={{fontSize:13,margin:0,color:"#1a1a1a",whiteSpace:"pre-line",lineHeight:1.5}}>{val||"—"}</p>
+    </div>
+  );
+}
+
+// ─── MANUAL FORM ──────────────────────────────────────────────────────────────
+function ManualForm({entry, onChange, onSave, onCancel, isNew, iS, blankControl}) {
+  const [expandedCtrl, setExpandedCtrl] = useState(null);
+  const upd=(k,v)=>onChange(p=>({...p,[k]:v}));
+  const controls=(entry.controls||[]).map(c=>typeof c==='string'?normalizeControl(c):c);
+  const updCtrl=(i,field,v)=>onChange(p=>({...p,controls:controls.map((c,j)=>j===i?{...c,[field]:v}:c)}));
+  const addCtrl=()=>{onChange(p=>({...p,controls:[...controls,blankControl()]}));setExpandedCtrl(controls.length);};
+  const remCtrl=(i)=>{onChange(p=>({...p,controls:controls.filter((_,j)=>j!==i)}));setExpandedCtrl(null);};
+  const lbl=(t)=><label style={{fontSize:12,color:"#666",display:"block",marginBottom:3}}>{t}</label>;
+  const smallInput=(field,ctrl,i,ph)=>(
+    <div style={{marginBottom:6}}>
+      {lbl(field.charAt(0).toUpperCase()+field.slice(1))}
+      <input value={ctrl[field]||''} onChange={e=>updCtrl(i,field,e.target.value)} style={iS} placeholder={ph||''}/>
+    </div>
+  );
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px",marginBottom:10}}>
+        <div>{lbl("Category")}<select value={entry.category} onChange={e=>upd("category",e.target.value)} style={iS}>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></div>
+        <div>{lbl("Hazard type")}<select value={entry.hazardType||"General Workplace"} onChange={e=>upd("hazardType",e.target.value)} style={iS}><option>General Workplace</option><option>Amusement Device</option><option>Both</option></select></div>
+      </div>
+      <div style={{marginBottom:6}}><input type="checkbox" id="adi" checked={entry.adiTrigger} onChange={e=>upd("adiTrigger",e.target.checked)} style={{marginRight:8,verticalAlign:-2}}/><label htmlFor="adi" style={{fontSize:13}}>ADI trigger — s 608B(2) WHS Reg 2011 (Qld)</label></div>
+      <div style={{marginBottom:10}}><input type="checkbox" id="adh" checked={!!entry.adhTrigger} onChange={e=>upd("adhTrigger",e.target.checked)} style={{marginRight:8,verticalAlign:-2}}/><label htmlFor="adh" style={{fontSize:13}}>ADH trigger — could cause or contribute to an ADI</label></div>
+      <div style={{marginBottom:8}}>{lbl("Risk title (5–8 words)")}<input value={entry.riskTitle||''} onChange={e=>upd("riskTitle",e.target.value)} style={iS} placeholder="e.g. Wire Rope Failure During Gondola Ascent"/></div>
+      <div style={{marginBottom:8}}>{lbl('Hazard — "The presence of [source] in [area] may expose [person] to harm during [circumstance]"')}<textarea value={entry.hazard||''} onChange={e=>upd("hazard",e.target.value)} rows={2} style={{...iS,resize:"vertical"}} placeholder="The presence of [hazard source] in [specific area/task/process] may expose [person/group] to harm during [occurrence or circumstance]."/></div>
+      <div style={{marginBottom:8}}>{lbl('Risk — "There is a risk that [occurrence] may occur... The risk may be caused by..."')}<textarea value={entry.risk||''} onChange={e=>upd("risk",e.target.value)} rows={3} style={{...iS,resize:"vertical"}} placeholder="There is a risk that [occurrence] may occur, which could result in [primary consequence] and [secondary consequences], due to [context]. The risk may be caused by [immediate causes], due to [underlying causes]."/></div>
+      <div style={{marginBottom:8}}>{lbl('Causes — "The risk may be caused by [immediate causes], due to [underlying/systemic causes]"')}<textarea value={entry.causes||''} onChange={e=>upd("causes",e.target.value)} rows={2} style={{...iS,resize:"vertical"}} placeholder="The risk may be caused by [immediate/technical causes], due to [underlying/systemic causes]. [Standard clause]"/></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 12px",marginBottom:8}}>
+        <div>{lbl('Inherent consequence justification')}<textarea value={entry.inherentConsequenceJustification||''} onChange={e=>upd("inherentConsequenceJustification",e.target.value)} rows={2} style={{...iS,resize:"vertical"}} placeholder="A [rating] consequence is justified because [evidence/reasoning], consistent with the [matrix category] definition."/></div>
+        <div>{lbl('Inherent likelihood justification')}<textarea value={entry.inherentLikelihoodJustification||''} onChange={e=>upd("inherentLikelihoodJustification",e.target.value)} rows={2} style={{...iS,resize:"vertical"}} placeholder="The likelihood is rated as [rating] because [frequency/exposure/history], consistent with the matrix definition."/></div>
+      </div>
+      {/* Controls */}
+      <div style={{marginBottom:10}}>
+        {lbl("Controls")}
+        {controls.map((c,i)=>(
+          <div key={i} style={{border:"1px solid #e8e8e8",borderRadius:8,marginBottom:6,overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,padding:"8px 10px",background:"#fafafa",cursor:"pointer"}} onClick={()=>setExpandedCtrl(expandedCtrl===i?null:i)}>
+              <span style={{fontSize:11,color:"#888",minWidth:18}}>{i+1}.</span>
+              <span style={{fontSize:12,flex:1,color:c.description?"#1a1a1a":"#aaa"}}>{c.description||"(no description)"}</span>
+              {c.isCritical && <span style={{fontSize:10,background:"#FEF9E7",color:"#B7770D",padding:"1px 6px",borderRadius:8,fontWeight:500}}>★ Critical</span>}
+              <span style={{fontSize:10,background:c.controlType==="Mitigation"?"#fef0f8":"#e8f4f8",color:c.controlType==="Mitigation"?"#7d3c98":teal,padding:"1px 5px",borderRadius:6}}>{c.controlType||"Prevention"}</span>
+              <span style={{fontSize:10,background:"#f0f0f0",color:"#666",padding:"1px 5px",borderRadius:6}}>{c.hierarchy}</span>
+              <span style={{fontSize:10,color:c.effectiveness<=2?"#1e8449":c.effectiveness>=4?"#c0392b":"#b7770d",fontWeight:600}}>E{c.effectiveness||3}</span>
+              <i className={`ti ti-chevron-${expandedCtrl===i?"up":"down"}`} style={{fontSize:12,color:"#888"}}/>
+              {controls.length>1 && <button onClick={e=>{e.stopPropagation();remCtrl(i);}} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b",fontSize:16,padding:0}}>×</button>}
+            </div>
+            {expandedCtrl===i && (
+              <div style={{padding:"10px 12px",borderTop:"1px solid #eee",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 12px"}}>
+                <div style={{gridColumn:"1/-1"}}>{lbl("Description")}<input value={c.description||''} onChange={e=>updCtrl(i,'description',e.target.value)} style={iS} placeholder="Full control description"/></div>
+                <div style={{display:"flex",alignItems:"center",gap:8,gridColumn:"1/-1",flexWrap:"wrap"}}>
+                  <input type="checkbox" id={`crit${i}`} checked={c.isCritical} onChange={e=>updCtrl(i,'isCritical',e.target.checked)}/>
+                  <label htmlFor={`crit${i}`} style={{fontSize:13}}>Critical Control (★)</label>
+                  <select value={c.controlType||'Prevention'} onChange={e=>updCtrl(i,'controlType',e.target.value)} style={{...iS,width:"auto"}}>
+                    <option>Prevention</option><option>Mitigation</option>
+                  </select>
+                  <select value={c.hierarchy||'Administrative'} onChange={e=>updCtrl(i,'hierarchy',e.target.value)} style={{...iS,width:"auto",flex:1}}>
+                    {HIERARCHY_OPTS.map(h=><option key={h}>{h}</option>)}
+                  </select>
+                  <select value={c.effectiveness||3} onChange={e=>updCtrl(i,'effectiveness',Number(e.target.value))} style={{...iS,width:"auto"}}>
+                    {CTRL_EFFECTIVENESS.map((ef,idx)=><option key={idx+1} value={idx+1}>{ef}</option>)}
+                  </select>
+                </div>
+                {[['accountability','Accountability','Role responsible — e.g. Attractions Supervisor'],['frequency','Frequency','When applied — e.g. Before each dispatch / Daily'],['parameters','Parameters','Measurable criteria — e.g. Lap bar green, wind < 40 km/h'],['evidence','Evidence','How verified — e.g. Pre-start checklist, CMMS work order'],['escalation','Escalation on failure','Action if fails — e.g. Stop ride, notify Supervisor'],['standard','Standard reference','e.g. AS 3533.2 cl.4.3']].map(([field,label,ph])=>(
+                  <div key={field}>{lbl(label)}<input value={c[field]||''} onChange={e=>updCtrl(i,field,e.target.value)} style={iS} placeholder={ph}/></div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+        <button onClick={addCtrl} style={{fontSize:12,border:"none",background:"transparent",cursor:"pointer",color:"#888",padding:"2px 0"}}>+ Add control</button>
+      </div>
+      {/* Standards */}
+      <div style={{marginBottom:8}}>
+        {lbl("Standards referenced")}
+        {(entry.standards||[""]).map((s,i)=>(
+          <div key={i} style={{display:"flex",gap:6,marginBottom:5}}>
+            <input value={s} onChange={e=>{const a=[...(entry.standards||[""])];a[i]=e.target.value;upd("standards",a);}} style={{...iS,flex:1}} placeholder="e.g. AS 3533.1 — cl. 4.2.1"/>
+            {(entry.standards||[""]).length>1 && <button onClick={()=>{const a=(entry.standards||[""]).filter((_,j)=>j!==i);upd("standards",a);}} style={{padding:"0 8px",border:"1px solid #e8a09a",borderRadius:6,background:"transparent",cursor:"pointer",color:"#c0392b",fontSize:16}}>×</button>}
+          </div>
+        ))}
+        <button onClick={()=>upd("standards",[...(entry.standards||[""]),""]) } style={{fontSize:12,border:"none",background:"transparent",cursor:"pointer",color:"#888",padding:"2px 0"}}>+ Add standard</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px",marginBottom:12}}>
+        <div>{lbl(`Consequence — ${CONSEQUENCE[entry.consequence-1]}`)}<input type="range" min={1} max={5} step={1} value={entry.consequence} onChange={e=>upd("consequence",Number(e.target.value))} style={{width:"100%"}}/></div>
+        <div>{lbl(`Likelihood — ${LIKELIHOOD[entry.likelihood-1]}`)}<input type="range" min={1} max={5} step={1} value={entry.likelihood} onChange={e=>upd("likelihood",Number(e.target.value))} style={{width:"100%"}}/></div>
+      </div>
+      <div style={{padding:"8px 12px",borderRadius:8,marginBottom:8,background:RATING(entry.likelihood,entry.consequence).color+"18",border:`1px solid ${RATING(entry.likelihood,entry.consequence).color}44`}}>
+        <span style={{fontSize:13,fontWeight:500,color:RATING(entry.likelihood,entry.consequence).color}}>Risk score: {entry.consequence*entry.likelihood} — {RATING(entry.likelihood,entry.consequence).label}</span>
+      </div>
+      {["Extreme","High"].includes(RATING(entry.likelihood,entry.consequence).label) && (
+        <div style={{marginBottom:8}}>
+          {lbl("SFARP justification (required — Extreme/High risk)")}
+          <textarea value={entry.sfarpJustification||''} onChange={e=>upd("sfarpJustification",e.target.value)} rows={3} style={{...iS,resize:"vertical",borderColor:"#e67e22"}} placeholder="The level of risk has been reduced so far as is reasonably practicable. All feasible controls have been considered in accordance with WHS Act s.18, having regard to the likelihood, degree of harm, state of knowledge, availability, suitability, and cost of additional controls."/>
+        </div>
+      )}
+      <div style={{marginBottom:8}}>
+        {lbl("Risk reduction justification")}
+        <textarea value={entry.riskReductionJustification||''} onChange={e=>upd("riskReductionJustification",e.target.value)} rows={2} style={{...iS,resize:"vertical"}} placeholder="The implemented controls reduce the risk by [mechanism], resulting in [specific reduction in likelihood/consequence] consistent with SFARP principles."/>
+      </div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <button onClick={onCancel} style={{padding:"7px 14px",fontSize:13,border:"1px solid #ddd",borderRadius:8,background:"transparent",cursor:"pointer"}}>Cancel</button>
+        <button onClick={onSave} disabled={!entry?.hazard?.trim()} style={{padding:"7px 14px",fontSize:13,background:entry?.hazard?.trim()?teal:"#eee",color:entry?.hazard?.trim()?"#fff":"#999",border:"none",borderRadius:8,cursor:entry?.hazard?.trim()?"pointer":"not-allowed",fontWeight:500}}>{isNew?"Add to register":"Save changes"}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── BOUNDARY REPORT VIEW ─────────────────────────────────────────────────────
+function BoundaryReportView({report:br, onExport}) {
+  if (!br) return null;
+  const Section=({title,children})=>(
+    <div className="section-card br-section" style={{marginBottom:"0.75rem"}}>
+      <h3>{title}</h3>
+      {children}
+    </div>
+  );
+  const ZoneTypeBadge=({type})=>{
+    const colors={footprint:"#e8f4f8",envelope:"#fadbd8",safe_zone:"#eafaf1",maintenance:"#fef9e7",access:"#f0edfb",restricted:"#fadbd8"};
+    const textColors={footprint:teal,envelope:"#c0392b",safe_zone:"#1e8449",maintenance:"#b7770d",access:"#6c3483",restricted:"#c0392b"};
+    return <span className="zone-badge" style={{background:colors[type]||"#f0f0f0",color:textColors[type]||"#666"}}>{type}</span>;
+  };
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.75rem"}}>
+        <p style={{fontSize:14,fontWeight:500,color:teal,margin:0}}>{br.deviceName} — Boundary Report generated</p>
+        <button onClick={onExport} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",fontSize:13,background:teal,color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontWeight:500}}><i className="ti ti-file-word" style={{fontSize:14}}/>Export Word</button>
+      </div>
+      <Section title="1. Device Identification">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 16px"}}>
+          {[["Device",br.deviceName],["Manufacturer",br.manufacturer],["Type",br.deviceType],["Location",br.location],["Regulatory Class",br.regulatoryClass]].map(([k,v])=>(
+            <p key={k} style={{fontSize:13,margin:0}}><strong style={{color:"#666"}}>{k}:</strong> {v||"—"}</p>
+          ))}
+        </div>
+        {br.capacity && <p style={{fontSize:13,margin:"8px 0 0"}}><strong style={{color:"#666"}}>Capacity:</strong> {br.capacity.ridersPerCycle} riders · {br.capacity.cycleTimeSec}s cycle · {br.capacity.throughputPerHour} pax/hr</p>}
+      </Section>
+      <Section title="2. Safety Envelope Definition">
+        <p>{br.safetyEnvelopeDefinition||"—"}</p>
+      </Section>
+      {(br.boundaryIncludes||[]).length>0 && (
+        <Section title="3. Inside the Device Boundary">
+          <div style={{overflowX:"auto"}}>
+            <table className="ctrl-table">
+              <thead><tr><th>Zone</th><th>Description</th><th>Basis</th></tr></thead>
+              <tbody>{br.boundaryIncludes.map((z,i)=><tr key={i}><td style={{fontWeight:500}}>{z.zone}</td><td>{z.description}</td><td style={{color:"#666",fontSize:11}}>{z.basis}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+      {(br.boundaryExcludes||[]).length>0 && (
+        <Section title="4. Outside the Device Boundary">
+          <div style={{overflowX:"auto"}}>
+            <table className="ctrl-table">
+              <thead><tr><th>Item</th><th>Reason Excluded</th></tr></thead>
+              <tbody>{br.boundaryExcludes.map((z,i)=><tr key={i}><td style={{fontWeight:500}}>{z.item}</td><td>{z.reason}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+      {(br.operationalZones||[]).length>0 && (
+        <Section title="5. Operational Zones">
+          <div style={{overflowX:"auto"}}>
+            <table className="ctrl-table">
+              <thead><tr><th>Zone</th><th>Type</th><th>Description</th><th>Access Conditions</th><th>Envelope?</th></tr></thead>
+              <tbody>{br.operationalZones.map((z,i)=><tr key={i}><td style={{fontWeight:500}}>{z.name}</td><td><ZoneTypeBadge type={z.type}/></td><td>{z.description}</td><td>{z.accessConditions}</td><td>{z.envelopeWhenOperating?"Yes":"No"}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+      {(br.riderRestrictions||[]).length>0 && (
+        <Section title="6. Rider Restrictions">
+          <div style={{overflowX:"auto"}}>
+            <table className="ctrl-table">
+              <thead><tr><th>Category</th><th>Restriction</th><th>Rationale</th><th>Enforced By</th></tr></thead>
+              <tbody>{br.riderRestrictions.map((r,i)=><tr key={i}><td><span className="br-tag" style={{background:"#e8f4f8",color:teal}}>{r.category}</span></td><td>{r.restriction}</td><td>{r.rationale}</td><td>{r.enforcedBy}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+      {(br.teamStructure||[]).length>0 && (
+        <Section title="7. Team Structure">
+          <div style={{overflowX:"auto"}}>
+            <table className="ctrl-table">
+              <thead><tr><th>Role</th><th>Count</th><th>Position</th><th>Responsibilities</th><th>Competency</th></tr></thead>
+              <tbody>{br.teamStructure.map((r,i)=><tr key={i}><td style={{fontWeight:500}}>{r.role}</td><td>{r.count}</td><td>{r.position}</td><td>{(r.responsibilities||[]).join('; ')}</td><td>{r.competencyRequired}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+      {(br.weatherLimits||[]).length>0 && (
+        <Section title="8. Weather Operational Limits">
+          <div style={{overflowX:"auto"}}>
+            <table className="ctrl-table">
+              <thead><tr><th>Condition</th><th>Threshold</th><th>Required Action</th></tr></thead>
+              <tbody>{br.weatherLimits.map((w,i)=><tr key={i}><td style={{fontWeight:500}}>{w.condition}</td><td>{w.threshold}</td><td>{w.action}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+      {br.adiDecisionFramework && (
+        <Section title="9. ADI/ADH Decision Framework">
+          <p style={{marginBottom:8}}>{br.adiDecisionFramework.boundaryStatement}</p>
+          {[["Step 1 — Location",br.adiDecisionFramework.step1_location],["Step 2 — Device Involvement",br.adiDecisionFramework.step2_involvement],["Step 3 — Foreseeability (s 608B(2))",br.adiDecisionFramework.step3_foreseeability]].map(([lbl,val])=>(
+            <p key={lbl} style={{marginBottom:6}}><strong style={{color:teal}}>{lbl}:</strong> {val}</p>
+          ))}
+          {(br.adiDecisionFramework.examples||[]).length>0 && (
+            <div style={{marginTop:8,overflowX:"auto"}}>
+              <table className="ctrl-table">
+                <thead><tr><th>Scenario</th><th>Classification</th><th>Reasoning</th></tr></thead>
+                <tbody>{br.adiDecisionFramework.examples.map((ex,i)=>{
+                  const clr=ex.classification==="ADI"?"#c0392b":ex.classification==="ADH"?"#8e44ad":"#27ae60";
+                  return <tr key={i}><td>{ex.scenario}</td><td><span style={{fontWeight:600,color:clr}}>{ex.classification}</span></td><td>{ex.reasoning}</td></tr>;
+                })}</tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      )}
+      {br.referencedDocuments?.length>0 && (
+        <Section title="10. Referenced Documents">
+          {br.referencedDocuments.map((d,i)=><p key={i} style={{fontSize:13,margin:"2px 0"}}>• {d}</p>)}
+        </Section>
+      )}
+      <div style={{background:"#fdf2f2",border:"1px solid #e8a09a",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#922B21"}}>
+        <strong>Disclaimer:</strong> This report is AI-generated and must be reviewed by a competent person before use in a Safety Case, regulatory submission, or operational decision-making.
+      </div>
+    </div>
+  );
+}
+
+clearTimeout(window._loadTimer);
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

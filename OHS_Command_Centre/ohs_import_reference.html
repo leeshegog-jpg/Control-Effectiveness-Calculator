@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OHS Dashboard — Data Import Reference</title>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface2: #f6f8fa;
+    --border: #d0d7de;
+    --border2: #e4e8ec;
+    --amber: #9a6e00;
+    --amber-lt: #b8860b;
+    --amber-bg: #fdf6e3;
+    --teal: #1a7f3c;
+    --teal-bg: #e6f5eb;
+    --red: #b91c1c;
+    --red-bg: #fef2f2;
+    --blue: #1d4ed8;
+    --blue-bg: #eff6ff;
+    --purple: #7c3aed;
+    --text: #111827;
+    --text2: #374151;
+    --muted: #6b7280;
+    --muted2: #9ca3af;
+    --mono: 'Courier New', Courier, monospace;
+    --ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--ui); font-size: 13px; line-height: 1.5; }
+
+  /* ── Layout ── */
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 60px; }
+
+  /* ── Header ── */
+  .page-hdr { margin-bottom: 32px; }
+  .kicker { font-size: 10px; font-weight: 700; color: var(--amber-lt); text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); margin-bottom: 6px; }
+  .page-title { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; margin-bottom: 4px; }
+  .page-sub { font-size: 12px; color: var(--muted); }
+
+  /* ── Section ── */
+  .section { margin-bottom: 40px; }
+  .sec-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    color: var(--muted);
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  /* ── Info Cards ── */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .card-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted2); margin-bottom: 4px; }
+  .card-val { font-size: 20px; font-weight: 800; color: var(--amber); font-family: var(--mono); }
+  .card-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Schema Box ── */
+  .schema {
+    background: #1e2433;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+  .schema pre {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #e2e8f0;
+    line-height: 1.7;
+    white-space: pre;
+  }
+  .ck  { color: #93c5fd; } /* key */
+  .cv  { color: #86efac; } /* value string */
+  .cn  { color: #fca5a5; } /* number */
+  .cc  { color: #6b7280; } /* comment */
+
+  /* ── Field Table ── */
+  .field-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    font-size: 12px;
+  }
+  .field-table th {
+    background: var(--surface2);
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--muted2);
+    border-bottom: 2px solid var(--border);
+  }
+  .field-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border2);
+    vertical-align: top;
+  }
+  .field-table tr:last-child td { border-bottom: none; }
+  .field-table tr:nth-child(even) td { background: #fafbfc; }
+  .field-name { font-family: var(--mono); font-weight: 700; color: var(--blue); }
+  .req { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; font-family: var(--mono); }
+  .req-y { background: var(--red-bg); color: var(--red); border: 1px solid rgba(185,28,28,0.2); }
+  .req-n { background: var(--surface2); color: var(--muted2); border: 1px solid var(--border); }
+  .allowed { font-family: var(--mono); font-size: 11px; color: var(--purple); }
+
+  /* ── Metric Table ── */
+  .mtable {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 11.5px;
+    margin-bottom: 20px;
+  }
+  .mtable th {
+    background: var(--surface2);
+    padding: 7px 10px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--muted2);
+    border-bottom: 2px solid var(--border);
+    position: sticky;
+    top: 0;
+  }
+  .mtable td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border2);
+    vertical-align: top;
+  }
+  .mtable tr:last-child td { border-bottom: none; }
+  .mtable tr:nth-child(even) td { background: #fafbfc; }
+  .mtable tr:hover td { background: #f3f4f6; }
+
+  .mid { font-family: var(--mono); font-weight: 700; color: var(--amber); text-align: center; }
+  .mperiod {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-family: var(--mono);
+    letter-spacing: 0.3px;
+  }
+  .pm { background: var(--blue-bg);   color: var(--blue); border: 1px solid rgba(29,78,216,0.2); }
+  .pq { background: var(--teal-bg);   color: var(--teal); border: 1px solid rgba(26,127,60,0.2); }
+  .pb { background: var(--amber-bg);  color: var(--amber); border: 1px solid rgba(154,110,0,0.2); }
+  .pa { background: var(--red-bg);    color: var(--red); border: 1px solid rgba(185,28,28,0.2); }
+
+  .mtype { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 9px; font-weight: 700; font-family: var(--mono); text-transform: uppercase; }
+  .tlag   { background: #fef2f2; color: #b91c1c; }
+  .tlead  { background: #eff6ff; color: #1d4ed8; }
+  .trate  { background: #f5f3ff; color: #7c3aed; }
+  .thot   { background: #fdf6e3; color: #9a6e00; }
+  .tstrat { background: #fdf2f8; color: #be185d; }
+
+  .dir-down { color: var(--red); font-weight: 700; }
+  .dir-up   { color: var(--teal); font-weight: 700; }
+  .dir-dual { color: var(--amber); font-weight: 700; }
+
+  .sec-row td {
+    background: var(--surface2) !important;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    padding: 9px 10px 6px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border2);
+  }
+
+  /* ── Code Blocks ── */
+  .code-block {
+    background: #1e2433;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 12px 0 20px;
+    overflow-x: auto;
+  }
+  .code-block pre {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #e2e8f0;
+    line-height: 1.7;
+    white-space: pre;
+  }
+  .step-hdr {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text2);
+    margin: 20px 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-n {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--amber);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step-body { font-size: 12px; color: var(--muted); margin-bottom: 4px; line-height: 1.6; }
+
+  /* ── Alert ── */
+  .alert {
+    border-left: 4px solid;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    margin: 12px 0;
+    line-height: 1.6;
+  }
+  .alert-amber { border-color: var(--amber-lt); background: var(--amber-bg); color: #6b4c00; }
+  .alert-blue  { border-color: var(--blue);     background: var(--blue-bg);  color: #1e3a8a; }
+  .alert-teal  { border-color: var(--teal);     background: var(--teal-bg);  color: #14532d; }
+  .alert strong { font-weight: 700; }
+
+  /* ── CSV Example ── */
+  .csv-ex { font-family: var(--mono); font-size: 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; line-height: 1.9; overflow-x: auto; white-space: pre; color: var(--text2); margin: 8px 0 16px; }
+
+  /* ── Print ── */
+  @media print {
+    body { background: #fff; font-size: 11px; }
+    .wrap { padding: 16px; }
+    .schema, .code-block { background: #f5f5f5; border: 1px solid #ccc; }
+    .schema pre, .code-block pre { color: #333; }
+    .cards { grid-template-columns: repeat(3,1fr); }
+    .mtable th { position: static; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="page-hdr">
+    <div class="kicker">VRTP Group OHS · Dashboard Reference</div>
+    <div class="page-title">OHS Dashboard — Data Import Reference</div>
+    <div class="page-sub">Complete metric list · JSON field schema · CSV conversion instructions</div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Total Metrics</div>
+      <div class="card-val">62</div>
+      <div class="card-desc">Across 4 reporting tiers</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Required Fields</div>
+      <div class="card-val">2</div>
+      <div class="card-desc">id + value — all others optional</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Import Format</div>
+      <div class="card-val">JSON</div>
+      <div class="card-desc">Array of objects — one per metric</div>
+    </div>
+  </div>
+
+  <!-- ── Section 1: Schema ── -->
+  <div class="section">
+    <div class="sec-title">1 · JSON Object Schema</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Each metric in the import file is one JSON object. Only <code style="font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:3px;font-size:11px">id</code> and <code style="font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:3px;font-size:11px">value</code> are required. Omit optional fields or leave them as empty strings.</p>
+
+    <table class="field-table">
+      <thead>
+        <tr>
+          <th style="width:110px">Field</th>
+          <th style="width:80px">Required</th>
+          <th style="width:90px">Type</th>
+          <th style="width:200px">Allowed Values</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="field-name">id</span></td>
+          <td><span class="req req-y">Required</span></td>
+          <td>Integer</td>
+          <td><span class="allowed">1 – 62</span></td>
+          <td>Metric ID matching the dashboard framework. Must match exactly — unrecognised IDs are ignored.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">value</span></td>
+          <td><span class="req req-y">Required</span></td>
+          <td>String</td>
+          <td><span class="allowed">"3" / "4.2" / "87%" / "$12,400"</span></td>
+          <td>Current period result. Always a string — include units, percentages, or currency symbols as part of the value. Blank values are skipped.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">target</span></td>
+          <td><span class="req req-n">Optional</span></td>
+          <td>String</td>
+          <td><span class="allowed">"&lt;5" / "≥95%" / "0"</span></td>
+          <td>Performance target or benchmark. Displayed alongside the value in the badge. Include comparison operator.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">trend</span></td>
+          <td><span class="req req-n">Optional</span></td>
+          <td>String</td>
+          <td><span class="allowed">"up" / "down" / "flat"</span></td>
+          <td>Movement since last reporting period. Renders as ↑ (teal) / ↓ (red) / → (grey) in the badge. Lowercase only.</td>
+        </tr>
+        <tr>
+          <td><span class="field-name">note</span></td>
+          <td><span class="req req-n">Optional</span></td>
+          <td>String</td>
+          <td><span class="allowed">"Q1 2025" / "YTD" / "Rolling 12m"</span></td>
+          <td>Period label or contextual note. Displayed in small text inside the badge.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="schema">
+<pre><span class="cc">// Minimal record — required fields only</span>
+{ <span class="ck">"id"</span>: <span class="cn">1</span>, <span class="ck">"value"</span>: <span class="cv">"3"</span> }
+
+<span class="cc">// Full record — all fields populated</span>
+{
+  <span class="ck">"id"</span>: <span class="cn">1</span>,
+  <span class="ck">"value"</span>: <span class="cv">"3"</span>,
+  <span class="ck">"target"</span>: <span class="cv">"&lt;5"</span>,
+  <span class="ck">"trend"</span>: <span class="cv">"down"</span>,
+  <span class="ck">"note"</span>: <span class="cv">"Q1 2025"</span>
+}
+
+<span class="cc">// Array of multiple metrics</span>
+[
+  { <span class="ck">"id"</span>: <span class="cn">1</span>,  <span class="ck">"value"</span>: <span class="cv">"3"</span>,   <span class="ck">"target"</span>: <span class="cv">"&lt;5"</span>,     <span class="ck">"trend"</span>: <span class="cv">"down"</span>, <span class="ck">"note"</span>: <span class="cv">"Q1 2025"</span> },
+  { <span class="ck">"id"</span>: <span class="cn">2</span>,  <span class="ck">"value"</span>: <span class="cv">"0"</span>,   <span class="ck">"target"</span>: <span class="cv">"0"</span>,       <span class="ck">"trend"</span>: <span class="cv">"flat"</span>                    },
+  { <span class="ck">"id"</span>: <span class="cn">18</span>, <span class="ck">"value"</span>: <span class="cv">"4.2"</span>, <span class="ck">"target"</span>: <span class="cv">"&lt;6.0"</span>,   <span class="ck">"trend"</span>: <span class="cv">"up"</span>,  <span class="ck">"note"</span>: <span class="cv">"Rolling 12m"</span> }
+]</pre>
+    </div>
+
+    <div class="alert alert-amber">
+      <strong>You do not need to populate all 62 metrics.</strong> Import only the metrics you have data for. The dashboard renders imported values as amber badges on populated rows and leaves unpopulated rows unchanged.
+    </div>
+  </div>
+
+  <!-- ── Section 2: Full Metric List ── -->
+  <div class="section">
+    <div class="sec-title">2 · Full Metric List — 62 Metrics</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Use the <strong>ID</strong> column as the <code style="font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:3px;font-size:11px">id</code> field in your JSON. The <strong>Value type guidance</strong> column describes the expected format for the <code style="font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:3px;font-size:11px">value</code> field. The <strong>Dir</strong> column indicates whether a rising value is good (↑) or bad (↓).</p>
+
+    <table class="mtable">
+      <thead>
+        <tr>
+          <th style="width:42px;text-align:center">ID</th>
+          <th style="width:70px">Period</th>
+          <th style="width:80px">Type</th>
+          <th style="width:40px">Dir</th>
+          <th>Metric name</th>
+          <th style="width:200px">Value type guidance</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr class="sec-row"><td colspan="6">Lagging — Incident Counts &nbsp;·&nbsp; Monthly</td></tr>
+        <tr><td class="mid">1</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Total recordable injuries (TRI) — by property / department</td><td>Integer count e.g. <code style="font-family:var(--mono)">3</code></td></tr>
+        <tr><td class="mid">2</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Lost time injuries (LTI) — by property / department</td><td>Integer count e.g. <code style="font-family:var(--mono)">1</code></td></tr>
+        <tr><td class="mid">3</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Medical treatment injuries (MTI) — by property / department</td><td>Integer count e.g. <code style="font-family:var(--mono)">2</code></td></tr>
+        <tr><td class="mid">4</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>First aid cases</td><td>Integer count e.g. <code style="font-family:var(--mono)">8</code></td></tr>
+        <tr><td class="mid">5</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-dual">↕</td><td>Near miss count</td><td>Integer count e.g. <code style="font-family:var(--mono)">14</code> — rising = better culture</td></tr>
+        <tr><td class="mid">6</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Property / plant damage incidents</td><td>Integer count e.g. <code style="font-family:var(--mono)">2</code></td></tr>
+        <tr><td class="mid">7</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Workers' compensation claims lodged</td><td>Integer count e.g. <code style="font-family:var(--mono)">1</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Leading Indicators &nbsp;·&nbsp; Monthly</td></tr>
+        <tr><td class="mid">8</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>Overdue corrective actions — count</td><td>Integer count e.g. <code style="font-family:var(--mono)">7</code></td></tr>
+        <tr><td class="mid">9</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>Inspections not completed vs scheduled</td><td>Ratio or % e.g. <code style="font-family:var(--mono)">3/12</code> or <code style="font-family:var(--mono)">75%</code></td></tr>
+        <tr><td class="mid">10</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>Training non-completions by department</td><td>Count or % e.g. <code style="font-family:var(--mono)">12</code> or <code style="font-family:var(--mono)">88%</code></td></tr>
+        <tr><td class="mid">11</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>Toolbox talks not delivered vs scheduled</td><td>Ratio or % e.g. <code style="font-family:var(--mono)">4/20</code> or <code style="font-family:var(--mono)">80%</code></td></tr>
+        <tr><td class="mid">12</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>Incidents not reported within timeframe</td><td>Count or % e.g. <code style="font-family:var(--mono)">2</code> or <code style="font-family:var(--mono)">95%</code></td></tr>
+        <tr><td class="mid">13</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-up">↑</td><td>Hazard reports submitted — by property / department</td><td>Integer count e.g. <code style="font-family:var(--mono)">47</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Hotspot Identification &nbsp;·&nbsp; Monthly</td></tr>
+        <tr><td class="mid">14</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Incidents by property / location</td><td>Top property name + count e.g. <code style="font-family:var(--mono)">Movie World: 4</code></td></tr>
+        <tr><td class="mid">15</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Incidents by department</td><td>Top dept + count e.g. <code style="font-family:var(--mono)">Rides: 5</code></td></tr>
+        <tr><td class="mid">16</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Incidents by mechanism of injury</td><td>Top mechanism e.g. <code style="font-family:var(--mono)">Slips/trips: 6</code></td></tr>
+        <tr><td class="mid">17</td><td><span class="mperiod pm">Monthly</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Incidents by shift / time of day</td><td>Peak period e.g. <code style="font-family:var(--mono)">12:00–14:00: 4</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Frequency Rates &nbsp;·&nbsp; Quarterly (new)</td></tr>
+        <tr><td class="mid">18</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype trate">Rate</span></td><td class="dir-down">↓</td><td>TRIFR — quarter + rolling 12-month</td><td>Rate to 1 dp e.g. <code style="font-family:var(--mono)">4.2</code></td></tr>
+        <tr><td class="mid">19</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype trate">Rate</span></td><td class="dir-down">↓</td><td>LTIFR — quarter + rolling 12-month</td><td>Rate to 1 dp e.g. <code style="font-family:var(--mono)">1.4</code></td></tr>
+        <tr><td class="mid">20</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype trate">Rate</span></td><td class="dir-down">↓</td><td>MTIFR — quarter + rolling 12-month</td><td>Rate to 1 dp e.g. <code style="font-family:var(--mono)">2.8</code></td></tr>
+        <tr><td class="mid">21</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype trate">Rate</span></td><td class="dir-down">↓</td><td>Severity rate — lost days per 1,000,000 hrs</td><td>Rate to 1 dp e.g. <code style="font-family:var(--mono)">12.5</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Trend Comparisons &nbsp;·&nbsp; Quarterly (new)</td></tr>
+        <tr><td class="mid">22</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-dual">↕</td><td>Current quarter vs same quarter prior year — primary metrics</td><td>Comparison string e.g. <code style="font-family:var(--mono)">Q1 2025: 3 vs Q1 2024: 5</code></td></tr>
+        <tr><td class="mid">23</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-up">↑</td><td>Near miss to incident ratio</td><td>Ratio e.g. <code style="font-family:var(--mono)">4.7:1</code></td></tr>
+        <tr><td class="mid">24</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-up">↑</td><td>3-month inspection compliance trend</td><td>% trend e.g. <code style="font-family:var(--mono)">78% → 84% → 91%</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Corrective Action Aging &nbsp;·&nbsp; Quarterly (new)</td></tr>
+        <tr><td class="mid">25</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>CAs overdue &gt;30 days</td><td>Integer count e.g. <code style="font-family:var(--mono)">9</code></td></tr>
+        <tr><td class="mid">26</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>CAs overdue &gt;60 days</td><td>Integer count e.g. <code style="font-family:var(--mono)">4</code></td></tr>
+        <tr><td class="mid">27</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>CAs overdue &gt;90 days</td><td>Integer count e.g. <code style="font-family:var(--mono)">1</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Expanded Hotspot &nbsp;·&nbsp; Quarterly (new)</td></tr>
+        <tr><td class="mid">28</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Top 3 incident mechanisms — quarter</td><td>Summary e.g. <code style="font-family:var(--mono)">Trips(6), Manual handling(4), Contact(3)</code></td></tr>
+        <tr><td class="mid">29</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Top 3 incident locations / departments — quarter</td><td>Summary e.g. <code style="font-family:var(--mono)">Rides(5), F&amp;B(4), Retail(3)</code></td></tr>
+        <tr><td class="mid">30</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Repeat incidents — same location and type within quarter</td><td>Count e.g. <code style="font-family:var(--mono)">3</code></td></tr>
+        <tr><td class="mid">31</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-up">↑</td><td>Hazard report rate per 100 FTE</td><td>Rate e.g. <code style="font-family:var(--mono)">6.2</code></td></tr>
+        <tr><td class="mid">32</td><td><span class="mperiod pq">Quarterly</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-up">↑</td><td>Training compliance rate — by department</td><td>Percentage e.g. <code style="font-family:var(--mono)">89%</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Period Comparison &nbsp;·&nbsp; Biannual (new)</td></tr>
+        <tr><td class="mid">33</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype trate">Rate</span></td><td class="dir-dual">↕</td><td>H1 vs H2 TRIFR / LTIFR comparison</td><td>Comparison e.g. <code style="font-family:var(--mono)">H1: 4.8 / H2: 3.6</code></td></tr>
+        <tr><td class="mid">34</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype trate">Rate</span></td><td class="dir-down">↓</td><td>Rolling 12-month TRIFR / LTIFR — updated each half</td><td>Rate e.g. <code style="font-family:var(--mono)">4.2 / 1.4</code></td></tr>
+        <tr><td class="mid">35</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype trate">Rate</span></td><td class="dir-down">↓</td><td>Severity rate H1 vs H2</td><td>Comparison e.g. <code style="font-family:var(--mono)">H1: 14.2 / H2: 11.8</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">High Potential Incidents &nbsp;·&nbsp; Biannual (new)</td></tr>
+        <tr><td class="mid">36</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>HiPo count — SIF potential events</td><td>Integer count e.g. <code style="font-family:var(--mono)">2</code></td></tr>
+        <tr><td class="mid">37</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype trate">Rate</span></td><td class="dir-down">↓</td><td>HiPo rate per 1,000,000 hours</td><td>Rate to 2 dp e.g. <code style="font-family:var(--mono)">0.84</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Control Effectiveness &nbsp;·&nbsp; Biannual (new)</td></tr>
+        <tr><td class="mid">38</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>Critical control failures</td><td>Integer count e.g. <code style="font-family:var(--mono)">3</code></td></tr>
+        <tr><td class="mid">39</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>Repeat CAs — same control failure ≥2 occurrences</td><td>Integer count e.g. <code style="font-family:var(--mono)">2</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Workers' Compensation &nbsp;·&nbsp; Biannual (new)</td></tr>
+        <tr><td class="mid">40</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>WC claim cost — total and average per claim</td><td>Dollar amounts e.g. <code style="font-family:var(--mono)">$48,200 / $6,025 avg</code></td></tr>
+        <tr><td class="mid">41</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Average lost / restricted duty days per claim</td><td>Days to 1 dp e.g. <code style="font-family:var(--mono)">8.4</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Governance and Leadership &nbsp;·&nbsp; Biannual (new)</td></tr>
+        <tr><td class="mid">42</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-dual">↕</td><td>Audit findings open vs closed by category</td><td>Summary e.g. <code style="font-family:var(--mono)">Open: 8 / Closed: 14</code></td></tr>
+        <tr><td class="mid">43</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>Leadership safety interactions not completed vs target</td><td>Ratio or % e.g. <code style="font-family:var(--mono)">18/24</code> or <code style="font-family:var(--mono)">75%</code></td></tr>
+        <tr><td class="mid">44</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype tlead">Leading</span></td><td class="dir-down">↓</td><td>Safety initiatives not delivered vs plan</td><td>Count or % e.g. <code style="font-family:var(--mono)">2 of 8</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Performance Hotspot &nbsp;·&nbsp; Biannual (new)</td></tr>
+        <tr><td class="mid">45</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-up">↑</td><td>Property / dept performance ranking — index score</td><td>Score or rank e.g. <code style="font-family:var(--mono)">MW: 82 | SW: 74 | WnW: 68</code></td></tr>
+        <tr><td class="mid">46</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Contractor vs direct employee incident comparison</td><td>Both counts e.g. <code style="font-family:var(--mono)">Direct: 6 / Contractor: 4</code></td></tr>
+        <tr><td class="mid">47</td><td><span class="mperiod pb">Biannual</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-dual">↕</td><td>Risk profile shift — changed ratings (improved / deteriorated)</td><td>Count e.g. <code style="font-family:var(--mono)">Improved: 4 / Deteriorated: 2</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Multi-Year Trend &nbsp;·&nbsp; Annual (new)</td></tr>
+        <tr><td class="mid">48</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype trate">Rate</span></td><td class="dir-dual">↕</td><td>Year-on-year TRIFR / LTIFR — 5-year trend</td><td>5-year series e.g. <code style="font-family:var(--mono)">8.1 / 7.4 / 6.2 / 5.8 / 4.2</code></td></tr>
+        <tr><td class="mid">49</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>SIF precursor rate — events with SIF potential</td><td>Rate to 2 dp e.g. <code style="font-family:var(--mono)">1.26</code></td></tr>
+        <tr><td class="mid">50</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Total incident cost — WC + property + investigation + productivity</td><td>Dollar total e.g. <code style="font-family:var(--mono)">$214,600</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Regulatory &nbsp;·&nbsp; Annual (new)</td></tr>
+        <tr><td class="mid">51</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Improvement notices issued</td><td>Integer count e.g. <code style="font-family:var(--mono)">1</code></td></tr>
+        <tr><td class="mid">52</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Prohibition notices issued</td><td>Integer count e.g. <code style="font-family:var(--mono)">0</code></td></tr>
+        <tr><td class="mid">53</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tlag">Lagging</span></td><td class="dir-down">↓</td><td>Regulator investigations / prosecutions</td><td>Integer count e.g. <code style="font-family:var(--mono)">0</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Strategic Performance &nbsp;·&nbsp; Annual (new)</td></tr>
+        <tr><td class="mid">54</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tstrat">Strategic</span></td><td class="dir-up">↑</td><td>Safety culture maturity assessment score</td><td>Score or level e.g. <code style="font-family:var(--mono)">3.4/5</code> or <code style="font-family:var(--mono)">Proactive</code></td></tr>
+        <tr><td class="mid">55</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tstrat">Strategic</span></td><td class="dir-up">↑</td><td>ISO 45001 / SMS internal audit score</td><td>Score or % e.g. <code style="font-family:var(--mono)">84%</code></td></tr>
+        <tr><td class="mid">56</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tstrat">Strategic</span></td><td class="dir-up">↑</td><td>Industry TRIFR benchmark comparison</td><td>Comparison e.g. <code style="font-family:var(--mono)">VRTP: 4.2 / Industry: 7.1</code></td></tr>
+        <tr><td class="mid">57</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tstrat">Strategic</span></td><td class="dir-up">↑</td><td>OHS strategic objective achievement rate %</td><td>Percentage e.g. <code style="font-family:var(--mono)">78%</code></td></tr>
+        <tr><td class="mid">58</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tstrat">Strategic</span></td><td class="dir-up">↑</td><td>Training hours per FTE by department</td><td>Hours to 1 dp e.g. <code style="font-family:var(--mono)">12.4</code></td></tr>
+        <tr><td class="mid">59</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype tstrat">Strategic</span></td><td class="dir-up">↑</td><td>Return to work within target timeframe — annual rate %</td><td>Percentage e.g. <code style="font-family:var(--mono)">91%</code></td></tr>
+
+        <tr class="sec-row"><td colspan="6">Comprehensive Hotspot &nbsp;·&nbsp; Annual (new)</td></tr>
+        <tr><td class="mid">60</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Full hotspot heatmap — property × dept × mechanism × agency</td><td>Summary statement e.g. <code style="font-family:var(--mono)">MW Rides / Slips / 8 events</code></td></tr>
+        <tr><td class="mid">61</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-down">↓</td><td>Top 10 recurring hazards not yet eliminated</td><td>Count e.g. <code style="font-family:var(--mono)">10</code> or top hazard name</td></tr>
+        <tr><td class="mid">62</td><td><span class="mperiod pa">Annual</span></td><td><span class="mtype thot">Hotspot</span></td><td class="dir-dual">↕</td><td>Critical control verification rate — % verified effective vs % failed</td><td>Both rates e.g. <code style="font-family:var(--mono)">Effective: 87% / Failed: 13%</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Section 3: CSV to JSON ── -->
+  <div class="section">
+    <div class="sec-title">3 · Converting a CSV to JSON</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Three options below — choose the one that fits your environment. Option A requires no software. Options B and C are one-line commands.</p>
+
+    <div class="alert alert-blue">
+      <strong>CSV column order:</strong> Your CSV must have these column headers exactly: <code style="font-family:var(--mono)">id,value,target,trend,note</code>. You can omit target, trend, and note columns entirely if not used — the converter will leave them blank.
+    </div>
+
+    <div style="margin-top:16px">
+      <div class="step-hdr"><span class="step-n">A</span> Microsoft Excel or Google Sheets — no software required</div>
+    </div>
+    <p class="step-body">Build your data in a spreadsheet. Column A = <code style="font-family:var(--mono)">id</code>, B = <code style="font-family:var(--mono)">value</code>, C = <code style="font-family:var(--mono)">target</code>, D = <code style="font-family:var(--mono)">trend</code>, E = <code style="font-family:var(--mono)">note</code>. Row 1 is headers, data from Row 2.</p>
+    <p class="step-body" style="margin-bottom:8px">In an empty cell, paste this formula. Adjust the range (A2:E63) to match your data rows.</p>
+
+    <div class="code-block">
+<pre><span class="cc">// Excel / Google Sheets formula — paste in any empty cell</span>
+<span class="cc">// Produces a JSON array you can copy directly into the dashboard import field</span>
+
+="["&amp;TEXTJOIN(",",TRUE,
+  IF(B2:B63&lt;&gt;"",
+    "{"&amp;
+    """id"":"&amp;A2:A63&amp;","&amp;
+    """value"":"""&amp;B2:B63&amp;""","&amp;
+    """target"":"""&amp;C2:C63&amp;""","&amp;
+    """trend"":"""&amp;D2:D63&amp;""","&amp;
+    """note"":"""&amp;E2:E63&amp;"""}"
+  ,""))&amp;"]"</pre>
+    </div>
+
+    <div class="alert alert-amber" style="margin-bottom:20px">
+      <strong>Google Sheets:</strong> Enter with Ctrl+Shift+Enter (array formula). <strong>Excel:</strong> Enter with Ctrl+Shift+Enter on older versions; on Excel 365 enter normally. Copy the cell output, paste into the Import Data modal.
+    </div>
+
+    <div class="step-hdr"><span class="step-n">B</span> Python — one command, no packages required</div>
+    <p class="step-body">Save your CSV as <code style="font-family:var(--mono)">ohs-metrics.csv</code>. Run this from the same folder.</p>
+
+    <div class="csv-ex">id,value,target,trend,note
+1,3,&lt;5,down,Q1 2025
+2,0,0,flat,Q1 2025
+5,14,,up,Q1 2025
+18,4.2,&lt;6.0,down,Rolling 12m
+19,1.4,&lt;2.0,down,Rolling 12m</div>
+
+    <div class="code-block">
+<pre><span class="cc"># Save as convert.py and run: python convert.py</span>
+<span class="cc"># Input:  ohs-metrics.csv</span>
+<span class="cc"># Output: ohs-metrics.json  (ready to import into the dashboard)</span>
+
+import csv, json
+
+with open("ohs-metrics.csv", newline="", encoding="utf-8") as f:
+    rows = list(csv.DictReader(f))
+
+output = []
+for r in rows:
+    if not r.get("id") or not r.get("value"):
+        continue                          <span class="cc"># skip empty rows</span>
+    record = {
+        "id":     int(r["id"]),
+        "value":  r["value"].strip(),
+    }
+    if r.get("target", "").strip():
+        record["target"] = r["target"].strip()
+    if r.get("trend", "").strip():
+        record["trend"]  = r["trend"].strip().lower()
+    if r.get("note", "").strip():
+        record["note"]   = r["note"].strip()
+    output.append(record)
+
+with open("ohs-metrics.json", "w", encoding="utf-8") as f:
+    json.dump(output, f, indent=2)
+
+print(f"Converted {len(output)} records → ohs-metrics.json")</pre>
+    </div>
+
+    <div class="step-hdr"><span class="step-n">C</span> Node.js — if Python is not available</div>
+    <p class="step-body">Requires Node.js. Run from the folder containing your CSV.</p>
+
+    <div class="code-block">
+<pre><span class="cc">// Save as convert.js and run: node convert.js</span>
+<span class="cc">// Input:  ohs-metrics.csv</span>
+<span class="cc">// Output: ohs-metrics.json</span>
+
+const fs = require("fs");
+
+const lines  = fs.readFileSync("ohs-metrics.csv", "utf8").trim().split("\n");
+const header = lines[0].split(",").map(h => h.trim());
+
+const output = lines.slice(1).map(line => {
+  const vals = line.split(",").map(v => v.trim());
+  const row  = Object.fromEntries(header.map((h, i) => [h, vals[i] ?? ""]));
+  if (!row.id || !row.value) return null;
+  const rec = { id: parseInt(row.id), value: row.value };
+  if (row.target) rec.target = row.target;
+  if (row.trend)  rec.trend  = row.trend.toLowerCase();
+  if (row.note)   rec.note   = row.note;
+  return rec;
+}).filter(Boolean);
+
+fs.writeFileSync("ohs-metrics.json", JSON.stringify(output, null, 2));
+console.log(`Converted ${output.length} records → ohs-metrics.json`);</pre>
+    </div>
+
+    <div class="step-hdr"><span class="step-n">D</span> After conversion — importing into the dashboard</div>
+    <p class="step-body" style="margin-bottom:10px">Once you have the <code style="font-family:var(--mono)">ohs-metrics.json</code> file:</p>
+
+    <table class="field-table">
+      <thead><tr><th style="width:30px">Step</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td class="mid">1</td><td>Open the dashboard in your browser. Click <strong>Import Data</strong> in the top-right.</td></tr>
+        <tr><td class="mid">2</td><td>Either <strong>drag the JSON file</strong> into the drop zone, or <strong>click to browse</strong> and select it.</td></tr>
+        <tr><td class="mid">3</td><td>The JSON content loads into the text area. Review it, then click <strong>Apply</strong>.</td></tr>
+        <tr><td class="mid">4</td><td>Amber badges appear on each populated metric row showing value, target, trend, and note.</td></tr>
+        <tr><td class="mid">5</td><td>To export with data visible, click <strong>Export PDF</strong>. The print dialog opens — select <strong>Save as PDF</strong>.</td></tr>
+        <tr><td class="mid">6</td><td>To reset, click <strong>Clear data</strong> in the amber banner at the top of the dashboard.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="alert alert-teal" style="margin-top:6px">
+      <strong>Tip:</strong> Download the pre-built template by clicking <strong>Template JSON</strong> in the dashboard header. It contains all 62 metric IDs and names pre-filled — open in a text editor, add your values, save, and import. No CSV conversion needed if you populate the template directly.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
