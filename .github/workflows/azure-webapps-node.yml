@@ -11,7 +11,9 @@
 # 2. Create a secret in your repository named AZURE_WEBAPP_PUBLISH_PROFILE, paste the publish profile contents as the value of the secret.
 #    For instructions on obtaining the publish profile see: https://docs.microsoft.com/azure/app-service/deploy-github-actions#configure-the-github-secret
 #
-# 3. Change the value for the AZURE_WEBAPP_NAME. Optionally, change the AZURE_WEBAPP_PACKAGE_PATH and NODE_VERSION environment variables below.
+# 3. IMPORTANT: Azure Web App names must use only lowercase letters, numbers, and hyphens (no underscores).
+#    Change the AZURE_WEBAPP_NAME below to your actual Azure Web App name (e.g., tp-risk-management-sms).
+#    Optionally, change the AZURE_WEBAPP_PACKAGE_PATH and NODE_VERSION environment variables below.
 #
 # For more information on GitHub Actions for Azure: https://github.com/Azure/Actions
 # For more information on the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
@@ -23,9 +25,9 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: your-app-name    # set this to your application's name
-  AZURE_WEBAPP_PACKAGE_PATH: '.'      # set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: '20.x'                # set this to the node version to use
+  AZURE_WEBAPP_NAME: tp-risk-management-sms    # REQUIRED: Update with your actual Azure Web App name (lowercase, hyphens only - no underscores)
+  AZURE_WEBAPP_PACKAGE_PATH: '.'               # Path to your web app project
+  NODE_VERSION: '20.x'                         # Node.js version to use
 
 permissions:
   contents: read
@@ -40,6 +42,7 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
+
     - name: npm install, build, and test
       run: |
         npm install
