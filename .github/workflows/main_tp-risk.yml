@@ -51,5 +51,4 @@ jobs:
         with:
           app-name: 'tp-risk'
           slot-name: 'Production'
-          package:.
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_437C32533B6043678869F68D30EAD31B }}
+          package:.  publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_437C32533B6043678869F68D30EAD31B }}
