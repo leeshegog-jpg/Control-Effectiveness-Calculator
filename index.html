@@ -99,7 +99,7 @@
 (function(){
 const s=SMS.stats();
 document.getElementById('sRO').textContent=s.riskOpen;
-document.getElementById('sRCH').textContent=s.riskCritical+' Critical · '+s.riskHigh+' High';
+document.getElementById('sRCH').textContent=s.riskCritical+' Extreme · '+s.riskHigh+' High';
 document.getElementById('sIO').textContent=s.incidentOpen;
 document.getElementById('sIM').textContent=s.incidentThisMth+' this month';
 document.getElementById('iCard').className='hub-stat '+(s.incidentOpen>0?'warn':'ok');

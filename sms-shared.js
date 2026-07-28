@@ -30,14 +30,15 @@ const SMS = (() => {
 
   function riskScore(l, c) { return (+l||0) * (+c||0); }
   function riskBand(score) {
-    if (score >= 20) return { label:'Critical', cls:'band-critical' };
-    if (score >= 12) return { label:'High',     cls:'band-high' };
+    // VRTP Risk Matrix (GOHS2.1.2): Extreme 15-25, High 10-12, Medium 5-9, Low 1-4
+    if (score >= 15) return { label:'Extreme', cls:'band-critical' };
+    if (score >= 10) return { label:'High',     cls:'band-high' };
     if (score >= 5)  return { label:'Medium',   cls:'band-medium' };
     if (score >= 1)  return { label:'Low',      cls:'band-low' };
     return                  { label:'—',        cls:'' };
   }
   const L_LABELS = ['','Rare','Unlikely','Possible','Likely','Almost Certain'];
-  const C_LABELS = ['','Insignificant','Minor','Moderate','Major','Catastrophic'];
+  const C_LABELS = ['','Insignificant','Minor','Moderate','Serious','Critical']; // VRTP Risk Matrix consequence wording
 
   function fmtDate(iso) {
     if (!iso) return '—';
@@ -89,7 +90,7 @@ const SMS = (() => {
     const band = r => riskBand(riskScore(r.resLikelihood||r.likelihood, r.resConsequence||r.consequence)).label;
     return {
       riskTotal:risks.length, riskOpen:risks.filter(r=>r.status!=='Closed').length,
-      riskCritical:risks.filter(r=>band(r)==='Critical').length, riskHigh:risks.filter(r=>band(r)==='High').length,
+      riskCritical:risks.filter(r=>band(r)==='Extreme').length, riskHigh:risks.filter(r=>band(r)==='High').length,
       riskReviewsDue:risks.filter(r=>r.status!=='Closed'&&r.reviewDate&&new Date(r.reviewDate)<now).length,
       incidentTotal:incidents.length, incidentOpen:incidents.filter(i=>i.status!=='Closed').length,
       incidentThisMth:incidents.filter(i=>{const d=new Date(i.dateTime||i.created);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length,

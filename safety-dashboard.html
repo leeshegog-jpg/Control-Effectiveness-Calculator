@@ -120,7 +120,7 @@ function buildCharts(){
   new Chart(document.getElementById('incidentChart'),{type:'bar',data:{labels:months.map(m=>m.label),datasets:[{label:'Incidents',data:incByMonth,backgroundColor:'#2563EB44',borderColor:'#2563EB',borderWidth:2,borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
 
   // Risk band donut
-  const bandCounts={Critical:0,High:0,Medium:0,Low:0};
+  const bandCounts={Extreme:0,High:0,Medium:0,Low:0};
   risks.forEach(r=>{const b=SMS.riskBand(SMS.riskScore(r.resLikelihood||r.likelihood,r.resConsequence||r.consequence)).label;if(bandCounts[b]!==undefined)bandCounts[b]++;});
   new Chart(document.getElementById('riskChart'),{type:'doughnut',data:{labels:Object.keys(bandCounts),datasets:[{data:Object.values(bandCounts),backgroundColor:['#7F1D1D','#D97706','#2563EB','#16A34A'],borderWidth:2}]},options:{plugins:{legend:{position:'bottom'}}}});
 

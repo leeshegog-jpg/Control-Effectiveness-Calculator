@@ -88,7 +88,7 @@
 <p style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Inherent Risk (before controls)</p>
 <div class="form-grid">
 <div class="form-group"><label>Likelihood (1–5)</label><select id="fL"><option value="">—</option><option value="1">1 — Rare</option><option value="2">2 — Unlikely</option><option value="3">3 — Possible</option><option value="4">4 — Likely</option><option value="5">5 — Almost Certain</option></select></div>
-<div class="form-group"><label>Consequence (1–5)</label><select id="fC"><option value="">—</option><option value="1">1 — Insignificant</option><option value="2">2 — Minor</option><option value="3">3 — Moderate</option><option value="4">4 — Major</option><option value="5">5 — Catastrophic</option></select></div>
+<div class="form-group"><label>Consequence (1–5)</label><select id="fC"><option value="">—</option><option value="1">1 — Insignificant</option><option value="2">2 — Minor</option><option value="3">3 — Moderate</option><option value="4">4 — Serious</option><option value="5">5 — Critical</option></select></div>
 <div class="form-group span2"><label>Inherent Score</label><div id="inherentScore" style="padding:8px 12px;background:var(--gray-100);border-radius:6px;font-weight:700;font-size:14px">Select likelihood &amp; consequence</div></div>
 <div class="form-group span2"><label>Existing Controls</label><textarea id="fControls" rows="3" placeholder="List existing controls in place…"></textarea></div>
 <div class="form-group"><label>Control Owner</label><input type="text" id="fOwner" placeholder="Name or role"/></div>
@@ -98,7 +98,7 @@
 <p style="font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Residual Risk (after controls)</p>
 <div class="form-grid">
 <div class="form-group"><label>Residual Likelihood (1–5)</label><select id="fRL"><option value="">—</option><option value="1">1 — Rare</option><option value="2">2 — Unlikely</option><option value="3">3 — Possible</option><option value="4">4 — Likely</option><option value="5">5 — Almost Certain</option></select></div>
-<div class="form-group"><label>Residual Consequence (1–5)</label><select id="fRC"><option value="">—</option><option value="1">1 — Insignificant</option><option value="2">2 — Minor</option><option value="3">3 — Moderate</option><option value="4">4 — Major</option><option value="5">5 — Catastrophic</option></select></div>
+<div class="form-group"><label>Residual Consequence (1–5)</label><select id="fRC"><option value="">—</option><option value="1">1 — Insignificant</option><option value="2">2 — Minor</option><option value="3">3 — Moderate</option><option value="4">4 — Serious</option><option value="5">5 — Critical</option></select></div>
 <div class="form-group span2"><label>Residual Score</label><div id="residualScore" style="padding:8px 12px;background:var(--gray-100);border-radius:6px;font-weight:700;font-size:14px">Select residual likelihood &amp; consequence</div></div>
 <div class="form-group span2"><label>Additional Controls Required</label><textarea id="fAddControls" rows="2" placeholder="Any further controls needed to reach ALARP…"></textarea></div>
 <div class="form-group span2"><label>Notes</label><textarea id="fNotes" rows="2"></textarea></div>
@@ -168,7 +168,7 @@ function render(){
   const all=SMS.get('risks');
   const now=new Date(new Date().toDateString());
   document.getElementById('stTotal').textContent=all.length;
-  document.getElementById('stCrit').textContent=all.filter(r=>resBand(r)==='Critical').length;
+  document.getElementById('stCrit').textContent=all.filter(r=>resBand(r)==='Extreme').length;
   document.getElementById('stHigh').textContent=all.filter(r=>resBand(r)==='High').length;
   document.getElementById('stMed').textContent=all.filter(r=>resBand(r)==='Medium').length;
   document.getElementById('stLow').textContent=all.filter(r=>resBand(r)==='Low').length;
@@ -183,7 +183,7 @@ function render(){
     const rS=SMS.riskScore(r.resLikelihood||r.likelihood,r.resConsequence||r.consequence);
     const rb=SMS.riskBand(rS);
     const reviewOverdue=r.status!=='Closed'&&r.reviewDate&&new Date(r.reviewDate)<new Date(new Date().toDateString());
-    const rowCls=reviewOverdue?'row-overdue':rb.label==='Critical'?'row-critical':'';
+    const rowCls=reviewOverdue?'row-overdue':rb.label==='Extreme'?'row-critical':'';
     const statusCls=r.status==='Closed'?'status-closed':r.status==='Under Review'?'status-in-progress':'status-open';
     return `<tr class="${rowCls}">
       <td style="font-family:monospace;font-size:12px;color:var(--gray-400)">${r.id}</td>

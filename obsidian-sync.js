@@ -5,7 +5,7 @@
 const ObsidianSync = (() => {
   const KEY = 'sms_obsidian';
   const LL = ['','Rare','Unlikely','Possible','Likely','Almost Certain'];
-  const CL = ['','Insignificant','Minor','Moderate','Major','Catastrophic'];
+  const CL = ['','Insignificant','Minor','Moderate','Serious','Critical'];
 
   function get() {
     try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
@@ -25,7 +25,7 @@ const ObsidianSync = (() => {
   }
 
   function band(score) {
-    return score >= 20 ? 'Critical' : score >= 12 ? 'High' : score >= 5 ? 'Medium' : score >= 1 ? 'Low' : '—';
+    return score >= 15 ? 'Extreme' : score >= 10 ? 'High' : score >= 5 ? 'Medium' : score >= 1 ? 'Low' : '—';
   }
 
   function buildMarkdown(type, r) {

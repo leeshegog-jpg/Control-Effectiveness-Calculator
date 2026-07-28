@@ -175,7 +175,7 @@ function buildData(){
   const openAudits=audits.filter(a=>a.status!=='Complete'&&a.status!=='Cancelled');
   const overdueAudits=audits.filter(a=>SMS.isOverdue(a.plannedDate,a.status));
 
-  const riskCritical=openRisks.filter(r=>resBand(r)==='Critical').length;
+  const riskCritical=openRisks.filter(r=>resBand(r)==='Extreme').length;
   const riskHigh=openRisks.filter(r=>resBand(r)==='High').length;
 
   return {range,prior,risks,incidents,cars,audits,openRisks,incInPeriod,incInPrior,
@@ -188,7 +188,7 @@ function narrative(d){
   const parts=[];
   parts.push(`This report covers the period ${fmt(d.range.start)} to ${fmt(d.range.end)} (${days} day${days===1?'':'s'}).`);
   parts.push(`During this period, ${d.incInPeriod.length} incident${d.incInPeriod.length===1?' was':'s were'} recorded, compared with ${d.incInPrior.length} in the preceding period of equal length.`);
-  parts.push(`The risk register currently holds ${d.openRisks.length} open risk${d.openRisks.length===1?'':'s'}, including ${d.riskCritical} rated Critical and ${d.riskHigh} rated High.`);
+  parts.push(`The risk register currently holds ${d.openRisks.length} open risk${d.openRisks.length===1?'':'s'}, including ${d.riskCritical} rated Extreme and ${d.riskHigh} rated High.`);
   parts.push(`${d.openCars.length} corrective action${d.openCars.length===1?' is':'s are'} currently open, of which ${d.overdueCars.length} ${d.overdueCars.length===1?'is':'are'} overdue.`);
   parts.push(`${d.openAudits.length} audit${d.openAudits.length===1?' is':'s are'} scheduled or in progress, with ${d.overdueAudits.length} currently overdue.`);
   return parts.join(' ');
@@ -196,7 +196,7 @@ function narrative(d){
 
 function buildRecommendations(d){
   const recs=[];
-  if(d.riskCritical>0) recs.push({cls:'rec-critical',text:`Prioritise remediation of ${d.riskCritical} Critical-rated risk${d.riskCritical===1?'':'s'} in the register — review controls and residual ratings.`});
+  if(d.riskCritical>0) recs.push({cls:'rec-critical',text:`Prioritise remediation of ${d.riskCritical} Extreme-rated risk${d.riskCritical===1?'':'s'} in the register — review controls and residual ratings.`});
   if(d.overdueCars.length>0) recs.push({cls:'rec-high',text:`${d.overdueCars.length} corrective action${d.overdueCars.length===1?' is':'s are'} overdue — escalate to assigned owners for close-out or revised due dates.`});
   if(d.overdueAudits.length>0) recs.push({cls:'rec-high',text:`${d.overdueAudits.length} scheduled audit${d.overdueAudits.length===1?'':'s'}/inspection${d.overdueAudits.length===1?'':'s'} ${d.overdueAudits.length===1?'is':'are'} overdue — reschedule or close out promptly.`});
   if(d.riskHigh>3) recs.push({cls:'rec-medium',text:`${d.riskHigh} High-rated risks are open — confirm control effectiveness reviews are current.`});
