@@ -39,4 +39,15 @@ by how many cells look like URLs and picks the best match.
 
 The pipeline itself (PowerShell HTTP server + the two Claude-driven agents) lives in [`local-automation/`](local-automation/README.md) and only runs locally; it cannot run on a static host like GitHub Pages. Without it running, the page still works as a standard incident register (`Save Incident`).
 
-Last updated: 22 June 2026.
+## AI Hazard, Bow-Tie & Critical Control Generator
+
+[`bowtie-ccm-generator.html`](bowtie-ccm-generator.html) is a self-contained hazard/bow-tie/critical-control-management tool, seeded with the live 14-hazard / 108-row pilot register. It is grounded directly in VRTP's own documents — GOHS2.1.2 Managing Risks to H&S Standard, the VRTP Risk Matrix, OHS-PRO-003 Bow-Tie Analysis Procedure, GOHS-REF-SMS-001 Control/Support/Verification Register Guide, and GOHS-GN-HAZID-001 Hazard Identification Guidance — not generic risk boilerplate. Four tabs:
+
+- **Register** — searchable, filterable hazard → risk → control table
+- **Bow-Tie Diagram** — threats/preventive controls, top event, consequences/mitigative controls, critical-control flags
+- **Critical Control Management** — critical-control register with verification due-status, plus the 3-gate Control/Support/Verification classification reference
+- **AI Hazard Generator** — 8-step wizard: hazard statement builder, VRTP Risk Matrix scoring, the 3-gate control test, critical-control test, effectiveness-based current-risk suggestion, SFARP gate (blocks "risk is acceptable"), target risk & actions. Includes an **Import AI Draft (JSON)** box so a hazard drafted in conversation with an AI assistant can be pasted in for validation before saving to the register.
+
+Runs entirely client-side (no server, no data leaves the browser) — open the file directly or reach it from the Hub nav / Supporting Tools grid.
+
+Last updated: 28 July 2026.
