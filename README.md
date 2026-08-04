@@ -1,3 +1,53 @@
+# TP Risk Management SMS — Safety Knowledge Graph Platform
+
+**Status: R0 — Repository Initialisation. Design Baseline v1.1 (Approved and Frozen, 2026-08-04). No business functionality implemented — engineering foundation only.**
+
+Enterprise Safety Knowledge Graph and AI Risk Intelligence Platform for Village Roadshow Theme Parks (VRTP) — replacing the V1 static-HTML Safety Management System suite (still present at this repository's root during the strangler-fig migration, see [Legacy Tools](#legacy-tools-root-level-static-files) below) with a governed, multi-user platform: PostgreSQL system of record, Neo4j knowledge graph projection, AI-assisted document extraction, and a generated Safety Case Demonstration Engine for Chapter 9A (major amusement parks) compliance.
+
+## Start here
+
+| If you want to... | Read |
+|---|---|
+| Understand the architecture decisions | [docs/PLATFORM_ARCHITECTURE_V2.md](docs/PLATFORM_ARCHITECTURE_V2.md) |
+| See the full Design Baseline (ontology, schema, OpenAPI, Safety Case model) | [docs/knowledge-graph/README.md](docs/knowledge-graph/README.md) |
+| Understand how the codebase is organised and why | [docs/implementation-blueprint/README.md](docs/implementation-blueprint/README.md) |
+| Set up a local dev environment | [DEVELOPMENT.md](DEVELOPMENT.md) |
+| Contribute a change | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Raise or review an Architecture Change Request | [.acr/README.md](.acr/README.md) |
+| See implementation decisions made outside the frozen baseline | [.adr/README.md](.adr/README.md) |
+
+## Repository layout
+
+```
+apps/web/           React + TypeScript + Vite + Tailwind + shadcn/ui frontend
+apps/api/            FastAPI backend
+packages/            Shared code: shared-types, api-client, ontology-client, ui-components
+ontology/            Ontology content (governed data, not code)
+database/            PostgreSQL migrations/seeds, Neo4j constraints/migrations
+infrastructure/      Azure Bicep + per-environment parameters
+docs/                Design Baseline v1.1 + Implementation Blueprint (authoritative)
+tests/               unit / integration / contract / e2e / graph / ontology / ai-extraction / performance / security / uat
+scripts/             Dev tooling
+.adr/                Architecture Decision Records (implementation-time decisions)
+.acr/                Architecture Change Requests (changes to the frozen baseline)
+```
+
+Full per-folder rationale: [docs/implementation-blueprint/01-repository-structure.md](docs/implementation-blueprint/01-repository-structure.md) and [docs/implementation-blueprint/13-application-foundation-scaffold.md](docs/implementation-blueprint/13-application-foundation-scaffold.md).
+
+## Governance
+
+The Design Baseline (architecture, ontology, PostgreSQL schema, Neo4j model, OpenAPI contract, Safety Case model) is **frozen at v1.1**. Any change to it requires an Architecture Change Request — see [docs/implementation-blueprint/02-development-standards.md](docs/implementation-blueprint/02-development-standards.md) §7. Do not edit `docs/knowledge-graph/` directly.
+
+## License
+
+Proprietary — see [LICENSE](LICENSE). Licensing terms are `TO_BE_CONFIRMED` pending VRTP legal review; this is not an open-source project by default.
+
+---
+
+## Legacy tools (root-level static files)
+
+This repository also hosts pre-existing standalone tools at the root, unrelated to the platform above and predating it. They are left in place, unmodified, during the migration and are out of scope for the platform's build/lint/CI tooling.
+
 # URL Parser — Excel Edition
 
 A zero-dependency, browser-based tool that reads URLs from an Excel or CSV file
@@ -14,7 +64,7 @@ and instantly parses each one into its individual components.
 - **Export**: copy to clipboard, download as CSV, or download as Excel
 - Runs entirely in the browser — no data is uploaded anywhere
 
-## Usage
+### Usage
 
 1. Open `index.html` in any modern browser (Chrome, Firefox, Edge, Safari).
 2. Drop your Excel file onto the upload area, or click **Browse file**.
@@ -23,7 +73,7 @@ and instantly parses each one into its individual components.
 
 A sample file `sample_urls.xlsx` is included to try immediately.
 
-## File format
+### File format
 
 Your Excel file needs at least one column of URLs. The column can have any header
 name — the tool looks for a header containing "url" first, then scores each column
@@ -33,7 +83,7 @@ by how many cells look like URLs and picks the best match.
 |----|-----|----------|-------|
 | 1  | https://example.com/path?q=1 | Web | … |
 
-## VRTP Agent Investigation Pipeline
+### VRTP Agent Investigation Pipeline
 
 `incident-report.html` now includes a **🔬 Run Agent Investigation** action alongside the standard incident register. It submits the report to a local agent pipeline (Investigation Agent → Compliance Agent → Safety Case Trigger check) running on the reporting machine, then links the resulting investigation, compliance and safety-case outputs — plus a printable report — back onto the incident record.
 

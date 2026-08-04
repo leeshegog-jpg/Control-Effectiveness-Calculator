@@ -1,0 +1,25 @@
+# Root .dockerignore -- build context is repo root for both apps/web and
+# apps/api images (Dockerfiles COPY packages/* for the monorepo workspace).
+node_modules/
+**/node_modules/
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+dist/
+**/dist/
+.git/
+.github/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+*.log
+.env
+.env.local
+docs/
+.acr/
+.adr/
+tests/
+*.md
+!README.md
