@@ -1,0 +1,30 @@
+PROPRIETARY AND CONFIDENTIAL -- LICENSING TERMS TO_BE_CONFIRMED
+
+Copyright (c) 2026 Village Roadshow Theme Parks. All rights reserved.
+
+This repository and its contents (including but not limited to the Enterprise
+Safety Knowledge Graph and AI Risk Intelligence Platform design documents,
+source code, ontology content, and database schemas) are the confidential and
+proprietary property of Village Roadshow Theme Parks ("VRTP").
+
+No license, express or implied, to any intellectual property rights is
+granted by this document.
+
+STATUS: No licensing model has been decided in any approved Design Baseline
+document. This file is a safe default (all rights reserved, no open-source
+grant) pending an explicit decision from VRTP legal/ownership on:
+  - the intended distribution model (fully internal vs. any open-source
+    components, e.g. the ontology content or non-regulatory-sensitive tooling)
+  - third-party license compatibility for dependencies pulled in under
+    apps/web, apps/api, and packages/*
+  - copyright/attribution requirements for any regulatory or standards text
+    quoted verbatim in generated Safety Case Demonstrations
+    (see docs/knowledge-graph/09-regulatory-knowledge-model.md §2 --
+    the "Licensing Keys" configuration item in
+    docs/implementation-blueprint/09-configuration-management.md §5 already
+    anticipates this)
+
+This is not an Architecture Change Request item -- licensing is a legal/
+commercial decision, not an architectural one -- but it should be resolved
+before any external distribution, contractor onboarding, or open-source
+dependency audit is finalized.

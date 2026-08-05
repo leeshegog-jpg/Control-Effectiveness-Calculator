@@ -1,0 +1,38 @@
+name: Release
+description: Track a release against docs/implementation-blueprint/04-implementation-roadmap.md
+labels: ["release"]
+body:
+  - type: dropdown
+    id: release
+    attributes:
+      label: Release
+      options:
+        - "R0 — Foundation"
+        - "R1 — Risk Register cutover"
+        - "R2 — Incident Report cutover"
+        - "R3 — Critical Control Management cutover"
+        - "R4 — Corrective Actions / Audits cutover"
+        - "R5 — Dashboard cutover"
+        - "R6 — AI Extraction + Knowledge Graph"
+        - "R7 — Safety Assessment + Demonstration Engine + Safety Case"
+    validations:
+      required: true
+  - type: textarea
+    id: exit_criteria
+    attributes:
+      label: Exit criteria
+      description: Copy the exit-criteria row for this release from 04-implementation-roadmap.md.
+    validations:
+      required: true
+  - type: checkboxes
+    id: uat
+    attributes:
+      label: UAT sign-off
+      description: docs/implementation-blueprint/08-testing-strategy.md §9
+      options:
+        - label: VRTP HSE / safety team sign-off recorded
+  - type: input
+    id: tag
+    attributes:
+      label: Git tag
+      placeholder: e.g. r1-risk-register-cutover

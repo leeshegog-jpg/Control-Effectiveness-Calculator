@@ -1,0 +1,23 @@
+# Normalize line endings for text files; let Git handle the checkout conversion.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary/generated -- never diff, never merge as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.svg binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.dump binary
+
+# Generated / vendored -- exclude from GitHub language stats and diffs.
+package-lock.json linguist-generated=true -diff
+apps/web/dist/** linguist-generated=true
+docs/knowledge-graph/03-postgresql-schema.sql linguist-language=SQL

@@ -1,0 +1,16 @@
+{
+  "name": "@sms/shared-types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "TypeScript types generated from docs/knowledge-graph/10-openapi.yaml. Generated -- never hand-edited. Empty at R0; populated by CI codegen once the OpenAPI spec has an implementation to generate against.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "generate": "echo 'R0 placeholder -- OpenAPI codegen wired at R1, see docs/implementation-blueprint/07-cicd-architecture.md §2' && exit 0"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2"
+  }
+}

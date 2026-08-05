@@ -1,0 +1,1529 @@
+openapi: 3.1.0
+info:
+  title: TP Risk Management SMS — Safety Knowledge Graph Platform API
+  version: 0.2.0-draft
+  description: >
+    DRAFT — controlled design document, requires approval before implementation.
+    Backend REST surface for the Safety Knowledge Graph + AI Risk Intelligence Platform.
+    Postgres is the system of record (03-postgresql-schema.sql); every write here is
+    mirrored into Neo4j by the Graph Sync Service (01-enterprise-knowledge-graph-specification.md §4).
+    See docs/PLATFORM_ARCHITECTURE_V2.md and docs/knowledge-graph/*.md for the design
+    documents this contract implements.
+    v0.2.0: Design Baseline v1.1 amendment — Emergency Planning (ACR-002) + Competency
+    Management (ACR-003, supersedes ACR-001), approved 2026-08-04. Additive only —
+    no removed/changed paths or schemas (02-development-standards.md §2 MINOR bump rule).
+servers:
+  - url: https://api.{environment}.vrtp-sms.example.net/v1
+    variables:
+      environment:
+        default: dev
+        enum: [dev, staging, prod]
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Assets
+  - name: Hazards
+  - name: Risks
+  - name: Controls
+  - name: CriticalControls
+  - name: Verification
+  - name: Evidence
+  - name: TARPs
+  - name: Incidents
+  - name: Actions
+  - name: Audits
+  - name: SafetyCase
+  - name: Requirements
+  - name: Documents
+  - name: Extraction
+  - name: Ontology
+  - name: KnowledgeGraph
+  - name: GapAnalysis
+  - name: People
+  - name: Competency   # v1.1 amendment — ACR-003 (approved 2026-08-04), supersedes ACR-001
+
+paths:
+  # ── Assets ────────────────────────────────────────────────────────────────────────
+  /assets:
+    get:
+      tags: [Assets]
+      summary: List assets
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - in: query
+          name: park_id
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Paginated asset list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Asset' } }
+                  total: { type: integer }
+    post:
+      tags: [Assets]
+      summary: Create an asset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssetInput' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Asset' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /assets/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Assets]
+      summary: Get an asset
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Asset' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Assets]
+      summary: Update an asset
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/AssetInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Asset' } } } }
+
+  # ── Device Boundary (11-safety-case-demonstration-model.md §2) ──────────────────────
+  /assets/{id}/boundary:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Assets]
+      summary: Get the amusement device boundary for this asset (only valid where is_amusement_device = true)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DeviceBoundary' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Assets]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/DeviceBoundaryInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DeviceBoundary' } } } } }
+  /assets/{id}/boundary/interfaces:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Assets]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Interface' } } } } } }
+    post:
+      tags: [Assets]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/InterfaceInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Interface' } } } } }
+
+  # ── Hazards ───────────────────────────────────────────────────────────────────────
+  /hazards:
+    get:
+      tags: [Hazards]
+      summary: List hazards
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - in: query
+          name: asset_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: category_concept_id
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Paginated hazard list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Hazard' } }
+                  total: { type: integer }
+    post:
+      tags: [Hazards]
+      summary: Create a hazard
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/HazardInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Hazard' } } } }
+  /hazards/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Hazards]
+      summary: Get a hazard
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Hazard' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Hazards]
+      summary: Update a hazard
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/HazardInput' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Hazard' } } } }
+  /hazards/{id}/duplicate-candidates:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Hazards, GapAnalysis]
+      summary: Duplicate hazard candidates for this hazard (07-inference-rules-catalogue.md R9)
+      responses:
+        '200':
+          description: Candidate duplicates with similarity score
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    hazard: { $ref: '#/components/schemas/Hazard' }
+                    similarity_score: { type: number, format: float }
+
+  # ── ADH → ADI pathway (11-safety-case-demonstration-model.md §3) ────────────────────
+  /hazards/{id}/credible-events:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Hazards]
+      summary: List credible events for this hazard (only meaningful where is_adh = true)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CredibleEvent' } } } } } }
+    post:
+      tags: [Hazards]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/CredibleEventInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/CredibleEvent' } } } } }
+
+  # ── Safety Assessment (11-safety-case-demonstration-model.md §4) ────────────────────
+  /safety-assessments:
+    get:
+      tags: [SafetyCase]
+      parameters: [ { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/offset' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SafetyAssessment' } } } } } }
+    post:
+      tags: [SafetyCase]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/SafetyAssessmentInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/SafetyAssessment' } } } } }
+  /safety-assessments/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [SafetyCase]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SafetyAssessment' } } } } }
+    patch:
+      tags: [SafetyCase]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/SafetyAssessmentInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SafetyAssessment' } } } } }
+
+  # ── Claim → Argument → Evidence (11-safety-case-demonstration-model.md §5) ──────────
+  /safety-case-claims/{id}/arguments:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [SafetyCase]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SafetyArgument' } } } } } }
+    post:
+      tags: [SafetyCase]
+      summary: Add a reasoning step connecting evidence to the claim (GSN Strategy-equivalent)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/SafetyArgumentInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/SafetyArgument' } } } }
+        '422': { description: "Cited evidence not reachable from the claim's SUPPORTS chain (06-relationship-rules-catalogue.md §5a GROUNDED_IN rule)" }
+
+  # ── Monitoring (08-critical-control-assurance-model.md §5.1) ────────────────────────
+  /critical-controls/{id}/monitoring-summaries:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [CriticalControls]
+      parameters: [ { in: query, name: indicator_class, schema: { type: string, enum: [leading, lagging] } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/MonitoringSummary' } } } } } }
+
+  # ── Safety Case Demonstration Engine (11-safety-case-demonstration-model.md §7) ─────
+  /demonstrations:
+    post:
+      tags: [SafetyCase]
+      summary: Generate a new Demonstration (always status=draft — 11 §7.3)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [demonstration_type, scope_entity_type, scope_entity_id]
+              properties:
+                demonstration_type: { type: string, enum: [control_adequacy, hazard_to_assurance_chain, moc_effectiveness, governance_effectiveness, verification_confidence, evidence_support] }
+                scope_entity_type: { type: string, enum: [safety_assessment, hazard, critical_control, asset] }
+                scope_entity_id: { type: string, format: uuid }
+      responses:
+        '202': { description: Generation started, content: { application/json: { schema: { type: object, properties: { demonstration_id: { type: string, format: uuid } } } } } }
+    get:
+      tags: [SafetyCase]
+      parameters:
+        - { in: query, name: scope_entity_id, schema: { type: string, format: uuid } }
+        - { in: query, name: status, schema: { type: string, enum: [draft, reviewed, approved, published] } }
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Demonstration' } } } } } }
+  /demonstrations/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [SafetyCase]
+      summary: Get a demonstration, including staleness flag (07-inference-rules-catalogue.md R16)
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Demonstration' } } } } }
+  /demonstrations/{id}/review:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    post:
+      tags: [SafetyCase]
+      summary: Advance draft → reviewed → approved → published (never automatic — 11 §7.3)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [reviewed, approved, published] }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Demonstration' } } } } }
+
+  # ── Management of Change (11-safety-case-demonstration-model.md §7.2a) ──────────────
+  /management-of-change:
+    get:
+      tags: [SafetyCase]
+      parameters: [ { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/offset' }, { in: query, name: status, schema: { type: string, enum: [proposed, under_review, approved, implemented, closed] } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ManagementOfChange' } } } } } }
+    post:
+      tags: [SafetyCase]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ManagementOfChangeInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ManagementOfChange' } } } } }
+  /management-of-change/{id}/review-triggers:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [SafetyCase]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ReviewTrigger' } } } } } }
+    post:
+      tags: [SafetyCase]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ReviewTriggerInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ReviewTrigger' } } } } }
+
+  # ── Emergency Planning (v1.1 amendment — ACR-002, approved 2026-08-04; sourced from
+  # Guide §12) ──────────────────────────────────────────────────────────────────────
+  /parks/{parkId}/emergency-plan:
+    parameters: [ { name: parkId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    get:
+      tags: [SafetyCase]
+      summary: Get the park's one emergency plan (Guide §12.4 — one MAP, one plan)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/EmergencyPlan' } } } }
+        '404': { description: No emergency plan exists yet for this park }
+    put:
+      tags: [SafetyCase]
+      summary: Create or update the park's emergency plan (idempotent — one per park, park_id UNIQUE)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/EmergencyPlanInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/EmergencyPlan' } } } } }
+  /emergency-plans/{id}/credible-events:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [SafetyCase]
+      summary: List ADIs/credible events linked into this plan
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/EmergencyPlanCredibleEvent' } } } } } }
+    post:
+      tags: [SafetyCase]
+      summary: Link an ADI/credible event into this plan (Guide §12 — "linkages from your ADIs to the corresponding amusement device emergency plans")
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/EmergencyPlanCredibleEventInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/EmergencyPlanCredibleEvent' } } } } }
+  /emergency-plans/{id}/exercises:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [SafetyCase]
+      summary: List drills/exercises for this plan
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/EmergencyExercise' } } } } } }
+    post:
+      tags: [SafetyCase]
+      summary: Schedule or record an exercise (07-inference-rules-catalogue.md R22 tracks 12–18 month currency)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/EmergencyExerciseInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/EmergencyExercise' } } } } }
+  /emergency-plans/{id}/consultations:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [SafetyCase]
+      summary: List emergency service organisation consultations (Guide §12.2, §12.3)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/EmergencyServiceConsultation' } } } } } }
+    post:
+      tags: [SafetyCase]
+      summary: Record a consultation with an emergency service organisation and how its recommendation was incorporated
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/EmergencyServiceConsultationInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/EmergencyServiceConsultation' } } } } }
+
+  # ── Risks ─────────────────────────────────────────────────────────────────────────
+  /risks:
+    get:
+      tags: [Risks]
+      summary: List risks
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - in: query
+          name: hazard_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: current_rating
+          schema: { type: string, enum: [Extreme, High, Medium, Low] }
+      responses:
+        '200':
+          description: Paginated risk list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Risk' } }
+                  total: { type: integer }
+    post:
+      tags: [Risks]
+      summary: Create a risk (rating derived server-side — 07-inference-rules-catalogue.md R1)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RiskInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Risk' } } } }
+  /risks/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Risks]
+      summary: Get a risk
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Risk' } } } }
+    patch:
+      tags: [Risks]
+      summary: Update a risk. If current_rating is Extreme/High, sfarp_justification is validated (R4 SFARP gate).
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/RiskInput' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Risk' } } } }
+        '422': { description: SFARP gate rejected the justification (07-inference-rules-catalogue.md R4) }
+
+  # ── Controls & Critical Controls ─────────────────────────────────────────────────
+  /risks/{riskId}/controls:
+    parameters: [ { name: riskId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    get:
+      tags: [Controls]
+      summary: List controls mitigating this risk
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Control' } } } } }
+    post:
+      tags: [Controls]
+      summary: Create a control candidate for this risk (pre 3-gate classification)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ControlInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Control' } } } }
+  /controls/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Controls]
+      summary: Get a control
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Control' } } } }
+  /controls/{id}/gate-test:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    post:
+      tags: [Controls]
+      summary: Submit 3-gate test answers (08-critical-control-assurance-model.md §2)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gate_1, gate_2, gate_3]
+              properties:
+                gate_1: { type: boolean }
+                gate_2: { type: boolean }
+                gate_3: { type: boolean }
+                is_verification_check: { type: boolean, description: "Follow-up if any gate failed" }
+      responses:
+        '200':
+          description: Resulting classification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  classification: { type: string, enum: [Control, Support, Verification] }
+  /controls/{id}/eia-test:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    post:
+      tags: [Controls]
+      summary: Record the Effective/Independent/Auditable quick assessment (08-critical-control-assurance-model.md §4a, Guide Table 2) — distinct from the 3-gate classification test
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ControlEiaInput' } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Control' } } } } }
+  /controls/{id}/critical-control-test:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    post:
+      tags: [Controls, CriticalControls]
+      summary: Submit critical control test answer (08 §3) — only valid if classification = Control
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_critical]
+              properties:
+                is_critical: { type: boolean }
+      responses:
+        '201':
+          description: CriticalControl created
+          content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControl' } } }
+        '409': { description: "Control is not classified 'Control' — cannot be tested for criticality" }
+  /critical-controls/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [CriticalControls]
+      summary: Get a critical control, including derived FARSI score and current health state (08-critical-control-assurance-model.md §6)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControl' } } } }
+    patch:
+      tags: [CriticalControls]
+      summary: Update FARSI scores (08 §4)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControlFarsiInput' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControl' } } } }
+  /critical-controls/{id}/performance-standards:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [CriticalControls]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PerformanceStandard' } } } } } }
+    post:
+      tags: [CriticalControls]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/PerformanceStandardInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/PerformanceStandard' } } } } }
+  /performance-standards/{id}/verification-activities:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Verification]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/VerificationActivity' } } } } } }
+    post:
+      tags: [Verification]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/VerificationActivityInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/VerificationActivity' } } } } }
+  /verification-activities/{id}/evidence:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Evidence]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Evidence' } } } } } }
+    post:
+      tags: [Evidence]
+      summary: Attach evidence to a completed verification activity
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/EvidenceInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Evidence' } } } } }
+  /critical-controls/{id}/tarps:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [TARPs]
+      summary: List Trigger Action Response Plans for this critical control (08 §7)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TARP' } } } } } }
+    post:
+      tags: [TARPs]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/TARPInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/TARP' } } } } }
+  /tarps/{id}/resolve:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    post:
+      tags: [TARPs]
+      summary: Mark a triggered TARP resolved
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TARP' } } } } }
+
+  # ── Incidents / Actions / Audits ─────────────────────────────────────────────────
+  /incidents:
+    get:
+      tags: [Incidents]
+      parameters: [ { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/offset' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Incident' } }, total: { type: integer } } } } } } }
+    post:
+      tags: [Incidents]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/IncidentInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } } }
+  /incidents/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Incidents]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } } }
+    patch:
+      tags: [Incidents]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/IncidentInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } } }
+  /incidents/{id}/run-investigation-pipeline:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    post:
+      tags: [Incidents, Extraction]
+      summary: >
+        Trigger the Investigation Agent → Compliance Agent → Safety Case Trigger pipeline
+        (04-ai-extraction-specification.md §7 — server-side successor to V1's
+        local-automation PowerShell pipeline)
+      responses:
+        '202':
+          description: Pipeline started
+          content:
+            application/json:
+              schema: { type: object, properties: { extraction_run_id: { type: string, format: uuid } } }
+  /actions:
+    get:
+      tags: [Actions]
+      parameters: [ { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/offset' }, { in: query, name: status, schema: { type: string, enum: [Open, In Progress, Closed] } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Action' } } } } } }
+    post:
+      tags: [Actions]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ActionInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Action' } } } } }
+  /actions/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    patch:
+      tags: [Actions]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ActionInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Action' } } } } }
+  /audits:
+    get:
+      tags: [Audits]
+      parameters: [ { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/offset' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Audit' } } } } } }
+    post:
+      tags: [Audits]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/AuditInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Audit' } } } } }
+  /audits/{id}/findings:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Audits]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/AuditFinding' } } } } } }
+    post:
+      tags: [Audits]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/AuditFindingInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/AuditFinding' } } } } }
+
+  # ── Safety Case & Requirements ────────────────────────────────────────────────────
+  /safety-case-claims:
+    get:
+      tags: [SafetyCase]
+      parameters: [ { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/offset' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SafetyCaseClaim' } } } } } }
+    post:
+      tags: [SafetyCase]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/SafetyCaseClaimInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/SafetyCaseClaim' } } } }
+        '422': { description: "Chain consistency violation (06-relationship-rules-catalogue.md §3 SUPPORTS rule) — cited evidence does not trace to the claimed hazard/critical control" }
+  /safety-case-claims/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [SafetyCase]
+      summary: Get a claim with full traceability chain and effective confidence (05-knowledge-provenance-model.md §4)
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SafetyCaseClaimDetail' } } } } }
+  /requirements:
+    get:
+      tags: [Requirements]
+      parameters:
+        - { in: query, name: source_concept_id, schema: { type: string, format: uuid } }
+        - { in: query, name: status, schema: { type: string, enum: [TO_BE_CONFIRMED, confirmed] } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Requirement' } } } } } }
+  /requirements/{id}/coverage:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Requirements, GapAnalysis]
+      summary: Claims tracing to this requirement (empty result = coverage gap, 07-inference-rules-catalogue.md R11)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SafetyCaseClaim' } } } } } }
+
+  # ── Documents & Extraction ────────────────────────────────────────────────────────
+  /documents:
+    post:
+      tags: [Documents]
+      summary: Upload a document for AI extraction (04-ai-extraction-specification.md §2)
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { description: Uploaded, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } }
+  /documents/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Documents]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } } }
+  /documents/{id}/extract:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    post:
+      tags: [Extraction]
+      summary: Start an extraction run against this document
+      responses:
+        '202': { description: Started, content: { application/json: { schema: { type: object, properties: { extraction_run_id: { type: string, format: uuid } } } } } }
+  /extraction-runs/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Extraction]
+      summary: Extraction run status and draft results (04-ai-extraction-specification.md §2, §6)
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ExtractionRun' } } } } }
+  /extraction-runs/{id}/drafts/{draftId}/approve:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+      - { name: draftId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Extraction]
+      summary: Approve a flagged draft — commits to Postgres with human_entry-tier provenance override (05-knowledge-provenance-model.md)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                edits: { type: object, description: "Optional field edits applied before commit" }
+      responses: { '200': { description: Committed, content: { application/json: { schema: { type: object, properties: { entity_type: { type: string }, entity_id: { type: string, format: uuid } } } } } } }
+  /extraction-runs/{id}/drafts/{draftId}/reject:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+      - { name: draftId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Extraction]
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { reason: { type: string } } } } }
+      responses: { '200': { description: Rejected } }
+
+  # ── Ontology ──────────────────────────────────────────────────────────────────────
+  /ontology/schemes:
+    get:
+      tags: [Ontology]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/OntologyScheme' } } } } } }
+  /ontology/concepts:
+    get:
+      tags: [Ontology]
+      summary: List/search concepts (used for extraction prompt construction — 04 §5 — and form autocomplete)
+      parameters:
+        - { in: query, name: scheme_id, schema: { type: string, format: uuid } }
+        - { in: query, name: q, schema: { type: string }, description: "Search pref_label + aliases" }
+        - { in: query, name: status, schema: { type: string, enum: [draft, reviewed, approved, published, deprecated] } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Concept' } } } } } }
+    post:
+      tags: [Ontology]
+      summary: Propose a new concept (curator workflow — 01-enterprise-knowledge-graph-specification.md §6)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ConceptInput' } } } }
+      responses: { '201': { description: Created as draft, content: { application/json: { schema: { $ref: '#/components/schemas/Concept' } } } } }
+  /ontology/concepts/{id}/publish:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    post:
+      tags: [Ontology]
+      summary: Curator approval — advances draft/reviewed/approved → published
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Concept' } } } } }
+  /ontology/concepts/{id}/aliases:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    post:
+      tags: [Ontology]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ConceptAliasInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ConceptAlias' } } } } }
+  /ontology/extraction-rules:
+    get:
+      tags: [Ontology, Extraction]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ExtractionRule' } } } } } }
+    post:
+      tags: [Ontology, Extraction]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ExtractionRuleInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ExtractionRule' } } } } }
+
+  # ── Knowledge Graph & Gap Analysis ────────────────────────────────────────────────
+  /graph/query/{patternId}:
+    parameters:
+      - name: patternId
+        in: path
+        required: true
+        schema: { type: string, enum: [Q1_critical_risk_assurance, Q2_controls_by_hazard_type, Q3_overdue_critical_controls, Q4_duplicate_hazards, Q5_safety_case_traceability, Q6_incident_impact, Q7_regulatory_coverage_gaps] }
+        description: Named query patterns only (01-enterprise-knowledge-graph-specification.md §5) — no arbitrary Cypher accepted from clients
+    post:
+      tags: [KnowledgeGraph]
+      summary: Execute a named, parameterized graph query pattern
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: >-
+                Pattern-specific parameters, e.g. an asset_id value for Q2
+      responses:
+        '200':
+          description: Graph result (nodes + edges, Cytoscape-ready)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GraphResult' }
+  /gap-analysis/findings:
+    get:
+      tags: [GapAnalysis]
+      summary: Findings from 07-inference-rules-catalogue.md rules R3, R5, R6, R8, R9, R11, R12, R14, R16, R17, R18
+      parameters:
+        - in: query
+          name: rule
+          schema: { type: string, enum: [R3, R5, R6, R8, R9, R11, R12, R14, R16, R17, R18] }
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GapFinding' }
+
+  # ── People / Parks ────────────────────────────────────────────────────────────────
+  /persons:
+    get:
+      tags: [People]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Person' } } } } } }
+    post:
+      tags: [People]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/PersonInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Person' } } } } }
+  /parks:
+    get:
+      tags: [People]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Park' } } } } } }
+
+  # ── Competency Management (v1.1 amendment — ACR-003, approved 2026-08-04, supersedes
+  # ACR-001; sourced from Guide §10.8) ──────────────────────────────────────────────
+  /roles:
+    get:
+      tags: [Competency]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Role' } } } } } }
+    post:
+      tags: [Competency]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/RoleInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Role' } } } } }
+  /competencies:
+    get:
+      tags: [Competency]
+      summary: List competency claims
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - in: query
+          name: person_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema: { type: string, enum: [current, lapsed, pending_assessment, revoked] }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Competency' } } } } } }
+    post:
+      tags: [Competency]
+      summary: Record a competency claim (training is one competency_type value — no separate Training entity, per ACR-003)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/CompetencyInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Competency' } } } } }
+  /competencies/{id}:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Competency]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Competency' } } } } }
+    patch:
+      tags: [Competency]
+      summary: Update a competency claim (e.g. assessment result, currency_expiry_date). 07-inference-rules-catalogue.md R19 lapses it automatically once expired.
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/CompetencyInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Competency' } } } } }
+  /competencies/{id}/evidence:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Competency]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Evidence' } } } } } }
+    post:
+      tags: [Competency]
+      summary: Link supporting evidence (training record, licence, assessment result) to this competency claim
+      requestBody: { content: { application/json: { schema: { type: object, required: [evidence_id], properties: { evidence_id: { type: string, format: uuid } } } } } }
+      responses: { '201': { description: Created } }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "AuthN/AuthZ provider TO BE CONFIRMED (architecture §2 AuthZ component) — Azure AD / Entra ID is the natural default given Azure hosting (architecture §8) but not yet decided."
+
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    limit:
+      name: limit
+      in: query
+      schema: { type: integer, default: 50, maximum: 200 }
+    offset:
+      name: offset
+      in: query
+      schema: { type: integer, default: 0 }
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    ValidationError:
+      description: Request failed validation
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+
+    ConceptRef:
+      type: object
+      description: Reference to an ontology concept (03-postgresql-schema.sql ontology.concepts)
+      properties:
+        concept_id: { type: string, format: uuid, nullable: true }
+        pref_label: { type: string, description: "Read-only, resolved server-side" }
+
+    Park:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+
+    Person:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        role_title: { type: string }
+        email: { type: string, format: email }
+    PersonInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        role_title: { type: string }
+        email: { type: string, format: email }
+
+    Asset:
+      allOf:
+        - $ref: '#/components/schemas/AssetInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    AssetInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        park_id: { type: string, format: uuid }
+        asset_type: { $ref: '#/components/schemas/ConceptRef' }
+        iso55000_class: { type: string, description: "TO BE CONFIRMED — see PLATFORM_ARCHITECTURE_V2.md §5" }
+        status: { type: string, default: active }
+
+    Hazard:
+      allOf:
+        - $ref: '#/components/schemas/HazardInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    HazardInput:
+      type: object
+      required: [name, description]
+      properties:
+        asset_id: { type: string, format: uuid, nullable: true }
+        name: { type: string }
+        description: { type: string }
+        exposure_pathway: { type: string }
+        possible_consequence: { type: string }
+        category: { $ref: '#/components/schemas/ConceptRef' }
+        energy_source: { $ref: '#/components/schemas/ConceptRef' }
+        date_identified: { type: string, format: date }
+        owner_person_id: { type: string, format: uuid }
+        is_adh: { type: boolean, default: false, description: "Amusement device hazard — 11-safety-case-demonstration-model.md §3" }
+        device_boundary_id: { type: string, format: uuid, nullable: true }
+
+    Risk:
+      allOf:
+        - $ref: '#/components/schemas/RiskInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            inherent_rating: { type: string, enum: [Extreme, High, Medium, Low], readOnly: true, description: "Derived — 07-inference-rules-catalogue.md R1" }
+            current_rating: { type: string, enum: [Extreme, High, Medium, Low], readOnly: true }
+    RiskInput:
+      type: object
+      required: [hazard_id, description]
+      properties:
+        hazard_id: { type: string, format: uuid }
+        description: { type: string }
+        cause: { type: string }
+        inherent_likelihood: { type: integer, minimum: 1, maximum: 5 }
+        inherent_consequence: { type: integer, minimum: 1, maximum: 5 }
+        current_likelihood: { type: integer, minimum: 1, maximum: 5 }
+        current_consequence: { type: integer, minimum: 1, maximum: 5 }
+        target_likelihood: { type: integer, minimum: 1, maximum: 5 }
+        target_consequence: { type: integer, minimum: 1, maximum: 5 }
+        sfarp_justification: { type: string, description: "General WHS duty justification. For ADI/Chapter-9A-scoped risks, use serious_risk_justification and SFAIRP terminology in any generated Demonstration text — 09-regulatory-knowledge-model.md §3" }
+        status: { type: string, enum: [Open, Under Review, Closed] }
+        review_date: { type: string, format: date }
+        is_serious_risk: { type: boolean, default: false, description: "Chapter 9A serious risk classification (WHS Reg s.608B(1)(b)) — operator-defined threshold, see 09-regulatory-knowledge-model.md §6" }
+        serious_risk_justification: { type: string }
+
+    Control:
+      allOf:
+        - $ref: '#/components/schemas/ControlInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            classification: { type: string, enum: [Control, Support, Verification], readOnly: true }
+            is_critical: { type: boolean, readOnly: true }
+    ControlInput:
+      type: object
+      required: [risk_id, description, control_type]
+      properties:
+        risk_id: { type: string, format: uuid }
+        description: { type: string }
+        control_type: { type: string, enum: [Prevention, Mitigation] }
+        hierarchy: { $ref: '#/components/schemas/ConceptRef' }
+        owner_person_id: { type: string, format: uuid }
+        effectiveness_rating: { type: string }
+
+    CriticalControl:
+      type: object
+      properties:
+        control_id: { type: string, format: uuid }
+        farsi_functionality: { type: integer, minimum: 1, maximum: 5 }
+        farsi_availability: { type: integer, minimum: 1, maximum: 5 }
+        farsi_reliability: { type: integer, minimum: 1, maximum: 5 }
+        farsi_survivability: { type: integer, minimum: 1, maximum: 5 }
+        farsi_interdependency: { type: integer, minimum: 1, maximum: 5, description: "Corrected from 'interaction' — confirmed against WHSQ Guide 2021 §5/§9.2.2.1 (08-critical-control-assurance-model.md §4b)" }
+        farsi_score: { type: number, format: float, readOnly: true }
+        eia_effective: { type: boolean, description: "Guide Table 2 — 08-critical-control-assurance-model.md §4a" }
+        eia_independent: { type: boolean }
+        eia_auditable: { type: boolean }
+        health_state: { type: string, enum: [Verified, Healthy, Degraded, Overdue, Unverified], readOnly: true, description: "Computed — 08-critical-control-assurance-model.md §6" }
+    CriticalControlFarsiInput:
+      type: object
+      properties:
+        farsi_functionality: { type: integer, minimum: 1, maximum: 5 }
+        farsi_availability: { type: integer, minimum: 1, maximum: 5 }
+        farsi_reliability: { type: integer, minimum: 1, maximum: 5 }
+        farsi_survivability: { type: integer, minimum: 1, maximum: 5 }
+        farsi_interdependency: { type: integer, minimum: 1, maximum: 5 }
+    ControlEiaInput:
+      type: object
+      description: "08-critical-control-assurance-model.md §4a — Guide Table 2"
+      properties:
+        eia_effective: { type: boolean }
+        eia_independent: { type: boolean }
+        eia_auditable: { type: boolean }
+
+    PerformanceStandard:
+      allOf:
+        - $ref: '#/components/schemas/PerformanceStandardInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    PerformanceStandardInput:
+      type: object
+      required: [requirement_text]
+      properties:
+        requirement_text: { type: string }
+        measurable_criteria: { type: string }
+
+    VerificationActivity:
+      allOf:
+        - $ref: '#/components/schemas/VerificationActivityInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            overdue: { type: boolean, readOnly: true, description: "07-inference-rules-catalogue.md R3" }
+    VerificationActivityInput:
+      type: object
+      properties:
+        method: { $ref: '#/components/schemas/ConceptRef' }
+        frequency: { type: string, enum: [Daily, Weekly, Fortnightly, Monthly, Quarterly, Annual, Biennial, Other] }
+        due_date: { type: string, format: date }
+        last_completed: { type: string, format: date }
+        performed_by_person_id: { type: string, format: uuid }
+        result: { type: string }
+
+    Evidence:
+      allOf:
+        - $ref: '#/components/schemas/EvidenceInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            uploaded_at: { type: string, format: date-time }
+    EvidenceInput:
+      type: object
+      properties:
+        type: { $ref: '#/components/schemas/ConceptRef' }
+        source_document_id: { type: string, format: uuid }
+        uploaded_by_person_id: { type: string, format: uuid }
+        linked_entity_type: { type: string }
+        linked_entity_id: { type: string, format: uuid }
+
+    TARP:
+      allOf:
+        - $ref: '#/components/schemas/TARPInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [active, triggered, resolved, retired] }
+    TARPInput:
+      type: object
+      required: [trigger_condition, required_action]
+      properties:
+        trigger_condition: { type: string }
+        trigger_source_rule: { type: string, enum: [R3, R5, R6, R8, R9, R11, R12, R14, R16, R17, R18] }
+        required_action: { type: string }
+        response_owner_person_id: { type: string, format: uuid }
+        escalation_level: { type: string, enum: [supervisor, manager, executive] }
+
+    Incident:
+      allOf:
+        - $ref: '#/components/schemas/IncidentInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+    IncidentInput:
+      type: object
+      required: [datetime, description]
+      properties:
+        datetime: { type: string, format: date-time }
+        incident_type: { $ref: '#/components/schemas/ConceptRef' }
+        severity: { type: integer, minimum: 1, maximum: 5 }
+        vrtp_severity: { type: string, enum: ["First Aid", "Medical Treatment Injury", "Lost Time Injury", "Serious Injury", "Dangerous Incident", "Near Miss"] }
+        location: { type: string }
+        asset_id: { type: string, format: uuid }
+        reporter_person_id: { type: string, format: uuid }
+        description: { type: string }
+        injuries: { type: string }
+        witnesses: { type: string }
+        immediate_actions: { type: string }
+        immediate_cause: { type: string }
+        root_cause: { type: string }
+        whsq_notified: { type: string, enum: ["Not yet assessed", "Yes", "No - assessed not required", "No - under assessment"] }
+        osr_notified: { type: string, enum: ["Not applicable / under assessment", "Yes", "No - assessed not required", "No - under assessment"], description: "Chapter 9A — see 09-regulatory-knowledge-model.md §4" }
+        investigation_status: { type: string, enum: [Not Started, In Progress, Complete] }
+        status: { type: string, enum: [Open, Under Investigation, Closed] }
+
+    Action:
+      allOf:
+        - $ref: '#/components/schemas/ActionInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    ActionInput:
+      type: object
+      required: [description]
+      properties:
+        source_type: { $ref: '#/components/schemas/ConceptRef' }
+        source_id: { type: string, format: uuid }
+        description: { type: string }
+        root_cause_category: { $ref: '#/components/schemas/ConceptRef' }
+        priority: { type: string, enum: [Critical, High, Medium, Low] }
+        assigned_to_person_id: { type: string, format: uuid }
+        due_date: { type: string, format: date }
+        status: { type: string, enum: [Open, In Progress, Closed] }
+        effectiveness_review: { type: string, enum: ["Not Reviewed", Effective, "Partially Effective", Ineffective] }
+
+    Audit:
+      allOf:
+        - $ref: '#/components/schemas/AuditInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    AuditInput:
+      type: object
+      required: [audit_type, title]
+      properties:
+        audit_type: { type: string, enum: ["Internal Audit", "External Audit", "Site Inspection", "Management Review", "Regulatory Inspection", "Other"] }
+        title: { type: string }
+        scope: { type: string }
+        planned_date: { type: string, format: date }
+        actual_date: { type: string, format: date }
+        auditor_person_id: { type: string, format: uuid }
+        area: { type: string }
+        status: { type: string, enum: [Planned, "In Progress", Complete, Cancelled] }
+
+    AuditFinding:
+      allOf:
+        - $ref: '#/components/schemas/AuditFindingInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    AuditFindingInput:
+      type: object
+      required: [description]
+      properties:
+        severity: { type: string }
+        description: { type: string }
+
+    SafetyCaseClaim:
+      allOf:
+        - $ref: '#/components/schemas/SafetyCaseClaimInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            assurance_status: { type: string }
+    SafetyCaseClaimInput:
+      type: object
+      required: [claim_text]
+      properties:
+        hazard_id: { type: string, format: uuid }
+        critical_control_id: { type: string, format: uuid }
+        claim_text: { type: string }
+        evidence_ids: { type: array, items: { type: string, format: uuid } }
+        requirement_ids: { type: array, items: { type: string, format: uuid } }
+    SafetyCaseClaimDetail:
+      allOf:
+        - $ref: '#/components/schemas/SafetyCaseClaim'
+        - type: object
+          properties:
+            effective_confidence: { type: number, format: float, description: "05-knowledge-provenance-model.md §4" }
+            unresolved_segments: { type: array, items: { type: string } }
+            chain: { $ref: '#/components/schemas/GraphResult' }
+
+    Requirement:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        source: { $ref: '#/components/schemas/ConceptRef' }
+        clause_ref: { type: string }
+        text: { type: string }
+        applies_to_entity_type: { type: string }
+        status: { type: string, enum: [TO_BE_CONFIRMED, confirmed] }
+
+    Document:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        filename: { type: string }
+        mime_type: { type: string }
+        uploaded_at: { type: string, format: date-time }
+        extraction_status: { type: string, enum: [pending, processing, extracted, failed, reviewed] }
+
+    ExtractionRun:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        document_id: { type: string, format: uuid }
+        status: { type: string, enum: [running, complete, failed] }
+        drafts:
+          type: array
+          items: { $ref: '#/components/schemas/ExtractionDraft' }
+    ExtractionDraft:
+      type: object
+      description: "Matches 04-ai-extraction-specification.md §4 schema"
+      properties:
+        id: { type: string, format: uuid }
+        source_span: { type: object }
+        payload: { type: object, description: "Hazard/Risk/Controls/Verification/Evidence draft — full shape in 04-ai-extraction-specification.md §4" }
+        overall_confidence: { type: number, format: float }
+        routing: { type: string, enum: [auto-accept, flag-for-review, reject] }
+
+    OntologyScheme:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        version: { type: integer }
+
+    Concept:
+      allOf:
+        - $ref: '#/components/schemas/ConceptInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [draft, reviewed, approved, published, deprecated] }
+    ConceptInput:
+      type: object
+      required: [scheme_id, pref_label]
+      properties:
+        scheme_id: { type: string, format: uuid }
+        parent_concept_id: { type: string, format: uuid, nullable: true }
+        pref_label: { type: string }
+        definition: { type: string }
+        source_ref: { type: string }
+
+    ConceptAlias:
+      allOf:
+        - $ref: '#/components/schemas/ConceptAliasInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    ConceptAliasInput:
+      type: object
+      required: [alias_text]
+      properties:
+        alias_text: { type: string }
+        alias_type: { type: string, enum: [synonym, abbreviation, deprecated_term] }
+
+    ExtractionRule:
+      allOf:
+        - $ref: '#/components/schemas/ExtractionRuleInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    ExtractionRuleInput:
+      type: object
+      required: [target_concept_id, pattern_type, confidence_threshold, action]
+      properties:
+        target_concept_id: { type: string, format: uuid }
+        pattern_type: { type: string, enum: [regex, embedding-similarity, llm-prompt-instruction] }
+        confidence_threshold: { type: number, format: float, minimum: 0, maximum: 1 }
+        action: { type: string, enum: [auto-accept, flag-for-review, reject] }
+        example_positive: { type: string }
+        example_negative: { type: string }
+
+    GapFinding:
+      type: object
+      properties:
+        rule: { type: string, enum: [R3, R5, R6, R8, R9, R11, R12, R14, R16, R17, R18] }
+        entity_type: { type: string }
+        entity_id: { type: string, format: uuid }
+        summary: { type: string }
+        detected_at: { type: string, format: date-time }
+
+    GraphResult:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              label: { type: string }
+              properties: { type: object, additionalProperties: true }
+        edges:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              source: { type: string }
+              target: { type: string }
+              properties: { type: object, additionalProperties: true }
+
+    # ── Safety Case Demonstration Model (11-safety-case-demonstration-model.md) ────────
+    DeviceBoundary:
+      allOf:
+        - $ref: '#/components/schemas/DeviceBoundaryInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    DeviceBoundaryInput:
+      type: object
+      required: [boundary_description]
+      properties:
+        boundary_description: { type: string }
+        includes_description: { type: string }
+        excludes_description: { type: string }
+
+    Interface:
+      allOf:
+        - $ref: '#/components/schemas/InterfaceInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    InterfaceInput:
+      type: object
+      required: [interface_type, description]
+      properties:
+        interface_type: { type: string, enum: [external_hazard, internal_hazard, worker_interaction, patron_interaction, supporting_system, utility, environment] }
+        description: { type: string }
+
+    CredibleEvent:
+      allOf:
+        - $ref: '#/components/schemas/CredibleEventInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    CredibleEventInput:
+      type: object
+      required: [description]
+      properties:
+        risk_id: { type: string, format: uuid, nullable: true }
+        description: { type: string }
+        loss_of_control_description: { type: string }
+        is_adi: { type: boolean, default: false }
+
+    SafetyAssessment:
+      allOf:
+        - $ref: '#/components/schemas/SafetyAssessmentInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    SafetyAssessmentInput:
+      type: object
+      required: [device_boundary_id, scope_description]
+      properties:
+        device_boundary_id: { type: string, format: uuid }
+        scope_description: { type: string }
+        serious_risk_threshold_note: { type: string, description: "Operator's documented interpretation — not a fixed number, see 09-regulatory-knowledge-model.md §6" }
+        unmitigated_risk_method: { type: string }
+        status: { type: string, default: draft }
+        prepared_by_person_id: { type: string, format: uuid }
+        assessment_date: { type: string, format: date }
+
+    SafetyArgument:
+      allOf:
+        - $ref: '#/components/schemas/SafetyArgumentInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    SafetyArgumentInput:
+      type: object
+      required: [argument_text]
+      properties:
+        argument_text: { type: string, description: "The reasoning connecting evidence to the claim — GSN Strategy-equivalent" }
+        sequence: { type: integer, default: 1 }
+        evidence_ids: { type: array, items: { type: string, format: uuid }, description: "Must be a subset of evidence already SUPPORTS-linked to the parent claim" }
+
+    MonitoringSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        verification_count: { type: integer }
+        pass_count: { type: integer }
+        trend: { type: string, enum: [improving, stable, declining] }
+        indicator_class: { type: string, enum: [leading, lagging], description: "08-critical-control-assurance-model.md §5.1" }
+        summary_text: { type: string }
+        generated_at: { type: string, format: date-time }
+
+    Demonstration:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        demonstration_type: { type: string, enum: [control_adequacy, hazard_to_assurance_chain, moc_effectiveness, governance_effectiveness, verification_confidence, evidence_support] }
+        scope_entity_type: { type: string }
+        scope_entity_id: { type: string, format: uuid }
+        generated_narrative: { type: string }
+        source_fact_refs: { type: array, items: { type: object, additionalProperties: true }, description: "Every graph fact cited — no claim in generated_narrative may lack an entry here (11-safety-case-demonstration-model.md §7.3)" }
+        status: { type: string, enum: [draft, reviewed, approved, published] }
+        generated_at: { type: string, format: date-time }
+        is_stale: { type: boolean, readOnly: true, description: "07-inference-rules-catalogue.md R16" }
+
+    ManagementOfChange:
+      allOf:
+        - $ref: '#/components/schemas/ManagementOfChangeInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    ManagementOfChangeInput:
+      type: object
+      required: [change_description, change_type]
+      properties:
+        asset_id: { type: string, format: uuid }
+        change_description: { type: string }
+        change_type: { type: string, enum: [minor, major], description: "Guide's own examples: minor = sign colour change; major = roller coaster component replacement" }
+        change_category: { type: string, enum: [amusement_device, plant_or_structure, operation_or_nature_of_operation, worker_safety_role, training, maintenance_or_inspection, annual_or_major_inspection, organisational] }
+        risk_reassessment_required: { type: boolean, default: true }
+        linked_safety_assessment_id: { type: string, format: uuid }
+        requested_by_person_id: { type: string, format: uuid }
+        status: { type: string, enum: [proposed, under_review, approved, implemented, closed] }
+
+    ReviewTrigger:
+      allOf:
+        - $ref: '#/components/schemas/ReviewTriggerInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    ReviewTriggerInput:
+      type: object
+      required: [trigger_type, description, requires_update_of]
+      properties:
+        trigger_type: { type: string, enum: [control_not_controlling_risk, new_adh_identified, worker_consultation_flagged, regulator_requested, moc_change] }
+        description: { type: string }
+        requires_update_of: { type: array, items: { type: string, enum: [safety_assessment, emergency_plan, sms, safety_case, competency] } }
+        status: { type: string, enum: [open, actioned, closed] }
+
+    # ── v1.1 amendment — Emergency Planning (ACR-002) + Competency Management
+    # (ACR-003, supersedes ACR-001). Approved 2026-08-04. Full assessment:
+    # implementation-blueprint/14-architecture-change-requests.md.
+
+    EmergencyPlan:
+      allOf:
+        - $ref: '#/components/schemas/EmergencyPlanInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    EmergencyPlanInput:
+      type: object
+      required: [park_id, title, summary]
+      properties:
+        park_id: { type: string, format: uuid, description: "One plan per park — Guide §12.4" }
+        title: { type: string }
+        summary: { type: string, description: "Safety-case summary only — the full plan is not a material particular of the licence (Guide §12.4)" }
+        max_persons_normal_day: { type: integer }
+        max_persons_peak_season: { type: integer }
+        warning_system_description: { type: string, description: "Schedule 18B 3.2, 3.4" }
+        corporate_response_plan_description: { type: string }
+        status: { type: string, enum: [draft, current, superseded] }
+        effective_date: { type: string, format: date }
+        sent_to_regulator_at: { type: string, format: date-time, description: "s.608N(4)" }
+
+    EmergencyPlanCredibleEvent:
+      allOf:
+        - $ref: '#/components/schemas/EmergencyPlanCredibleEventInput'
+        - type: object
+          properties: { emergency_plan_id: { type: string, format: uuid } }
+    EmergencyPlanCredibleEventInput:
+      type: object
+      required: [credible_event_id]
+      properties:
+        credible_event_id: { type: string, format: uuid }
+        response_summary: { type: string, description: "The specific response action(s) for this ADI within the combined plan (Guide §12)" }
+
+    EmergencyExercise:
+      allOf:
+        - $ref: '#/components/schemas/EmergencyExerciseInput'
+        - type: object
+          properties: { id: { type: string, format: uuid }, emergency_plan_id: { type: string, format: uuid } }
+    EmergencyExerciseInput:
+      type: object
+      required: [exercise_type]
+      properties:
+        credible_event_id: { type: string, format: uuid, description: "Nullable for desktop_exercise/corporate_response_exercise (Guide §12.1, §12.3)" }
+        exercise_type: { type: string, enum: [drill, scenario_test, desktop_exercise, evacuation_exercise, corporate_response_exercise] }
+        planned_date: { type: string, format: date }
+        conducted_date: { type: string, format: date }
+        status: { type: string, enum: [planned, conducted, cancelled] }
+        learnings: { type: string }
+        learnings_implemented: { type: boolean, default: false }
+
+    EmergencyServiceConsultation:
+      allOf:
+        - $ref: '#/components/schemas/EmergencyServiceConsultationInput'
+        - type: object
+          properties: { id: { type: string, format: uuid }, emergency_plan_id: { type: string, format: uuid } }
+    EmergencyServiceConsultationInput:
+      type: object
+      required: [organisation_concept_id]
+      properties:
+        organisation_concept_id: { type: string, format: uuid, description: "Emergency Service Organisation taxonomy — QFES/QPS/QAS/other" }
+        consultation_date: { type: string, format: date }
+        recommendation_text: { type: string }
+        incorporation_description: { type: string, description: "Guide §12.3 — how the recommendation was incorporated" }
+        plan_sent_at: { type: string, format: date-time, description: "s.608N(4)" }
+
+    Role:
+      allOf:
+        - $ref: '#/components/schemas/RoleInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    RoleInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        role_category: { type: string, enum: [operator, technical_services, supervisor, management, officer, contractor, security] }
+
+    Competency:
+      allOf:
+        - $ref: '#/components/schemas/CompetencyInput'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    CompetencyInput:
+      type: object
+      required: [person_id, description]
+      properties:
+        person_id: { type: string, format: uuid }
+        role_id: { type: string, format: uuid }
+        critical_control_id: { type: string, format: uuid, description: "Operator-competency as a control-assurance input — 07-inference-rules-catalogue.md R20" }
+        competency_type_concept_id: { type: string, format: uuid, description: "training | qualification | licence | oem_certification | authorisation | information_briefing" }
+        description: { type: string }
+        assessed_by_person_id: { type: string, format: uuid, description: "Trainer/assessor — Guide §10.8" }
+        assessment_date: { type: string, format: date }
+        currency_expiry_date: { type: string, format: date, description: "07-inference-rules-catalogue.md R19 lapses on expiry; R21 can flag review early on a new/changed ADH" }
+        status: { type: string, enum: [current, lapsed, pending_assessment, revoked] }

@@ -1,5 +1,20 @@
 {
-  "dependencies": {
-    "docx": "^9.6.1"
+  "name": "tp-risk-management-sms",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Safety Knowledge Graph + AI Risk Intelligence Platform monorepo. R0 scaffold -- see docs/implementation-blueprint/13-application-foundation-scaffold.md.",
+  "workspaces": [
+    "apps/web",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace apps/web",
+    "build:web": "npm run build --workspace apps/web",
+    "build:packages": "npm run build --workspaces --if-present --workspace packages/shared-types --workspace packages/api-client --workspace packages/ontology-client --workspace packages/ui-components",
+    "lint:web": "npm run lint --workspace apps/web",
+    "format:check:web": "npm run format:check --workspace apps/web"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
   }
 }

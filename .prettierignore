@@ -1,0 +1,8 @@
+# Root-level prettier ignore (apps/web has its own, more specific one).
+node_modules/
+dist/
+.venv/
+__pycache__/
+docs/knowledge-graph/03-postgresql-schema.sql
+package-lock.json
+*.min.js

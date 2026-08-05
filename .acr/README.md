@@ -1,0 +1,15 @@
+# Architecture Change Requests
+
+Design Baseline v1.1 (the architecture doc + all 11 knowledge-graph documents) is **frozen**. Any change to it — a new entity, a changed relationship, a different tech-stack component — requires an ACR, not a PR against `docs/knowledge-graph/`. See [docs/implementation-blueprint/02-development-standards.md](../docs/implementation-blueprint/02-development-standards.md) §7.
+
+No implementation work proceeds against a proposed change until the ACR is approved.
+
+## Index
+
+| ACR | Title | Status | Full review |
+|---|---|---|---|
+| [ACR-001](ACR-001-training-domain.md) | Training Domain | Rejected (2026-08-04) — superseded by ACR-003 | [14-architecture-change-requests.md](../docs/implementation-blueprint/14-architecture-change-requests.md) §2 |
+| [ACR-002](ACR-002-emergency-planning-domain.md) | Emergency Planning Domain | Approved (2026-08-04) | [14-architecture-change-requests.md](../docs/implementation-blueprint/14-architecture-change-requests.md) §3, §3a |
+| [ACR-003](ACR-003-competency-management-domain.md) | Competency Management Domain | Approved (2026-08-04) | [14-architecture-change-requests.md](../docs/implementation-blueprint/14-architecture-change-requests.md) §4, §4a |
+
+Design Baseline is currently **v1.1** as a result of ACR-002 and ACR-003.

@@ -1,0 +1,13 @@
+[project]
+name = "ontology-client"
+version = "0.0.0"
+description = "Python build of ontology concept lookup/validation. TS build lives in ../src -- same conceptual spec, two language targets. Consumed by apps/api."
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["ontology_client*"]

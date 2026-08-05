@@ -1,0 +1,106 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: pr-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-build-lint-format:
+    name: Web — build, lint, format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # Not `npm ci`: the lockfile was generated on Windows and npm has a
+      # known bug (npm/cli#4828) resolving platform-specific optional
+      # dependencies (e.g. @rolldown/binding-*) cross-platform via `ci`'s
+      # strict lockfile install. `npm install` re-resolves optional deps
+      # for the runner's actual platform.
+      - run: npm install
+      - run: npm run build:web
+      - run: npm run lint:web
+      - run: npm run format:check:web
+
+  packages-build:
+    name: Shared packages — build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # Not `npm ci`: the lockfile was generated on Windows and npm has a
+      # known bug (npm/cli#4828) resolving platform-specific optional
+      # dependencies (e.g. @rolldown/binding-*) cross-platform via `ci`'s
+      # strict lockfile install. `npm install` re-resolves optional deps
+      # for the runner's actual platform.
+      - run: npm install
+      - run: npm run build --workspace packages/shared-types
+      - run: npm run build --workspace packages/api-client
+      - run: npm run build --workspace packages/ontology-client
+      - run: npm run build --workspace packages/ui-components
+
+  api-lint-typecheck-test:
+    name: API — lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e "apps/api[dev]"
+      - run: ruff check apps/api/app
+      - run: ruff format --check apps/api/app
+      - run: mypy apps/api/app
+      - run: pytest tests/unit -v
+
+  openapi-validate:
+    name: OpenAPI contract validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r scripts/requirements.txt
+      - run: python scripts/validate_openapi.py
+      - name: Fail if shared-types is stale
+        run: |
+          if git diff --name-only ${{ github.event.pull_request.base.sha || 'HEAD~1' }} -- docs/knowledge-graph/10-openapi.yaml | grep -q .; then
+            if ! git diff --name-only ${{ github.event.pull_request.base.sha || 'HEAD~1' }} -- packages/shared-types | grep -q .; then
+              echo "::warning::10-openapi.yaml changed but packages/shared-types was not regenerated in this PR."
+            fi
+          fi
+        continue-on-error: true
+
+  ontology-validate:
+    name: Ontology validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r scripts/requirements.txt
+      - run: python scripts/validate_ontology.py
+
+  graph-validate:
+    name: Graph relationship-rule tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e "apps/api[dev]"
+      - run: python scripts/run_graph_tests.py
