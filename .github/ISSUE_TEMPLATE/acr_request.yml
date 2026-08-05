@@ -1,0 +1,44 @@
+name: Architecture Change Request (ACR)
+description: Propose a change to the frozen Design Baseline. Mirrors the .acr/ template exactly.
+labels: ["acr"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Design Baseline is frozen (docs/implementation-blueprint/02-development-standards.md §7).
+        No implementation proceeds against a proposed change until this ACR is approved and
+        formalized into `.acr/ACR-NNN-<slug>.md`.
+  - type: input
+    id: title
+    attributes:
+      label: Title
+    validations:
+      required: true
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected document(s)
+      placeholder: e.g. 03-postgresql-schema.sql, 08-critical-control-assurance-model.md
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current state
+      description: What the baseline currently says.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed change
+      description: What would change and why.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What else in the 12-document set / codebase this touches.
+    validations:
+      required: true

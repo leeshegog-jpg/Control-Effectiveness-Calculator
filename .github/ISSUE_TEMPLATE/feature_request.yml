@@ -1,0 +1,34 @@
+name: Feature Request
+description: Propose new work against an already-approved Design Baseline entity/rule
+labels: ["feature"]
+body:
+  - type: input
+    id: module
+    attributes:
+      label: Module
+      description: See docs/implementation-blueprint/03-module-dependency-map.md
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Design Baseline entity / relationship / rule ID
+      description: >
+        Per Definition of Ready (docs/implementation-blueprint/02-development-standards.md §8) --
+        "implement R14" or "implement the HAS_BOUNDARY relationship", not "build the boundary feature".
+      placeholder: e.g. R14, safety.competencies, HAS_EMERGENCY_PLAN
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Must be traceable to a specific document/section.
+    validations:
+      required: true
+  - type: checkboxes
+    id: blocked
+    attributes:
+      label: Readiness
+      options:
+        - label: No unresolved TO_BE_CONFIRMED marker blocks this item

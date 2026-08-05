@@ -1,0 +1,25 @@
+{
+  "name": "@sms/ui-components",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared shadcn/ui-based design-system components -- one visual language across every module. Depends on @sms/shared-types for prop typing only; never depends on @sms/api-client (a component receives data via props, it does not fetch) -- see docs/implementation-blueprint/13-application-foundation-scaffold.md §4.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "dependencies": {
+    "@sms/shared-types": "*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "typescript": "~6.0.2"
+  }
+}

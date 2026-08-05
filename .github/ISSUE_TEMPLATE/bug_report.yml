@@ -1,0 +1,78 @@
+name: Bug Report
+description: Report a defect in the platform
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected module
+      description: See docs/implementation-blueprint/03-module-dependency-map.md
+      options:
+        - Authentication
+        - Ontology
+        - Assets
+        - Hazard Library
+        - Risk Register
+        - Critical Controls
+        - Performance Standards
+        - Verification
+        - Incidents
+        - Investigations
+        - Audits
+        - Actions
+        - Management of Change
+        - AI Extraction
+        - Knowledge Graph Sync
+        - Safety Assessment
+        - Demonstration Engine
+        - Safety Case
+        - Competency (Design Baseline v1.1)
+        - Emergency Planning (Design Baseline v1.1)
+        - Other / cross-cutting
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Dev / Test / UAT / Prod
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+  - type: checkboxes
+    id: sensitive
+    attributes:
+      label: Sensitivity flags
+      description: Per docs/implementation-blueprint/02-development-standards.md §5
+      options:
+        - label: Touches a critical control
+        - label: Touches a regulatory citation or a TO_BE_CONFIRMED marker
+        - label: Touches the Safety Case Demonstration Engine's narrative-generation path
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true

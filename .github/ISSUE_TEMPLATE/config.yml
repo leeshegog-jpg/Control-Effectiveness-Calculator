@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Architecture Change Request (governance doc)
+    url: https://github.com/leeshegog-jpg/TP_Risk_Management_SMS/blob/main/docs/implementation-blueprint/02-development-standards.md
+    about: Read the ACR process before opening one.
