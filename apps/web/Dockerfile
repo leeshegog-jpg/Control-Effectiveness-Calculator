@@ -9,7 +9,10 @@ COPY packages/shared-types/package.json packages/shared-types/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/ontology-client/package.json packages/ontology-client/package.json
 COPY packages/ui-components/package.json packages/ui-components/package.json
-RUN npm ci
+# Not `npm ci`: lockfile generated on Windows, npm/cli#4828 (optional
+# native deps, e.g. @rolldown/binding-*, don't resolve cross-platform via
+# `ci`'s strict lockfile install).
+RUN npm install
 
 COPY packages/ packages/
 COPY apps/web/ apps/web/

@@ -20,7 +20,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      # Not `npm ci`: the lockfile was generated on Windows and npm has a
+      # known bug (npm/cli#4828) resolving platform-specific optional
+      # dependencies (e.g. @rolldown/binding-*) cross-platform via `ci`'s
+      # strict lockfile install. `npm install` re-resolves optional deps
+      # for the runner's actual platform.
+      - run: npm install
       - run: npm run build:web
       - run: npm run lint:web
       - run: npm run format:check:web
@@ -34,7 +39,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      # Not `npm ci`: the lockfile was generated on Windows and npm has a
+      # known bug (npm/cli#4828) resolving platform-specific optional
+      # dependencies (e.g. @rolldown/binding-*) cross-platform via `ci`'s
+      # strict lockfile install. `npm install` re-resolves optional deps
+      # for the runner's actual platform.
+      - run: npm install
       - run: npm run build --workspace packages/shared-types
       - run: npm run build --workspace packages/api-client
       - run: npm run build --workspace packages/ontology-client
