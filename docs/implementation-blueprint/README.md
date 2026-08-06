@@ -1,5 +1,5 @@
 # Implementation Blueprint — Phase 2.1 + 2.2 + ACR Review Pack
-**Status: APPROVED. Design Baseline v1.1 (frozen 2026-08-04). R0 — Repository Initialisation AUTHORISED. No application code has been written yet — this remains planning + scaffold documentation only.**
+**Status: APPROVED. Design Baseline v1.1 (frozen 2026-08-04). R0 — Repository Initialisation COMPLETE — merged to `main` 2026-08-05 (PR #11, commit `e63b315`, tag `v1.1.0-R0`). See [15-r0-exit-review.md](15-r0-exit-review.md). Engineering foundation only — no business logic exists yet; that begins with R1.**
 **Baseline:** Design Baseline v1.1 ([../PLATFORM_ARCHITECTURE_V2.md](../PLATFORM_ARCHITECTURE_V2.md) + [../knowledge-graph/](../knowledge-graph/README.md), 11 documents, amended by [ACR-002](../../.acr/ACR-002-emergency-planning-domain.md)/[ACR-003](../../.acr/ACR-003-competency-management-domain.md)) — **frozen**. Any further change requires an Architecture Change Request ([02-development-standards.md](02-development-standards.md) §7), not a direct edit.
 
 This document set answers "how do we build what Design Baseline v1.1 specifies" — Phase 2.1/2.2 did not redesign, extend, or simplify anything the v1.0 baseline had decided; the one controlled extension since (Emergency Planning + Competency Management) went through the full ACR process in doc 14, not a direct edit.

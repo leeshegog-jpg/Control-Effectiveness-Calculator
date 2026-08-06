@@ -1,5 +1,5 @@
 # 12 — Deliverables Index
-**Status: Design Baseline v1.1 (Approved 2026-08-04) — Phase 1, Phase 2.1, and Phase 2.2 all Approved. R0 — Repository Initialisation AUTHORISED (2026-08-04). See §ACR table below and [14-architecture-change-requests.md](14-architecture-change-requests.md) §6–§10.**
+**Status: Design Baseline v1.1 (Approved 2026-08-04) — Phase 1, Phase 2.1, and Phase 2.2 all Approved. R0 — Repository Initialisation COMPLETE (merged 2026-08-05, PR #11, tag `v1.1.0-R0`) — see [15-r0-exit-review.md](15-r0-exit-review.md). See §ACR table below and [14-architecture-change-requests.md](14-architecture-change-requests.md) §6–§10.**
 **Scope:** every document produced across all phases to date — architecture, Design Baseline v1.1, and this Implementation Blueprint.
 
 ---
@@ -49,7 +49,7 @@
 |---|---|---|---|---|
 | IB13 | [Application Foundation Scaffold](13-application-foundation-scaffold.md) | React/FastAPI internal scaffold, package ownership, GitHub templates, 18 module skeletons (Training→Competency renamed), config strategy detail | **Approved (2026-08-04)** | IB1–IB12, A0, 1–11 |
 | IB14 | [Architecture Change Request Review Pack](14-architecture-change-requests.md) | Consolidates ACR-001/002/003 — impact assessment, verification findings, Board decision, regeneration record, freeze, release gate | **Closed (2026-08-04)** — Board decision recorded | ACR-001, ACR-002, ACR-003, IB13 |
-| IB15 | [R0 Exit Review](15-r0-exit-review.md) | Checklist verification of `feature/r0-repository-init` prior to merge — build/lint/typecheck/test/validation results, no-implementation checks | **Passed (2026-08-05)** — recommending merge + tag `v1.1.0-R0` | IB13, IB14 |
+| IB15 | [R0 Exit Review](15-r0-exit-review.md) | Checklist verification + full release record — build/lint/typecheck/test/validation results, no-implementation checks, PR #11 merge/tag details, CI incident resolution | **Complete (2026-08-05)** — merged as `e63b315`, tagged `v1.1.0-R0` | IB13, IB14 |
 
 ## Architecture Change Requests — Closed
 

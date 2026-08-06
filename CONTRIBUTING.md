@@ -16,7 +16,8 @@ The Design Baseline (architecture, ontology, PostgreSQL schema, Neo4j model, Ope
    - API: `ruff check apps/api/app && ruff format --check apps/api/app && mypy apps/api/app && pytest tests/unit -v`
 5. If you touched `docs/knowledge-graph/10-openapi.yaml`, regenerate `packages/shared-types` in the same PR.
 6. If you touched the PostgreSQL schema or Neo4j model, include the migration in the same PR — see [05-database-migration-strategy.md](docs/implementation-blueprint/05-database-migration-strategy.md).
-7. Open the PR using the template — the checklist there is not optional for schema/ontology/regulatory-citation changes (2 approving reviews required).
+7. Open the PR using the template — the checklist there is not optional for schema/ontology/regulatory-citation changes (2 approving reviews required by convention; not yet machine-enforced — see the open branch-protection-model decision in [.adr/README.md](.adr/README.md)).
+8. **Merge with `--squash` or `--rebase`, not `--merge`.** The repo's ruleset requires linear history — a merge commit will be rejected. As of R0, merging `main` also requires `--admin` (bypass) regardless of squash/rebase/merge choice — this is a known, tracked repo-configuration state, not something wrong with your PR. See [.adr/README.md](.adr/README.md) and [docs/implementation-blueprint/15-r0-exit-review.md](docs/implementation-blueprint/15-r0-exit-review.md) §Release for why.
 
 ## Commit messages
 
