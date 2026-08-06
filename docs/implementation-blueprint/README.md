@@ -21,6 +21,7 @@ This document set answers "how do we build what Design Baseline v1.1 specifies" 
 | 13 | [Application Foundation Scaffold](13-application-foundation-scaffold.md) — Phase 2.2, repository scaffolding detail |
 | 14 | [Architecture Change Request Review Pack](14-architecture-change-requests.md) — consolidates ACR-001/002/003, impact assessment, recommendations, Board approval section |
 | 15 | [R0 Exit Review](15-r0-exit-review.md) — checklist verification prior to merging `feature/r0-repository-init` into `main` |
+| 16 | [R1 Planning Artefact](16-r1-planning.md) — R1 contract (in/out of scope, acceptance criteria, risks, dependencies), surfaces the R0-scope gap (Ontology Service/Assets/infra deferred) |
 
 ## Reading order
 

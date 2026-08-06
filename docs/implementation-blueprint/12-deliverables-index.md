@@ -50,6 +50,7 @@
 | IB13 | [Application Foundation Scaffold](13-application-foundation-scaffold.md) | React/FastAPI internal scaffold, package ownership, GitHub templates, 18 module skeletons (Training→Competency renamed), config strategy detail | **Approved (2026-08-04)** | IB1–IB12, A0, 1–11 |
 | IB14 | [Architecture Change Request Review Pack](14-architecture-change-requests.md) | Consolidates ACR-001/002/003 — impact assessment, verification findings, Board decision, regeneration record, freeze, release gate | **Closed (2026-08-04)** — Board decision recorded | ACR-001, ACR-002, ACR-003, IB13 |
 | IB15 | [R0 Exit Review](15-r0-exit-review.md) | Checklist verification + full release record — build/lint/typecheck/test/validation results, no-implementation checks, PR #11 merge/tag details, CI incident resolution | **Complete (2026-08-05)** — merged as `e63b315`, tagged `v1.1.0-R0` | IB13, IB14 |
+| IB16 | [R1 Planning Artefact](16-r1-planning.md) | R1 contract per IB4's already-approved Risk Register cutover scope — in/out of scope, acceptance criteria, risks, dependencies. Surfaces a real gap: IB4's original R0 (Ontology Service seeded, Assets CRUD, Azure provisioning) was not delivered by the narrower R0 actually executed | Draft — gap needs a sequencing decision before R1 business logic starts | IB4, IB15 |
 
 ## Architecture Change Requests — Closed
 
