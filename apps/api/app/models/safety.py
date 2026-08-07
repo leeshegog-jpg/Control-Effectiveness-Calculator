@@ -12,7 +12,7 @@ schema before it's ever tested against real code.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,18 +23,22 @@ class Person(Base):
     __tablename__ = "persons"
     __table_args__ = {"schema": "safety"}
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     role_title: Mapped[str | None] = mapped_column(String(200))
     email: Mapped[str | None] = mapped_column(String(320), unique=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Park(Base):
     __tablename__ = "parks"
     __table_args__ = {"schema": "safety"}
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
 
     assets: Mapped[list["Asset"]] = relationship(back_populates="park")
@@ -44,7 +48,9 @@ class Asset(Base):
     __tablename__ = "assets"
     __table_args__ = {"schema": "safety"}
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     name: Mapped[str] = mapped_column(String(300), nullable=False)
     park_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.parks.id"))
     asset_type_concept_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -52,8 +58,8 @@ class Asset(Base):
     )
     iso55000_class: Mapped[str | None] = mapped_column(String(100))  # TO_BE_CONFIRMED, per schema
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="active")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Device description fields -- added by ALTER TABLE in the Safety Case
     # Demonstration Model section of the frozen schema, confirmed required

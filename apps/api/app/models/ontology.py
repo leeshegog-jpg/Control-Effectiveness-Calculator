@@ -7,7 +7,17 @@ against the frozen schema first.
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,11 +56,13 @@ class Scheme(Base):
     __tablename__ = "schemes"
     __table_args__ = {"schema": "ontology"}
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     concepts: Mapped[list["Concept"]] = relationship(back_populates="scheme")
 
@@ -65,17 +77,19 @@ class Concept(Base):
         {"schema": "ontology"},
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     scheme_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ontology.schemes.id"), nullable=False)
     parent_concept_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ontology.concepts.id"))
     pref_label: Mapped[str] = mapped_column(String(200), nullable=False)
     definition: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(concept_status_enum, nullable=False, default="draft")
     source_ref: Mapped[str | None] = mapped_column(String(200))
-    effective_from: Mapped[date] = mapped_column(Date)
+    effective_from: Mapped[date] = mapped_column(Date, server_default=func.current_date())
     effective_to: Mapped[date | None] = mapped_column(Date)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     scheme: Mapped["Scheme"] = relationship(back_populates="concepts")
     aliases: Mapped[list["ConceptAlias"]] = relationship(back_populates="concept")
@@ -85,7 +99,9 @@ class ConceptAlias(Base):
     __tablename__ = "concept_aliases"
     __table_args__ = {"schema": "ontology"}
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     concept_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("ontology.concepts.id", ondelete="CASCADE"), nullable=False
     )
@@ -102,7 +118,9 @@ class ConceptRelation(Base):
         {"schema": "ontology"},
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     subject_concept_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("ontology.concepts.id"), nullable=False
     )
@@ -116,10 +134,12 @@ class RelationshipType(Base):
     __tablename__ = "relationship_types"
     __table_args__ = {"schema": "ontology"}
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     domain_scheme_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ontology.schemes.id"))
     range_scheme_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ontology.schemes.id"))
     description: Mapped[str | None] = mapped_column(Text)
     cardinality: Mapped[str] = mapped_column(String(10), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
