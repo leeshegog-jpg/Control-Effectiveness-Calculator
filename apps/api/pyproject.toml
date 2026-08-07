@@ -1,7 +1,7 @@
 [project]
 name = "api"
 version = "0.1.0"
-description = "TP Risk Management SMS -- Safety Knowledge Graph Platform API. R0 scaffold -- no endpoints implemented. See docs/knowledge-graph/10-openapi.yaml (contract) and docs/implementation-blueprint/13-application-foundation-scaffold.md (this layout)."
+description = "TP Risk Management SMS -- Safety Knowledge Graph Platform API. R1 Milestone 0: platform foundation (ontology, assets). See docs/knowledge-graph/10-openapi.yaml (contract) and docs/implementation-blueprint/16-r1-planning.md (this milestone)."
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
@@ -13,6 +13,7 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "neo4j>=5.26",
     "python-dotenv>=1.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]

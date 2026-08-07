@@ -1,0 +1,31 @@
+# Ported verbatim from bowtie-ccm-generator.html REF.controlHierarchy.
+# Source: docs/PLATFORM_ARCHITECTURE_V2.md §6, docs/knowledge-graph/08-critical-control-assurance-model.md.
+scheme:
+  name: "Control Hierarchy"
+  description: "Hierarchy of control effectiveness (elimination through PPE) used to classify safety.controls.hierarchy_concept_id and cap FARSI-derived effectiveness multipliers."
+
+concepts:
+  - key: elimination
+    pref_label: "Elimination"
+    definition: "Physically remove the hazard."
+    source_ref: "bowtie-ccm-generator.html REF.controlHierarchy[0]"
+  - key: substitution
+    pref_label: "Substitution"
+    definition: "Replace the hazard with something less hazardous."
+    source_ref: "bowtie-ccm-generator.html REF.controlHierarchy[1]"
+  - key: isolation
+    pref_label: "Isolation"
+    definition: "Isolate people from the hazard."
+    source_ref: "bowtie-ccm-generator.html REF.controlHierarchy[2]"
+  - key: engineering
+    pref_label: "Engineering"
+    definition: "Engineering controls that reduce exposure to the hazard."
+    source_ref: "bowtie-ccm-generator.html REF.controlHierarchy[3]"
+  - key: administrative
+    pref_label: "Administrative"
+    definition: "Administrative controls — procedures, training, signage."
+    source_ref: "bowtie-ccm-generator.html REF.controlHierarchy[4]"
+  - key: ppe
+    pref_label: "PPE"
+    definition: "Personal protective equipment."
+    source_ref: "bowtie-ccm-generator.html REF.controlHierarchy[5]"

@@ -1,12 +1,17 @@
-"""FastAPI app factory. R0 scaffold -- mounts every router (empty, no endpoints
-yet) so the ASGI app object is real and importable/runnable end-to-end.
+"""FastAPI app factory. Mounts every router. R1 Milestone 0: assets and
+ontology carry real endpoints; the remaining 18 stay empty until their
+milestone (see docs/implementation-blueprint/16-r1-planning.md).
 Contract: docs/knowledge-graph/10-openapi.yaml.
 """
 
 from fastapi import FastAPI
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.logging_config import configure_logging
+from app.dependencies.db import SessionLocal
+from app.dependencies.graph import get_graph_driver
 from app.routers import (
     actions,
     assets,
@@ -73,6 +78,34 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["health"])
     def health() -> dict[str, str]:
         return {"status": "ok", "environment": settings.environment}
+
+    @app.get("/ready", tags=["health"])
+    def ready() -> dict[str, str]:
+        """Readiness check -- verifies real Postgres and Neo4j connectivity,
+        not just that the process is running. Distinct from /health, which
+        only confirms the ASGI app itself is up (R0 constraint: no live DB
+        was required for /health to pass)."""
+        checks: dict[str, str] = {}
+
+        db: Session = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+            checks["postgres"] = "ok"
+        except Exception as exc:  # noqa: BLE001 -- readiness probe reports, doesn't raise
+            checks["postgres"] = f"unreachable: {exc}"
+        finally:
+            db.close()
+
+        try:
+            driver = next(get_graph_driver())
+            driver.verify_connectivity()
+            checks["neo4j"] = "ok"
+        except Exception as exc:  # noqa: BLE001
+            checks["neo4j"] = f"unreachable: {exc}"
+
+        all_ok = all(v == "ok" for k, v in checks.items() if k != "status")
+        checks["status"] = "ready" if all_ok else "not_ready"
+        return checks
 
     return app
 

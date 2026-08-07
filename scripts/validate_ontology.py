@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Validate ontology/seed-concepts/*.yaml (or .yml/.json): no cycles in
-BROADER edges, no duplicate alias within a scheme -- per
+"""Validate ontology/seed-concepts/*.yaml: unique keys within a scheme, no
+cycles in `broader` references, no duplicate aliases -- per
 docs/knowledge-graph/06-relationship-rules-catalogue.md §4.
 
-R0: ontology/seed-concepts is empty (no database population yet, per the R0
-constraint) -- this passes trivially and reports that explicitly, rather
-than silently skipping. Real concept files land at R0 exit
-(docs/implementation-blueprint/04-implementation-roadmap.md).
+Format: one file per OntologyScheme -- `scheme: {name, description}` +
+`concepts: [{key, pref_label, definition?, source_ref?, broader?, aliases?}]`.
+`key` is a stable slug used only within this file (for `broader` refs); the
+real DB identity is a UUID assigned at seed-load time (scripts/seed_ontology.py).
 """
+
 from __future__ import annotations
 
 import sys
@@ -18,48 +19,73 @@ import yaml
 SEED_DIR = Path(__file__).resolve().parents[1] / "ontology" / "seed-concepts"
 
 
-def load_concepts() -> list[dict]:
-    concepts: list[dict] = []
-    for path in sorted(SEED_DIR.glob("*.y*ml")):
+def load_scheme_files() -> list[dict]:
+    files = []
+    for path in sorted(SEED_DIR.glob("*.yaml")):
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        concepts.extend(data.get("concepts", []))
-    return concepts
+        files.append({"path": path, **data})
+    return files
 
 
-def check_acyclic(concepts: list[dict], errors: list[str]) -> None:
-    by_id = {c["id"]: c for c in concepts if "id" in c}
-    for concept in concepts:
-        seen = {concept.get("id")}
+def check_unique_keys(scheme_file: dict, errors: list[str]) -> None:
+    seen = set()
+    for concept in scheme_file.get("concepts", []):
+        key = concept.get("key")
+        if key in seen:
+            errors.append(f"{scheme_file['path'].name}: duplicate key {key!r}")
+        seen.add(key)
+
+
+def check_acyclic(scheme_file: dict, errors: list[str]) -> None:
+    by_key = {c["key"]: c for c in scheme_file.get("concepts", []) if "key" in c}
+    for concept in scheme_file.get("concepts", []):
+        seen = {concept.get("key")}
         current = concept
         while current.get("broader"):
-            parent_id = current["broader"]
-            if parent_id in seen:
-                errors.append(f"BROADER cycle involving concept {concept.get('id')!r}")
+            parent_key = current["broader"]
+            if parent_key not in by_key:
+                errors.append(
+                    f"{scheme_file['path'].name}: concept {concept.get('key')!r} "
+                    f"has broader={parent_key!r}, not defined in this file"
+                )
                 break
-            seen.add(parent_id)
-            current = by_id.get(parent_id, {})
+            if parent_key in seen:
+                errors.append(
+                    f"{scheme_file['path'].name}: BROADER cycle involving {concept.get('key')!r}"
+                )
+                break
+            seen.add(parent_key)
+            current = by_key[parent_key]
 
 
-def check_duplicate_aliases(concepts: list[dict], errors: list[str]) -> None:
-    by_scheme: dict[str, set[str]] = {}
-    for concept in concepts:
-        scheme = concept.get("scheme", "")
-        seen = by_scheme.setdefault(scheme, set())
+def check_duplicate_aliases(scheme_file: dict, errors: list[str]) -> None:
+    seen: set[str] = set()
+    for concept in scheme_file.get("concepts", []):
         for alias in concept.get("aliases", []):
             if alias in seen:
-                errors.append(f"Duplicate alias {alias!r} within scheme {scheme!r}")
+                errors.append(
+                    f"{scheme_file['path'].name}: duplicate alias {alias!r} "
+                    f"within scheme {scheme_file.get('scheme', {}).get('name')!r}"
+                )
             seen.add(alias)
 
 
 def main() -> int:
-    if not SEED_DIR.exists() or not any(SEED_DIR.glob("*.y*ml")):
-        print("OK: no ontology seed concepts yet (R0 -- no database population). Nothing to validate.")
+    scheme_files = load_scheme_files()
+    if not scheme_files:
+        print("OK: no ontology seed concepts yet. Nothing to validate.")
         return 0
 
-    concepts = load_concepts()
     errors: list[str] = []
-    check_acyclic(concepts, errors)
-    check_duplicate_aliases(concepts, errors)
+    total_concepts = 0
+    for sf in scheme_files:
+        if "scheme" not in sf or "name" not in sf["scheme"]:
+            errors.append(f"{sf['path'].name}: missing scheme.name")
+            continue
+        check_unique_keys(sf, errors)
+        check_acyclic(sf, errors)
+        check_duplicate_aliases(sf, errors)
+        total_concepts += len(sf.get("concepts", []))
 
     if errors:
         print(f"FAIL: {len(errors)} ontology integrity error(s):")
@@ -67,7 +93,9 @@ def main() -> int:
             print(f"  {e}")
         return 1
 
-    print(f"OK: {len(concepts)} concepts, no cycles, no duplicate aliases.")
+    print(
+        f"OK: {len(scheme_files)} schemes, {total_concepts} concepts, no cycles, no duplicate keys/aliases."
+    )
     return 0
 
 

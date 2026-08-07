@@ -1,0 +1,20 @@
+# Ported verbatim from bowtie-ccm-generator.html REF.consequenceDomains keys.
+# Severity levels (Insignificant..Critical) within each domain are risk-matrix
+# banding, not ontology concepts -- not modeled here.
+scheme:
+  name: "Consequence Domain"
+  description: "Domains a hazard's consequence can fall in -- classifies safety.consequences.domain_concept_id."
+
+concepts:
+  - key: health-and-safety
+    pref_label: "Health & Safety"
+    source_ref: "bowtie-ccm-generator.html REF.consequenceDomains"
+  - key: environmental
+    pref_label: "Environmental"
+    source_ref: "bowtie-ccm-generator.html REF.consequenceDomains"
+  - key: food-safety
+    pref_label: "Food Safety"
+    source_ref: "bowtie-ccm-generator.html REF.consequenceDomains"
+  - key: psychosocial
+    pref_label: "Psychosocial"
+    source_ref: "bowtie-ccm-generator.html REF.consequenceDomains"

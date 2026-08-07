@@ -8,6 +8,7 @@ logic implemented). Reports that explicitly and exits 0, rather than
 relying on pytest's "no tests collected" exit code 5, which is easy to
 mis-handle as a CI failure.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -20,7 +21,9 @@ GRAPH_TESTS_DIR = Path(__file__).resolve().parents[1] / "tests" / "graph"
 def main() -> int:
     test_files = list(GRAPH_TESTS_DIR.glob("test_*.py"))
     if not test_files:
-        print("OK: no graph tests yet (R0 -- no Neo4j instance graph, no business logic). Nothing to run.")
+        print(
+            "OK: no graph tests yet (R0 -- no Neo4j instance graph, no business logic). Nothing to run."
+        )
         return 0
 
     result = subprocess.run(
