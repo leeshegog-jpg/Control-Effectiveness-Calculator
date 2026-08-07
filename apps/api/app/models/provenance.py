@@ -33,7 +33,12 @@ class ProvenanceRecord(Base):
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     source_type: Mapped[str] = mapped_column(source_type_enum, nullable=False)
-    document_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.documents.id"))
+    # Not wrapped in ForeignKey("safety.documents.id") -- safety.documents isn't
+    # ORM-mapped yet (deferred, same YAGNI scoping as models/safety.py). The real
+    # FK constraint already exists in the DB from the raw-SQL migration; declaring
+    # it here too would fail mapper configuration since SQLAlchemy can't resolve
+    # a FK target that isn't registered on Base.metadata.
+    document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     extraction_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_by_person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.persons.id"))
     confidence: Mapped[float | None] = mapped_column(Numeric(4, 3))
