@@ -5,6 +5,7 @@ internal $ref resolves to a real node. No external network dependency
 
 See docs/implementation-blueprint/07-cicd-architecture.md §2.
 """
+
 from __future__ import annotations
 
 import sys
@@ -12,7 +13,9 @@ from pathlib import Path
 
 import yaml
 
-SPEC_PATH = Path(__file__).resolve().parents[1] / "docs" / "knowledge-graph" / "10-openapi.yaml"
+SPEC_PATH = (
+    Path(__file__).resolve().parents[1] / "docs" / "knowledge-graph" / "10-openapi.yaml"
+)
 
 
 def resolve_ref(spec: dict, ref: str) -> bool:

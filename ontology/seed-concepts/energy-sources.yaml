@@ -1,0 +1,41 @@
+# Ported from bowtie-ccm-generator.html REF.identificationMethods "Energy
+# Analysis" method: "Map every energy type present: kinetic, potential,
+# electrical, thermal, chemical, pressure, radiation, biological, acoustic,
+# ergonomic." Listed there as prose, not a formal taxonomy in V1 -- this is
+# the first time it becomes a governed OntologyScheme, not a re-derivation
+# of an existing V1 enum.
+scheme:
+  name: "Energy Source"
+  description: "Energy types present in a hazard's exposure pathway -- classifies safety.hazards.energy_source_concept_id."
+
+concepts:
+  - key: kinetic
+    pref_label: "Kinetic"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"
+  - key: potential
+    pref_label: "Potential"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"
+  - key: electrical
+    pref_label: "Electrical"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"
+  - key: thermal
+    pref_label: "Thermal"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"
+  - key: chemical
+    pref_label: "Chemical"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"
+  - key: pressure
+    pref_label: "Pressure"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"
+  - key: radiation
+    pref_label: "Radiation"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"
+  - key: biological
+    pref_label: "Biological"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"
+  - key: acoustic
+    pref_label: "Acoustic"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"
+  - key: ergonomic
+    pref_label: "Ergonomic"
+    source_ref: "bowtie-ccm-generator.html REF.identificationMethods (Energy Analysis)"

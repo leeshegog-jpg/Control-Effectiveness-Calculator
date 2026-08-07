@@ -104,3 +104,49 @@ jobs:
           python-version: "3.12"
       - run: pip install -e "apps/api[dev]"
       - run: python scripts/run_graph_tests.py
+
+  integration-tests:
+    name: Integration tests (Postgres + Neo4j)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sms
+          POSTGRES_PASSWORD: sms
+          POSTGRES_DB: sms_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sms -d sms_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      neo4j:
+        image: neo4j:5-community
+        env:
+          NEO4J_AUTH: neo4j/dev-password-change-me
+        ports:
+          - 7687:7687
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p dev-password-change-me 'RETURN 1'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://sms:sms@localhost:5432/sms_dev
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: dev-password-change-me
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e "apps/api[dev]"
+      - run: pip install -r scripts/requirements.txt
+      # Real schema from the frozen Design Baseline, not a re-derived one --
+      # see database/postgres/migrations/versions/0001_initial_schema.py.
+      - run: alembic upgrade head
+      - run: python scripts/seed_ontology.py
+      - run: pytest tests/integration -v
