@@ -1,14 +1,15 @@
 # 16 — R1 Planning Artefact
 
-**Status: DRAFT — planning only, no code written yet.** Baseline: Design Baseline v1.1 (frozen), tag `v1.1.0-R0`.
+**Status: APPROVED (2026-08-07).** Baseline: Design Baseline v1.1 (frozen), tag `v1.1.0-R0`. R1 formally commences.
 
-**Scope discipline:** this document does not re-decide R1's scope. [04-implementation-roadmap.md](04-implementation-roadmap.md) (IB4, already approved) already defines R1 as the Risk Register cutover. This artefact operationalizes that row into a contract, and surfaces one real gap between what IB4's R0 originally specified and what the R0 actually executed delivered.
+**Scope discipline:** this document does not re-decide R1's scope. [04-implementation-roadmap.md](04-implementation-roadmap.md) (IB4, already approved) already defines R1 as the Risk Register cutover. This artefact operationalizes that row into a contract, and records how the one real gap it surfaced (§Gap) was resolved.
 
 | Field | Value |
 |---|---|
 | Baseline tag | `v1.1.0-R0` (commit `e63b315`) |
 | Release | R1 — Risk Register cutover ([04-implementation-roadmap.md](04-implementation-roadmap.md) row R1) |
-| Dependency | R0 — **see §Gap below before starting** |
+| Objective | Deliver a production-ready Risk Register module by migrating V1 functionality into the new platform without regression, while establishing the foundational backend services (PostgreSQL, Neo4j, ontology service, authentication, API layer) required for subsequent module migrations. |
+| Dependency | R0 — gap resolved, see §Gap |
 
 ## In scope
 
@@ -32,9 +33,11 @@ Per IB4 R1 + [03-module-dependency-map.md](03-module-dependency-map.md):
 - Any UI beyond feature parity with V1 `risk-register.html` — no new functionality not already in the Design Baseline
 - Any change to ontology, schema, Neo4j model, or OpenAPI contract — if R1 implementation surfaces a genuine gap, that's an ACR, not a direct edit (per [ACR-002](../../.acr/ACR-002-emergency-planning-domain.md)/[ACR-003](../../.acr/ACR-003-competency-management-domain.md) precedent)
 
-## Gap: R0 as executed is narrower than R0 as originally scoped
+## Gap: R0 as executed is narrower than R0 as originally scoped — RESOLVED
 
-**This needs resolving before R1 business logic starts**, not discovered mid-release. IB4's own R0 row specifies deliverables that the R0 actually executed ([15-r0-exit-review.md](15-r0-exit-review.md)) did **not** include, because this session's R0 work order explicitly narrowed scope to "engineering foundation only" (no endpoints, no database population, no infrastructure provisioning):
+**Decision (2026-08-07): Option 2.** Foundational backend services are R1's own first milestone, sequenced explicitly before Hazard Library/Risk Register business logic — not a separate R0.1 pass. This is now stated directly in R1's Objective above, not left implicit.
+
+IB4's own R0 row specified deliverables that the R0 actually executed ([15-r0-exit-review.md](15-r0-exit-review.md)) did **not** include, because this session's R0 work order explicitly narrowed scope to "engineering foundation only" (no endpoints, no database population, no infrastructure provisioning):
 
 | IB4's original R0 deliverable | Delivered by executed R0? |
 |---|---|
@@ -48,11 +51,13 @@ IB4 §Sequencing Notes is explicit: *"R0 is not optional scaffolding — Ontolog
 
 Risk Register's `hazards.category_concept_id` and `risks`' classification fields are ontology FKs per [03-postgresql-schema.sql](../knowledge-graph/03-postgresql-schema.sql). **R1 cannot implement Hazard Library/Risk Register against a real database until the Ontology Service is seeded and Postgres is actually provisioned and reachable.** This is not new scope creep into R1 — it's R0 work IB4 already called for for that was deferred out of the executed R0.
 
-**Options, not a decision made here:**
-1. Treat "Ontology Service seeding + Azure provisioning + Assets module" as an R0.1 gap-closure pass before R1 business logic begins.
-2. Fold it into R1's own first milestone, sequenced explicitly before Hazard Library/Risk Register work.
+**R1 Milestone 0 (before Hazard Library/Risk Register work begins):**
+1. Ontology Service reachable, seed concepts loaded (control hierarchy, consequence domains, energy sources — ported from V1 per architecture §6)
+2. Postgres provisioned and reachable (Dev environment minimum)
+3. Assets module CRUD functional (device boundary schema, unpopulated) — Hazard Library FKs to it
+4. Entra ID Dev app registration — `apps/api/app/dependencies/auth.py` currently unimplemented
 
-Either is legitimate — this is a scheduling choice, not an architecture one — but it should be picked deliberately, not discovered when Risk Register's first migration script has nowhere to write.
+Only once these are in place does Milestone 1 (Hazard Library + Risk Register) start.
 
 ## Acceptance criteria (per IB4 R1 exit criteria)
 
@@ -70,9 +75,7 @@ Either is legitimate — this is a scheduling choice, not an architecture one �
 
 ## Dependencies
 
-- Ontology Service reachable with seed concepts queryable (see Gap above)
-- Postgres actually provisioned (Dev environment minimum) — currently only Alembic tooling is wired, no environment exists
-- Entra ID app registration for Dev (auth is currently unimplemented in `apps/api/app/dependencies/auth.py`)
+- Milestone 0 deliverables above (now in-scope for R1 itself, not an external blocker)
 - Five open frontend ADRs ([.adr/README.md](../../.adr/README.md)) — routing/server-state/client-state/forms should be settled before module screens are built, not decided ad hoc per module
 
 ## Baseline immutability
