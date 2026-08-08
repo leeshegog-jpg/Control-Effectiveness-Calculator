@@ -6,9 +6,10 @@ milestone. See docs/implementation-blueprint/16-r1-planning.md.
 
 from app.main import ROUTERS, app
 
-# R1 Milestone 0 implements exactly these two -- update this set only when a
-# router gains real endpoints in an approved milestone, not ad hoc.
-IMPLEMENTED_ROUTERS = {"assets", "ontology"}
+# Update this set only when a router gains real endpoints in an approved
+# milestone, not ad hoc. R1 Milestone 0: assets, ontology. R1 Milestone 1:
+# hazards, risks.
+IMPLEMENTED_ROUTERS = {"assets", "ontology", "hazards", "risks"}
 
 
 def test_app_constructs():
