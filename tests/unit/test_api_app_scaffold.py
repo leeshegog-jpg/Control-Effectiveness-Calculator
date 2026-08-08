@@ -8,8 +8,18 @@ from app.main import ROUTERS, app
 
 # Update this set only when a router gains real endpoints in an approved
 # milestone, not ad hoc. R1 Milestone 0: assets, ontology. R1 Milestone 1:
-# hazards, risks.
-IMPLEMENTED_ROUTERS = {"assets", "ontology", "hazards", "risks"}
+# hazards, risks. R1 Milestone 2: controls, critical_controls, verification,
+# evidence.
+IMPLEMENTED_ROUTERS = {
+    "assets",
+    "ontology",
+    "hazards",
+    "risks",
+    "controls",
+    "critical_controls",
+    "verification",
+    "evidence",
+}
 
 
 def test_app_constructs():

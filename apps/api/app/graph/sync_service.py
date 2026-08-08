@@ -1,19 +1,31 @@
 """Graph Sync Service -- Postgres -> Neo4j propagation.
 See docs/knowledge-graph/01-enterprise-knowledge-graph-specification.md §4.
 
-R1 Milestone 0 added Asset + LOCATED_AT. R1 Milestone 1 adds Hazard/Risk +
-HAS_HAZARD/GIVES_RISE_TO/CLASSIFIED_AS, matching
-docs/knowledge-graph/02-neo4j-node-relationship-model.md §3.1/§4. Postgres
-remains the system of record -- if this write fails, the Postgres row still
-exists and the graph is simply stale until the next sync, never the other
-way around.
+R1 Milestone 0 added Asset + LOCATED_AT. R1 Milestone 1 added Hazard/Risk +
+HAS_HAZARD/GIVES_RISE_TO/CLASSIFIED_AS. R1 Milestone 2 adds the Critical
+Control Management chain (Control/CriticalControl/PerformanceStandard/
+VerificationActivity/Evidence) + MITIGATED_BY/CLASSIFIED_AS_CRITICAL/
+GOVERNED_BY/VERIFIED_BY/PRODUCES, matching
+docs/knowledge-graph/02-neo4j-node-relationship-model.md §3.1/§3.2/§4.
+Postgres remains the system of record -- if this write fails, the Postgres
+row still exists and the graph is simply stale until the next sync, never
+the other way around.
 """
 
 import uuid
 
 from neo4j import Driver
 
-from app.models.safety import Asset, Hazard, Risk
+from app.models.safety import (
+    Asset,
+    Control,
+    CriticalControl,
+    Evidence,
+    Hazard,
+    PerformanceStandard,
+    Risk,
+    VerificationActivity,
+)
 
 
 def sync_asset(driver: Driver, asset: Asset) -> None:
@@ -129,3 +141,133 @@ def get_risk_node(driver: Driver, risk_id: uuid.UUID) -> dict | None:
         )
         record = result.single()
         return dict(record) if record else None
+
+
+def sync_control(driver: Driver, control: Control) -> None:
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (r:Risk {pg_id: $risk_pg_id})
+            MERGE (c:Control {pg_id: $pg_id})
+            SET c.description = $description, c.type = $control_type,
+                c.classification = $classification
+            MERGE (r)-[:MITIGATED_BY]->(c)
+            """,
+            pg_id=str(control.id),
+            risk_pg_id=str(control.risk_id),
+            description=control.description,
+            control_type=control.control_type,
+            classification=control.classification,
+        )
+
+
+def get_control_node(driver: Driver, control_id: uuid.UUID) -> dict | None:
+    with driver.session() as session:
+        result = session.run(
+            "MATCH (r:Risk)-[:MITIGATED_BY]->(c:Control {pg_id: $pg_id}) "
+            "RETURN c.pg_id AS pg_id, c.classification AS classification, r.pg_id AS risk_pg_id",
+            pg_id=str(control_id),
+        )
+        record = result.single()
+        return dict(record) if record else None
+
+
+def sync_critical_control(driver: Driver, critical_control: CriticalControl) -> None:
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (c:Control {pg_id: $control_pg_id})
+            MERGE (cc:CriticalControl {pg_id: $pg_id})
+            SET cc.farsi_functionality = $farsi_functionality,
+                cc.farsi_availability = $farsi_availability,
+                cc.farsi_reliability = $farsi_reliability,
+                cc.farsi_survivability = $farsi_survivability,
+                cc.farsi_interdependency = $farsi_interdependency,
+                cc.farsi_score = $farsi_score,
+                cc.eia_effective = $eia_effective,
+                cc.eia_independent = $eia_independent,
+                cc.eia_auditable = $eia_auditable
+            MERGE (c)-[:CLASSIFIED_AS_CRITICAL]->(cc)
+            """,
+            pg_id=str(critical_control.control_id),
+            control_pg_id=str(critical_control.control_id),
+            farsi_functionality=critical_control.farsi_functionality,
+            farsi_availability=critical_control.farsi_availability,
+            farsi_reliability=critical_control.farsi_reliability,
+            farsi_survivability=critical_control.farsi_survivability,
+            farsi_interdependency=critical_control.farsi_interdependency,
+            farsi_score=float(critical_control.farsi_score)
+            if critical_control.farsi_score is not None
+            else None,
+            # eia_* live on the parent Control row in Postgres (08 §4a: EIA
+            # applies to any candidate control, not just critical ones) --
+            # denormalized onto the :CriticalControl node here because that's
+            # where 02-neo4j-node-relationship-model.md §3.2 specifies them.
+            eia_effective=critical_control.control.eia_effective,
+            eia_independent=critical_control.control.eia_independent,
+            eia_auditable=critical_control.control.eia_auditable,
+        )
+
+
+def get_critical_control_node(driver: Driver, control_id: uuid.UUID) -> dict | None:
+    with driver.session() as session:
+        result = session.run(
+            "MATCH (c:Control)-[:CLASSIFIED_AS_CRITICAL]->(cc:CriticalControl {pg_id: $pg_id}) "
+            "RETURN cc.pg_id AS pg_id, cc.farsi_score AS farsi_score, c.pg_id AS control_pg_id",
+            pg_id=str(control_id),
+        )
+        record = result.single()
+        return dict(record) if record else None
+
+
+def sync_performance_standard(driver: Driver, standard: PerformanceStandard) -> None:
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (cc:CriticalControl {pg_id: $critical_control_pg_id})
+            MERGE (ps:PerformanceStandard {pg_id: $pg_id})
+            SET ps.requirement_text = $requirement_text,
+                ps.measurable_criteria = $measurable_criteria
+            MERGE (cc)-[:GOVERNED_BY]->(ps)
+            """,
+            pg_id=str(standard.id),
+            critical_control_pg_id=str(standard.critical_control_id),
+            requirement_text=standard.requirement_text,
+            measurable_criteria=standard.measurable_criteria,
+        )
+
+
+def sync_verification_activity(driver: Driver, activity: VerificationActivity) -> None:
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (ps:PerformanceStandard {pg_id: $performance_standard_pg_id})
+            MERGE (v:VerificationActivity {pg_id: $pg_id})
+            SET v.frequency = $frequency, v.due_date = $due_date,
+                v.last_completed = $last_completed, v.result = $result
+            MERGE (ps)-[:VERIFIED_BY]->(v)
+            """,
+            pg_id=str(activity.id),
+            performance_standard_pg_id=str(activity.performance_standard_id),
+            frequency=activity.frequency,
+            due_date=activity.due_date.isoformat() if activity.due_date else None,
+            last_completed=activity.last_completed.isoformat() if activity.last_completed else None,
+            result=activity.result,
+        )
+
+
+def sync_evidence(driver: Driver, evidence: Evidence) -> None:
+    if evidence.verification_activity_id is None:
+        return  # standalone evidence -- no VerificationActivity to attach PRODUCES to
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (v:VerificationActivity {pg_id: $verification_activity_pg_id})
+            MERGE (e:Evidence {pg_id: $pg_id})
+            SET e.linked_entity_type = $linked_entity_type
+            MERGE (v)-[:PRODUCES]->(e)
+            """,
+            pg_id=str(evidence.id),
+            verification_activity_pg_id=str(evidence.verification_activity_id),
+            linked_entity_type=evidence.linked_entity_type,
+        )
