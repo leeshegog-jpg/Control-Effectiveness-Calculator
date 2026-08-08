@@ -46,12 +46,14 @@ def test_control_passes_all_gates_becomes_critical_with_full_chain(
     assert gate_resp.status_code == 200
     assert gate_resp.json()["classification"] == "Control"
 
+    # /controls/{id}/eia-test responds with the `Control` schema, which has
+    # no eia_* fields (those only appear on `CriticalControl`) -- persistence
+    # is verified below via the critical-control-test response instead.
     eia_resp = client.post(
         f"/controls/{control_id}/eia-test",
         json={"eia_effective": True, "eia_independent": True, "eia_auditable": True},
     )
     assert eia_resp.status_code == 200
-    assert eia_resp.json()["eia_effective"] is True
 
     cct_resp = client.post(
         f"/controls/{control_id}/critical-control-test", json={"is_critical": True}
@@ -60,6 +62,9 @@ def test_control_passes_all_gates_becomes_critical_with_full_chain(
     critical_control = cct_resp.json()
     assert critical_control["control_id"] == control_id
     assert critical_control["health_state"] == "Unverified"
+    assert critical_control["eia_effective"] is True
+    assert critical_control["eia_independent"] is True
+    assert critical_control["eia_auditable"] is True
 
     farsi_resp = client.patch(
         f"/critical-controls/{control_id}",
