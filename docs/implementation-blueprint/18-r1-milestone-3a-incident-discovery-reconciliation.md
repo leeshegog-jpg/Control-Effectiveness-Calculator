@@ -217,7 +217,7 @@ This is a **greenfield domain**, same state CCM was in before Milestone 2A. `saf
 | D1 | Which V1 tree is canonical | Schema comment names root-suite files exactly (§1, §2.2) | (a) Root SMS suite only; (b) include `OHS_Command_Centre` as a secondary reference | **(a)** — matches the only citation that exists anywhere in the frozen baseline | No — evidence-based, not a fresh choice |
 | D2 | Incident/Investigation/Action structural shape | Three independent sources converge on the sibling model, not a chain (§5) | (a) Adopt the sibling model as-is (Investigation 1:1 off Incident; Action shared/polymorphic, reachable from Incident or Audit); (b) build the intuitive Incident→Investigation→Action chain | **(a)** — the built, frozen reality; (b) would require new FKs (`investigation_id` on `actions`) not present in the schema | ADR recommended before 3B implementation begins, purely to make this explicit given how easily (b) could be assumed by default — same reasoning as CCM's D1 |
 | D3 | Incident type / root-cause category ontology scheme | No scheme seeded anywhere; both FKs nullable/optional (§6) | (a) Defer, leave `NULL`, matching the standing `Hazard.category_concept_id` precedent; (b) invent a scheme now from V1's 6-value enum | **(a)** | ADR recommended to record the deferral, explicitly linked to the existing Hazard Taxonomy deferred item (not a separate open question) |
-| D4 | Additive OpenAPI extension for `Investigation`, `incident_hazards`/`REVEALS`, and Incident-scoped `Evidence` | All three exist at schema/graph level with zero API surface (§4, §5, §8) | (a) Extend `10-openapi.yaml` additively (new schema objects + endpoints, no changes to existing paths/schemas, no new tables/columns) before or during 3B; (b) implement Incident/Action CRUD only in 3B and explicitly exclude Investigation/hazard-link/evidence sub-resources until the OpenAPI extension is separately authorized | Recommend **(a)** treated as a documentation-completion of an already-fully-specified table/relationship (no new architecture), but this is the one point in this pass that **does** touch a frozen baseline artefact (`10-openapi.yaml` itself) rather than only interpreting it — flagged for explicit authorization, not assumed | **ADR required regardless of (a)/(b)** — this is the one decision point in this pass with a real, non-trivial chance of needing to be treated as ACR-adjacent, since "frozen OpenAPI" has so far meant *no changes*, not *additive-only changes*. Recommend the user explicitly confirm whether additive-only OpenAPI extensions require the same ACR process as schema changes, or a lighter ADR-only path, before 3B scoping is finalized |
+| D4 | Additive OpenAPI extension for `Investigation`, `incident_hazards`/`REVEALS`, and Incident-scoped `Evidence` | All three exist at schema/graph level with zero API surface (§4, §5, §8) | (a) Extend `10-openapi.yaml` additively (new schema objects + endpoints, no changes to existing paths/schemas, no new tables/columns) before or during 3B; (b) implement Incident/Action CRUD only in 3B and explicitly exclude Investigation/hazard-link/evidence sub-resources until the OpenAPI extension is separately authorized | (a), via the **ACR path** — see resolution below | **ACR required.** `10-openapi.yaml` is an explicit, named Design Baseline v1.1 artefact ([README.md](README.md) §3), governed by the same "any further change requires an ACR, not a direct edit" rule as the schema — [02-development-standards.md](02-development-standards.md) §7. Additive-only and low-risk is not a carve-out from that rule; it changes which impact-assessment questions the ACR needs to ask, not whether one is required. **Resolved 2026-08-08 (3A Review): route via ACR, not ADR**, mirroring ACR-001/002/003's process even though the expected outcome (approve a documentation-completion of an already-existing table/relationship) is low-drama compared to those three |
 | D5 | Five V1 fields with no schema home | §10, §11 item 5 | (a) Don't port (documented, deliberate non-port, matches CCM D4/D5 precedent of deferring rather than silently adding columns); (b) add columns now (schema change → ACR) | **(a)** | ADR recommended to record the deliberate non-port, mirroring CCM's D5 treatment of the `reduce{}` mechanism |
 | D6 | R10 (608B/OSR notification propagation rule) — in scope for 3B? | §7 | (a) Implement in 3B (no schema change needed, touches only existing Milestone 1 + this domain's columns); (b) defer, analogous to the FARSI feedback-loop deferral | Not resolved here — genuinely open, recommend the user decide at 3B scoping, not implied by this document | ADR either way, to record the scope call |
 | D7 | Governance status of `09 §6`/`07 R10` for this domain | Same "DRAFT" boilerplate pattern as every knowledge-graph doc (per CCM D6 precedent) | (a) Treat as already-effectively-approved by precedent (Milestones 0–2 implemented against docs with identical boilerplate); (b) require explicit sign-off pass | **(b)**, mirroring CCM's D6 treatment for consistency | This reconciliation document, once reviewed, is intended to serve as the evidentiary record, consistent with the CCM precedent |
@@ -236,8 +236,8 @@ This is a **greenfield domain**, same state CCM was in before Milestone 2A. `saf
 | Workflow | V1 status/investigation-status enums reconciled exactly against schema defaults and OpenAPI enums. No V1 or frozen-doc evidence of any state-machine enforcement (e.g., can't-close-while-Open-actions-exist) — none found, none assumed. |
 | Evidence | Polymorphic `Evidence.linked_entity_type` schema-level supports `'incident'` by its own comment; zero API surface for it. §8 |
 | Gaps | Investigation/incident_hazards/incident-evidence OpenAPI absence (material); 5 V1 fields with no schema home (data-fidelity); two ontology FKs with no scheme (non-blocking). §11 |
-| Decisions | D1–D7, §12 — none require a schema change; D4 is the one point touching the frozen OpenAPI file itself and needs explicit authorization on process (ADR vs ACR-adjacent) before 3B scoping. |
-| ADRs | Recommended for D2, D3, D4, D5, D6, D7 before 3B implementation begins, bundled the same way CCM's D2–D6 were bundled into one ADR. §14 |
+| Decisions | D1–D7, §12 — none require a schema change; D4 requires an **ACR** (frozen OpenAPI is a Design Baseline artefact, additive-only is not a carve-out — resolved 3A Review, 2026-08-08). |
+| ADRs | Recommended for D2, D3, D5, D6, D7 before 3B implementation begins, bundled the same way CCM's D2–D6 were bundled into one ADR. D4 is routed to ACR, not this bundle. §14 |
 | Implementation boundary | Incident CRUD and Action CRUD (as currently specified) are buildable with zero baseline change. Investigation, hazard-linking, and incident-scoped Evidence are **not** buildable until D4 is resolved. §14 |
 
 ---
@@ -264,9 +264,52 @@ Buildable today, no schema/API change required:
 
 ## 15. ADR/ACR Requirement
 
-**No ACR is clearly required to begin any part of Milestone 3B** — every table, column, and relationship the recommended options rely on already exists in the frozen schema and Neo4j model. The one open question is **D4**, which is not a schema change but does touch the frozen `10-openapi.yaml` file itself (additive endpoints only) — this pass recommends but does not decide whether that requires ACR-equivalent process or a lighter ADR; that determination is itself part of what needs explicit authorization before 3B scoping.
+**An ACR is required before D4's scope (Investigation/`REVEALS`/incident-Evidence OpenAPI surface) can be built** — resolved at 3A Review (2026-08-08): `10-openapi.yaml` is a named Design Baseline v1.1 artefact, and the "any further change requires an ACR" rule ([02-development-standards.md](02-development-standards.md) §7) applies regardless of the change being additive-only and low-risk. This does not block Incident/Action CRUD (§14), which relies on nothing beyond the already-frozen contract as it stands today.
 
-**An ADR is recommended before implementation starts**, bundling D2, D3, D4 (process question), D5, D6, and D7 — mirroring the CCM Milestone 2A precedent exactly.
+**An ADR is recommended before implementation starts**, bundling D2, D3, D5, D6, and D7 — mirroring the CCM Milestone 2A precedent. D4 follows the separate ACR path (ACR-001/002/003 precedent) rather than joining this bundle.
+
+---
+
+## 16. 3A Review — Disposition (2026-08-08)
+
+**Reviewed and accepted as a discovery artefact.** The reconciled Incident/Investigation/Action structure (§5) is confirmed correct and must not be normalised into a sequential workflow during implementation:
+
+```text
+                 ┌──────────────┐
+                 │    Hazard    │
+                 └──────▲───────┘
+                        │ REVEALS
+                        │
+┌─────────────┐         │
+│   Incident  │─────────┼──────────────┐
+└──────┬──────┘         │              │
+       │                │              │
+       │ INVESTIGATED_AS               │ TRIGGERS
+       ▼                               ▼
+┌──────────────┐                 ┌──────────────┐
+│ Investigation│                 │    Action    │
+└──────────────┘                 └──────────────┘
+```
+
+D4 corrected per review (§12, §15): routed to **ACR**, not ADR — `10-openapi.yaml` is a named Design Baseline v1.1 artefact, and additive-only/low-risk does not exempt a change to it from the ACR process. The rest of the document's decision routing (D1 resolved, D2/D3/D5/D6/D7 to ADR) stands as originally written.
+
+**PR #18 disposition:** discovery findings accepted; no implementation authorised. PR may be merged once the governance record confirms the findings document itself — not its recommendations — is the controlled output of 3A. **Merging PR #18 is not approval of D1–D7**, and is not authorization to modify OpenAPI, schema, or ontology.
+
+**Sequence going forward — none of the later stages are authorized by this review:**
+
+```text
+3A — Discovery              Complete
+        ↓
+3A — Review                 Current stage
+        ↓
+Decision Register D1–D7     Not started — resolve each explicitly
+        ↓
+ACR / ADR assessment        Not started — particularly D4 (ACR)
+        ↓
+3B — Incident Implementation Scope   Not started — boundary only definable once D1–D7 resolved
+        ↓
+Separate implementation GO  Not issued
+```
 
 ---
 
