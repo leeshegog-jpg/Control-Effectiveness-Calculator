@@ -1,27 +1,44 @@
 """ORM models for the `safety` schema.
-Source of truth: docs/knowledge-graph/03-postgresql-schema.sql. Only the
-tables R1 Milestone 0/1 actually touch (persons, parks, assets, hazards,
-risks) are modeled here -- the remaining safety.* tables (consequences,
-controls, critical_controls, incidents, emergency_plans, competencies, ...)
-are deferred to the milestones that use them, not forgotten. Do not add
-a table here ahead of the milestone that needs it -- YAGNI, and every extra
+Source of truth: docs/knowledge-graph/03-postgresql-schema.sql. Tables are
+added per-milestone -- the remaining safety.* tables (consequences,
+incidents, emergency_plans, competencies, device_boundaries, ...) are
+deferred to the milestones that use them, not forgotten. Do not add a
+table here ahead of the milestone that needs it -- YAGNI, and every extra
 unused mapping is one more thing that can silently drift from the frozen
 schema before it's ever tested against real code.
 
-Consequence/Control are deliberately unmapped in Milestone 1: the frozen
-OpenAPI contract exposes no endpoint for Consequence at all, and V1's Risk
-Register only ever captured "Existing Controls" as free text -- modeling
-structured safety.controls rows now would mean inventing per-control data
-V1 never recorded. Structured Controls belong to the dedicated Critical
-Controls milestone.
+Consequence is deliberately unmapped: the frozen OpenAPI contract exposes
+no endpoint for it at all.
+
+R1 Milestone 2 (Critical Control Management) adds Control/CriticalControl/
+PerformanceStandard/VerificationActivity/Evidence, per
+docs/implementation-blueprint/17-r1-milestone-2-ccm-discovery-reconciliation.md.
+Control/Support/Verification are the SAME table (`controls`), distinguished
+by the `classification` column -- not three separate tables, and not
+subordinate objects under a "Critical Control" parent (that reconciliation
+confirmed this exactly, converging V1/schema/OpenAPI/06-relationship-rules
+on "Option A"). FailureMode/TriggerActionResponsePlan/MonitoringSummary
+remain unmapped -- out of this milestone's authorized scope.
 """
 
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, SmallInteger, String, Text, func, text
+from sqlalchemy import (
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.schema import FetchedValue
 
 from app.models import Base
 
@@ -155,3 +172,146 @@ class Risk(Base):
     serious_risk_justification: Mapped[str | None] = mapped_column()
 
     hazard: Mapped["Hazard"] = relationship(back_populates="risks")
+
+
+class Control(Base):
+    """Control, Support, and Verification are all this same table --
+    `classification` distinguishes the role, set by the gate-test workflow
+    (app/services/controls/rules.py), never client-writable directly. See
+    the module docstring and 17-r1-milestone-2-ccm-discovery-reconciliation.md.
+    """
+
+    __tablename__ = "controls"
+    __table_args__ = {"schema": "safety"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    risk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("safety.risks.id"), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    control_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    hierarchy_concept_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ontology.concepts.id")
+    )
+    # Workflow-set only -- app/services/controls/rules.py:classify_from_gates.
+    classification: Mapped[str | None] = mapped_column(String(20))
+    gate_1: Mapped[bool | None] = mapped_column()
+    gate_2: Mapped[bool | None] = mapped_column()
+    gate_3: Mapped[bool | None] = mapped_column()
+    eia_effective: Mapped[bool | None] = mapped_column()
+    eia_independent: Mapped[bool | None] = mapped_column()
+    eia_auditable: Mapped[bool | None] = mapped_column()
+    effectiveness_rating: Mapped[str | None] = mapped_column(String(30))
+    owner_person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.persons.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    critical_control: Mapped["CriticalControl | None"] = relationship(back_populates="control")
+
+
+class CriticalControl(Base):
+    """1:1 extension of a Control row where classification='Control' and the
+    Stage 2 critical-control test passed. control_id has no server-side
+    default -- it is always the parent Control's id, supplied explicitly,
+    never independently generated.
+    """
+
+    __tablename__ = "critical_controls"
+    __table_args__ = {"schema": "safety"}
+
+    control_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("safety.controls.id"), primary_key=True
+    )
+    farsi_functionality: Mapped[int | None] = mapped_column(SmallInteger)
+    farsi_availability: Mapped[int | None] = mapped_column(SmallInteger)
+    farsi_reliability: Mapped[int | None] = mapped_column(SmallInteger)
+    farsi_survivability: Mapped[int | None] = mapped_column(SmallInteger)
+    farsi_interdependency: Mapped[int | None] = mapped_column(SmallInteger)
+    # GENERATED ALWAYS ... STORED in the DB -- never written by the ORM;
+    # FetchedValue tells SQLAlchemy to omit it from INSERT/UPDATE and read
+    # the DB-computed value back on refresh.
+    farsi_score: Mapped[float | None] = mapped_column(Numeric(3, 2), server_default=FetchedValue())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    control: Mapped["Control"] = relationship(back_populates="critical_control")
+    performance_standards: Mapped[list["PerformanceStandard"]] = relationship(
+        back_populates="critical_control"
+    )
+
+
+class PerformanceStandard(Base):
+    __tablename__ = "performance_standards"
+    __table_args__ = {"schema": "safety"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    critical_control_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("safety.critical_controls.control_id"), nullable=False
+    )
+    requirement_text: Mapped[str] = mapped_column(Text, nullable=False)
+    measurable_criteria: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    critical_control: Mapped["CriticalControl"] = relationship(
+        back_populates="performance_standards"
+    )
+    verification_activities: Mapped[list["VerificationActivity"]] = relationship(
+        back_populates="performance_standard"
+    )
+
+
+class VerificationActivity(Base):
+    __tablename__ = "verification_activities"
+    __table_args__ = {"schema": "safety"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    performance_standard_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("safety.performance_standards.id"), nullable=False
+    )
+    method_concept_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ontology.concepts.id"))
+    frequency: Mapped[str | None] = mapped_column(String(30))
+    due_date: Mapped[date | None] = mapped_column(Date)
+    last_completed: Mapped[date | None] = mapped_column(Date)
+    performed_by_person_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("safety.persons.id")
+    )
+    result: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    performance_standard: Mapped["PerformanceStandard"] = relationship(
+        back_populates="verification_activities"
+    )
+    evidence: Mapped[list["Evidence"]] = relationship(back_populates="verification_activity")
+
+
+class Evidence(Base):
+    __tablename__ = "evidence"
+    __table_args__ = {"schema": "safety"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    type_concept_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ontology.concepts.id"))
+    verification_activity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("safety.verification_activities.id")
+    )
+    # Not ForeignKey-wrapped -- safety.documents isn't ORM-mapped yet, same
+    # reasoning as ProvenanceRecord.document_id (Milestone 0).
+    source_document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    uploaded_by_person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.persons.id"))
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    # Polymorphic pointer -- plain columns, not a FK to any single table.
+    linked_entity_type: Mapped[str | None] = mapped_column(String(50))
+    linked_entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+
+    verification_activity: Mapped["VerificationActivity | None"] = relationship(
+        back_populates="evidence"
+    )

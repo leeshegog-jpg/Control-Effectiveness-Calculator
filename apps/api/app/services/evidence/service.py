@@ -1,1 +1,51 @@
-"""R0 scaffold placeholder -- evidence service. No business logic implemented."""
+"""Evidence service -- Evidence CRUD, audit metadata (provenance), Neo4j sync."""
+
+import uuid
+
+from neo4j import Driver
+from sqlalchemy.orm import Session
+
+from app.graph import sync_service
+from app.models.provenance import ProvenanceRecord
+from app.models.safety import Evidence
+from app.repositories import evidence_repository
+
+
+def list_evidence(db: Session, verification_activity_id: uuid.UUID) -> list[Evidence]:
+    return evidence_repository.list_evidence(db, verification_activity_id)
+
+
+def create_evidence(
+    db: Session,
+    graph_driver: Driver,
+    *,
+    verification_activity_id: uuid.UUID,
+    type_concept_id: uuid.UUID | None,
+    source_document_id: uuid.UUID | None,
+    uploaded_by_person_id: uuid.UUID | None,
+    linked_entity_type: str | None,
+    linked_entity_id: uuid.UUID | None,
+) -> Evidence:
+    evidence = Evidence(
+        verification_activity_id=verification_activity_id,
+        type_concept_id=type_concept_id,
+        source_document_id=source_document_id,
+        uploaded_by_person_id=uploaded_by_person_id,
+        linked_entity_type=linked_entity_type,
+        linked_entity_id=linked_entity_id,
+    )
+    evidence_repository.create_evidence(db, evidence)
+
+    db.add(
+        ProvenanceRecord(
+            entity_type="evidence",
+            entity_id=evidence.id,
+            source_type="human_entry",
+            created_by_person_id=uploaded_by_person_id,
+        )
+    )
+    db.commit()
+    db.refresh(evidence)
+
+    sync_service.sync_evidence(graph_driver, evidence)
+    return evidence
