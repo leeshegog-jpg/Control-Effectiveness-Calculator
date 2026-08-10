@@ -105,7 +105,7 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | Recommendation | **RECOMMENDATION — NOT DECISION:** (a), pursued via ACR. |
 | Governance route | **ACR** — resolved at 3A Review: OpenAPI is a controlled Design Baseline artefact ([02-development-standards.md](02-development-standards.md) §7); additive-only and low-risk does not exempt a change to it from the ACR process. |
 | Decision authority | Architecture Review Board (ACR-001/002/003 precedent). |
-| Status | **Pending** — no ACR has been raised; raising one is not authorized by this milestone's GO. |
+| Status | **ACR raised, Pending Approval** — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), 2026-08-09. Raising the ACR is not approval of it; no implementation is authorized. |
 | Traceability | 3A §4, §8, §12 D4; 3A Review disposition (3A §16). **Depends on D2** being recorded first — see §5 dependency matrix. |
 
 ### D5 — Five V1 fields with no schema home
@@ -183,7 +183,7 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | D6 | ADR (once decided) | No baseline artefact change under either option; scope call only |
 | D7 | No formal ACR/ADR — this register serves as the evidentiary sign-off record | Procedural governance-status question, not a content change — **Accepted 2026-08-09** |
 
-**One ACR required to unblock any of D1–D7:** D4 (not yet raised). **No ACR is required to proceed with D2 (now recorded), D3, D5, D6, or D7 (now accepted).**
+**One ACR required to unblock any of D1–D7:** D4 — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), raised 2026-08-09, **Pending Approval**. **No ACR is required to proceed with D2 (now recorded), D3, D5, D6, or D7 (now accepted).**
 
 ---
 
@@ -203,12 +203,12 @@ This is stated for completeness, carried forward from 3A §14 — **it is not a 
 
 ## 8. Outstanding Governance Decisions
 
-- **D4 requires an ACR to be raised** before Investigation/hazard-linking/incident-Evidence can be exposed. Not raised by this document — remains the sole outstanding ACR need.
+- **D4** — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md) raised 2026-08-09, drafted against ADR-003. **Pending Approval** — approval is not inferred; Investigation/hazard-linking/incident-Evidence remain unexposed until it is explicitly approved.
 - **D3, D5** still require an ADR to be written to formally record their recommended (not yet approved) positions. Neither written by this document.
 - **D6** requires explicit Compliance/Legal-informed scope determination — genuinely unresolved, no recommendation offered. Its D7 dependency is now satisfied, so D6 may be taken up next, but nothing about it has been decided by that.
 - ~~D7~~ — **Resolved.** Governance authority accepted this register as the evidentiary sign-off record, 2026-08-09.
 - ~~D2~~ — **Resolved.** [ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), Accepted 2026-08-09.
-- Remaining open: **D3, D4 (ACR), D5, D6.** D1, D2, D7 closed.
+- Remaining open: **D3, D5, D6** (no instrument raised yet); **D4** now has an ACR raised ([ACR-004](../../.acr/ACR-004-incident-openapi-extension.md)) but Pending Approval. D1, D2, D7 closed.
 
 ---
 
