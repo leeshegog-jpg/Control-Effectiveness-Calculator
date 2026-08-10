@@ -8,6 +8,7 @@ Use [TEMPLATE.md](TEMPLATE.md) for new entries.
 
 - **[ADR-001](ADR-001-baseline-tag-immutability.md)** — release tags (`vX.Y.Z-RN`) are immutable; defects are fixed forward, never by re-pointing a tag. Accepted 2026-08-05.
 - **[ADR-002](ADR-002-branch-protection-model.md)** — branch protection model for `main`: PR + required CI checks, no minimum approval count while single-maintained ("Option A"), reserved for revisit once a second regular reviewer exists. Accepted 2026-08-07. Closes the merge deadlock discovered during the R0 merge (PR #11) — see [15-r0-exit-review.md](../docs/implementation-blueprint/15-r0-exit-review.md) §Release for the original investigation.
+- **[ADR-003](ADR-003-incident-investigation-action-sibling-structure.md)** — Incident domain: `Investigation` and `Action` are independent siblings of `Incident` (`INVESTIGATED_AS` 1:1, `TRIGGERS` N:1), not a linear `Incident → Investigation → Action` chain. Accepted 2026-08-09. Resolves D2 of [19-r1-milestone-3b-incident-decision-register.md](../docs/implementation-blueprint/19-r1-milestone-3b-incident-decision-register.md); serves as the confirmed architectural basis for the not-yet-raised D4 OpenAPI-extension ACR.
 
 ## Open decisions flagged during R0/Phase 2.2 scaffolding
 
@@ -25,3 +26,4 @@ Per [docs/implementation-blueprint/13-application-foundation-scaffold.md](../doc
 |---|---|---|
 | [ADR-001](ADR-001-baseline-tag-immutability.md) | Release Tags Are Immutable | Accepted |
 | [ADR-002](ADR-002-branch-protection-model.md) | Branch Protection Model — Option A (PR + CI, No Minimum Approval Count) | Accepted |
+| [ADR-003](ADR-003-incident-investigation-action-sibling-structure.md) | Incident Domain — Investigation and Action as Siblings of Incident, Not a Chain | Accepted |

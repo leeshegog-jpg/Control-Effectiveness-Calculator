@@ -75,8 +75,8 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | Recommendation | **RECOMMENDATION — NOT DECISION:** (a). |
 | Governance route | **ADR** — implementation-time interpretation of an already-frozen structure; option (a) alters no baseline artefact. |
 | Decision authority | Implementation governance (does not require Architecture Review Board, since no baseline artefact changes under the recommended option). |
-| Status | **Pending.** |
-| Traceability | 3A §5, §12 D2. **Feeds D4** — see §5 dependency matrix. |
+| Status | **Accepted (2026-08-09)** — [ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md). |
+| Traceability | 3A §5, §12 D2. **Feeds D4** — see §5 dependency matrix. Resolved by [ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), which is now the confirmed architectural basis for D4's not-yet-raised ACR. |
 
 ### D3 — Ontology scheme deferral (`incident_type_concept_id`, `root_cause_category_concept_id`)
 
@@ -150,8 +150,8 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | Recommendation | **RECOMMENDATION — NOT DECISION:** (b), consistent with the CCM D6 treatment. |
 | Governance route | **No formal ACR/ADR instrument required** — recommend that this decision register, once reviewed and explicitly signed off, itself serves as the evidentiary sign-off record for `09 §6`/`07 R10`'s Incident-domain content, the same treatment CCM D6 proposed for `08`. |
 | Decision authority | Whoever holds sign-off authority over knowledge-graph document content generally (the same authority that reviewed 3A). |
-| Status | **Pending** — this document is a candidate record, not yet confirmed accepted. |
-| Traceability | 3A §12 D7; CCM precedent `17-r1-milestone-2-ccm-discovery-reconciliation.md` §6f, §7 D6. **Blocks D6** — see §5. |
+| Status | **Accepted (2026-08-09)** — governance authority confirmed this register serves as the evidentiary sign-off record for `09 §6`/`07 R10`'s Incident-domain content; option (b) treated as satisfied by that acceptance. |
+| Traceability | 3A §12 D7; CCM precedent `17-r1-milestone-2-ccm-discovery-reconciliation.md` §6f, §7 D6. **Blocks D6** — dependency now satisfied; D6 itself remains open — see §5. |
 
 ---
 
@@ -160,14 +160,14 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | Decision | Depends on | Reason | Effect on resolution order |
 |---|---|---|---|
 | D1 | — | Already resolved by evidence | No ordering constraint |
-| D2 | — | Self-contained; evidenced directly from schema/graph/V1, no dependency on any other decision | Can be resolved first among the still-open items |
+| D2 | — | Self-contained; evidenced directly from schema/graph/V1, no dependency on any other decision. **Resolved — [ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), Accepted 2026-08-09.** | Resolved first among the still-open items, as recommended |
 | D3 | — | Independent of every other decision — a separate ontology axis untouched by the OpenAPI/structural questions | No ordering constraint |
-| D4 | **D2** | The ACR for D4 should propose endpoint shapes consistent with the confirmed sibling structure (D2), not re-litigate Incident/Investigation/Action's shape mid-ACR. Recording D2 first keeps the ACR's impact assessment clean. | D2 should be resolved (ADR recorded) before D4's ACR is drafted |
+| D4 | **D2** | The ACR for D4 should propose endpoint shapes consistent with the confirmed sibling structure (D2), not re-litigate Incident/Investigation/Action's shape mid-ACR. **D2 now recorded ([ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md)) — dependency satisfied.** | D4's ACR may now be drafted on D2's basis, once separately authorized — not authorized by this document |
 | D5 | — | Independent — concerns different columns/tables (`incidents`/`investigations` field-level parity) untouched by D2/D3/D4 | No ordering constraint |
-| D6 | **D7** | D6's recommended-in-scope option (a) relies on `09 §6`/R10 as its evidentiary basis; implementing a statutory-notification-trigger rule against a document still nominally "DRAFT" carries more compliance risk than implementing against one whose Incident-domain content has been explicitly signed off. | D7 should be resolved before D6 |
-| D7 | — | Self-contained procedural question about existing document status | Can be resolved independently, ideally early since D6 depends on it |
+| D6 | **D7** | D6's recommended-in-scope option (a) relies on `09 §6`/R10 as its evidentiary basis; implementing a statutory-notification-trigger rule against a document still nominally "DRAFT" carries more compliance risk than implementing against one whose Incident-domain content has been explicitly signed off. **D7 now accepted — dependency satisfied.** | D6 may now be taken up; still requires its own Compliance/Legal-informed resolution, not a default |
+| D7 | — | Self-contained procedural question about existing document status. **Resolved — accepted by governance authority, 2026-08-09.** | Resolved, unblocking D6 |
 
-**Recommended resolution order:** D1 (already closed) → **D7** → **D2** → D3 and D5 (either order, no dependency) → **D6** (after D7) → **D4's ACR drafting** (after D2 is recorded). This is a recommended sequence for governance efficiency, not itself a decision or an instruction to proceed.
+**Recommended resolution order:** D1 (already closed) → D7 (accepted) → D2 (**Accepted, ADR-003**) → D3 and D5 (either order, no dependency) → **D6** (after D7 — still open) → **D4's ACR drafting** (dependency on D2 satisfied; drafting itself remains not authorized). This is a recommended sequence for governance efficiency, not itself a decision or an instruction to proceed.
 
 ---
 
@@ -176,14 +176,14 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | Decision | Route | Rationale (one line) |
 |---|---|---|
 | D1 | No Change | Evidence-resolved, no baseline artefact touched |
-| D2 | ADR | Interpretation of an already-frozen structure; zero baseline edit |
+| D2 | ADR | Interpretation of an already-frozen structure; zero baseline edit — **[ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), Accepted 2026-08-09** |
 | D3 | ADR | Records a deferral; no baseline edit (columns already nullable/exist) |
 | D4 | **ACR** | Modifies `10-openapi.yaml`, a named Design Baseline v1.1 artefact — additive-only does not exempt it |
 | D5 | ADR (for the recommended non-port option); ACR only if new columns are later pursued | Recommended option (a) touches no baseline artefact |
 | D6 | ADR (once decided) | No baseline artefact change under either option; scope call only |
-| D7 | No formal ACR/ADR — this register serves as the evidentiary sign-off record if accepted | Procedural governance-status question, not a content change |
+| D7 | No formal ACR/ADR — this register serves as the evidentiary sign-off record | Procedural governance-status question, not a content change — **Accepted 2026-08-09** |
 
-**One ACR required to unblock any of D1–D7:** D4. **No ACR is required to proceed with D2, D3, D5, D6, or D7's recommended paths.**
+**One ACR required to unblock any of D1–D7:** D4 (not yet raised). **No ACR is required to proceed with D2 (now recorded), D3, D5, D6, or D7 (now accepted).**
 
 ---
 
@@ -194,7 +194,7 @@ None of D1–D7's *pending* status blocks basic Incident/Action CRUD as already 
 - D3's ontology gap does not block Incident/Action CRUD (`incident_type`/`root_cause_category` are optional fields).
 - D5's field gap does not block CRUD (it's an omission, not a blocking requirement).
 - D6's rule is service-layer logic layered on top of CRUD, not a precondition for it.
-- D2 and D7 govern internal structure and document status respectively, not API availability.
+- D2 (now recorded, ADR-003) and D7 (now accepted) governed internal structure and document status respectively, not API availability — their resolution changes nothing about the CRUD boundary either.
 - **D4 blocks only the Investigation / hazard-linking / incident-Evidence sub-resources specifically** — it does not block Incident or Action CRUD.
 
 This is stated for completeness, carried forward from 3A §14 — **it is not a re-authorization to build anything.** No implementation GO has been issued for any part of this domain; this milestone's authorization is explicitly "discovery-to-governance only."
@@ -203,11 +203,12 @@ This is stated for completeness, carried forward from 3A §14 — **it is not a 
 
 ## 8. Outstanding Governance Decisions
 
-- **D4 requires an ACR to be raised** before Investigation/hazard-linking/incident-Evidence can be exposed. Not raised by this document.
-- **D2, D3, D5** each require an ADR to be written to formally record their recommended (not yet approved) positions. None written by this document.
-- **D6** requires explicit Compliance/Legal-informed scope determination — genuinely unresolved, no recommendation offered.
-- **D7** requires the governance authority to explicitly accept this register (or a dedicated sign-off artefact) as closing the "DRAFT boilerplate" procedural gap for `09 §6`/`07 R10`'s Incident-domain content — not yet accepted.
-- No decision in this register has moved past **Pending** (except D1, already closed by evidence in 3A).
+- **D4 requires an ACR to be raised** before Investigation/hazard-linking/incident-Evidence can be exposed. Not raised by this document — remains the sole outstanding ACR need.
+- **D3, D5** still require an ADR to be written to formally record their recommended (not yet approved) positions. Neither written by this document.
+- **D6** requires explicit Compliance/Legal-informed scope determination — genuinely unresolved, no recommendation offered. Its D7 dependency is now satisfied, so D6 may be taken up next, but nothing about it has been decided by that.
+- ~~D7~~ — **Resolved.** Governance authority accepted this register as the evidentiary sign-off record, 2026-08-09.
+- ~~D2~~ — **Resolved.** [ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), Accepted 2026-08-09.
+- Remaining open: **D3, D4 (ACR), D5, D6.** D1, D2, D7 closed.
 
 ---
 
