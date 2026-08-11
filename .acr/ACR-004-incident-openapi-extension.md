@@ -13,7 +13,7 @@ Incident Domain — OpenAPI Extension for Investigation, `incident_hazards` (`RE
 
 ## 3. Status
 
-**Pending Approval.** Not approved, not rejected, not deferred by this document. Raising this ACR is not implementation authorization for anything it describes.
+**Approved (2026-08-11)** — Architecture Review Board (project sponsor), recorded in chat, per §18. **Approval of this ACR is not implementation authorization** — see §17 and §18. `10-openapi.yaml` remains unchanged; no schema/Neo4j/ontology/code change has been made.
 
 ## 4. Decision Requiring Change
 
@@ -101,13 +101,23 @@ If approved and later implemented: the extended `10-openapi.yaml` would need to 
 
 ## 18. Approval / Disposition
 
-**Pending Approval.** No disposition recorded. Per the governing instruction for this pass, approval is not inferred by this document's existence, completeness, or internal consistency — it requires an explicit act by the designated governance authority (Architecture Review Board / project sponsor, per ACR-001/002/003 precedent).
+**Approved** — Architecture Review Board (project sponsor), 2026-08-11, recorded in chat. Scope approved: additive extension of `10-openapi.yaml` per §7–§9 (`Investigation`/`InvestigationInput` schema, `/incidents/{id}/investigation`, `/incidents/{id}/hazards`, `/incidents/{id}/evidence`), drafted against ADR-003.
 
-## Outcome Paths (for the approving authority's reference)
+**Not resolved by this approval:** §14 alternative (b) — the `incident_hazards`/`REVEALS` shape (bare reference list vs. first-class `IncidentHazard` object) was flagged in this ACR as an open design question for the approving authority; the chat approval did not address it specifically. It remains open and should be settled explicitly — either now or at the point `10-openapi.yaml` is actually edited — not defaulted silently to either option.
 
-- **Approve** → `10-openapi.yaml` may be additively extended per §7–§9 in a subsequent, separately-tracked action; §9's open design question (list-schema vs. first-class `IncidentHazard` object) should be settled as part of that approval, not left implicit.
-- **Reject** → Investigation, hazard-linking, and incident-scoped Evidence remain without API representation; any Incident implementation proceeds on the Incident/Action-CRUD-only boundary (3A §14) until this ACR is revisited.
-- **Defer** → Same practical effect as Reject in the near term; distinguished only by an explicit intent to revisit, e.g. alongside a future Incident implementation-scope document.
+**Approval of this ACR is a Design Baseline governance act only.** It does not, by itself:
+- Edit `10-openapi.yaml` — unchanged, still exactly as it stood before this ACR.
+- Authorize implementation of the endpoints/schemas described in §7–§9.
+- Authorize any code, schema, Neo4j, or ontology change.
+- Resolve D3, D5, or D6.
+
+A separate, explicit GO is required before `10-openapi.yaml` is edited or any implementation begins.
+
+## Outcome Paths
+
+- **Approve** *(this path taken, 2026-08-11)* → `10-openapi.yaml` **may** be additively extended per §7–§9 in a subsequent, separately-authorized action; §9/§14(b)'s open design question must be settled as part of that action, not left implicit.
+- **Reject** → not taken.
+- **Defer** → not taken.
 
 ---
 
