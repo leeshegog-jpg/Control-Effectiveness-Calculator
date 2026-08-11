@@ -93,29 +93,28 @@ If this ACR is rejected or left indefinitely pending: any future Incident implem
 
 ## 16. Validation Requirements
 
-If approved and later implemented: the extended `10-openapi.yaml` would need to pass the existing `openapi-validation` CI job (confirmed present and green throughout this PR's history) plus, per repository convention ([02-development-standards.md](../docs/implementation-blueprint/02-development-standards.md)), `scripts/validate_openapi.py`. No new validation tooling is proposed by this ACR. Any implementation would additionally need `configure_mappers()`/SQLAlchemy model parity checks per the established Milestone 0–2 quality-gate pattern — not performed here, as no code is written by this ACR.
+The extended `10-openapi.yaml` was validated with `scripts/validate_openapi.py` before commit: **`OK: 68 paths, 78 schemas, 0 dangling $refs.`** (exit 0). The diff was confirmed strictly additive before commit: 88 insertions, 1 deletion — the sole deletion is the `version: 0.2.0-draft` line, replaced by `0.3.0-draft` per the file's own MINOR-bump convention ([02-development-standards.md](../docs/implementation-blueprint/02-development-standards.md) §2). No existing path, schema, or field was altered or removed. The `openapi-validation` CI job runs this same check on every PR push. No new validation tooling was introduced. `configure_mappers()`/SQLAlchemy model parity checks do not apply — no application code or ORM model was written by this ACR's implementation; only the contract document changed.
 
 ## 17. Implementation Boundary
 
-**This ACR authorizes nothing to be built.** If approved, the boundary it would open is: `10-openapi.yaml` may then be edited (in a separate, subsequent action) to add the schema objects and endpoints in §7–§9, following the exact shapes recorded here or a revision of them made during approval. Approval of this ACR is **not** approval of an implementation GO for the Incident domain generally — D3, D5, D6 remain independently gating whatever a future Incident implementation scope document defines, per [19](../docs/implementation-blueprint/19-r1-milestone-3b-incident-decision-register.md) §7's standing implementation-implications note.
+**Implemented, scoped exactly to §7–§9 — nothing beyond.** `10-openapi.yaml` was additively extended: `Investigation`/`InvestigationInput` schema objects; `/incidents/{id}/investigation` (GET/POST/PATCH); `/incidents/{id}/hazards` (GET/POST) + `/incidents/{id}/hazards/{hazardId}` (DELETE), per Option A (§18); `/incidents/{id}/evidence` (GET/POST), reusing the existing `Evidence`/`EvidenceInput` schema unchanged. This is a **contract-only** implementation — no application code (routers, services, repositories, SQLAlchemy models) was written; the R0 placeholder stubs for the Incident domain (`apps/api/app/{dto,routers,repositories,services}/incidents*`) are unchanged. D3, D5, D6 remain independently gating whatever a future Incident *application* implementation scope defines, per [19](../docs/implementation-blueprint/19-r1-milestone-3b-incident-decision-register.md) §7.
 
 ## 18. Approval / Disposition
 
-**Approved** — Architecture Review Board (project sponsor), 2026-08-11, recorded in chat. Scope approved: additive extension of `10-openapi.yaml` per §7–§9 (`Investigation`/`InvestigationInput` schema, `/incidents/{id}/investigation`, `/incidents/{id}/hazards`, `/incidents/{id}/evidence`), drafted against ADR-003.
+**Approved** — Architecture Review Board (project sponsor), 2026-08-11, recorded in chat. Scope approved: additive extension of `10-openapi.yaml` per §7–§9, drafted against ADR-003.
 
-**Not resolved by this approval:** §14 alternative (b) — the `incident_hazards`/`REVEALS` shape (bare reference list vs. first-class `IncidentHazard` object) was flagged in this ACR as an open design question for the approving authority; the chat approval did not address it specifically. It remains open and should be settled explicitly — either now or at the point `10-openapi.yaml` is actually edited — not defaulted silently to either option.
+**§14 alternative (b) — resolved in a follow-up chat exchange, 2026-08-11:** the approving authority explicitly required this open item be settled before implementation rather than defaulted. Presented with Options A (bare reference/list) and B (first-class `IncidentHazard` resource); **Option A chosen** — `safety.incident_hazards` has no columns beyond its `incident_id`/`hazard_id` composite key (`03-postgresql-schema.sql:542-546`), so a first-class resource schema would have nothing to carry without inventing fields the frozen table doesn't have, or reopening a schema change (out of this ACR's boundary). No existing join table anywhere in the frozen contract is exposed as a first-class resource (`action_controls`/`REMEDIATES` has zero API representation at all) — no precedent supported B. §7–§9 above reflect Option A as implemented.
 
-**Approval of this ACR is a Design Baseline governance act only.** It does not, by itself:
-- Edit `10-openapi.yaml` — unchanged, still exactly as it stood before this ACR.
-- Authorize implementation of the endpoints/schemas described in §7–§9.
-- Authorize any code, schema, Neo4j, or ontology change.
+**Approval + Option A resolution together authorized the `10-openapi.yaml` edit performed under this ACR.** This remains a Design Baseline governance act plus its directly-scoped contract edit — it does not, by itself:
+- Authorize implementation of application code (routers/services/repositories/models) against the new endpoints.
+- Authorize any Postgres schema, Neo4j, or ontology change.
 - Resolve D3, D5, or D6.
 
-A separate, explicit GO is required before `10-openapi.yaml` is edited or any implementation begins.
+A separate, explicit GO is required before any application-code implementation begins against this extended contract.
 
 ## Outcome Paths
 
-- **Approve** *(this path taken, 2026-08-11)* → `10-openapi.yaml` **may** be additively extended per §7–§9 in a subsequent, separately-authorized action; §9/§14(b)'s open design question must be settled as part of that action, not left implicit.
+- **Approve** *(this path taken, 2026-08-11)* → `10-openapi.yaml` additively extended per §7–§9, Option A resolved for the hazard-link shape, implemented and validated (§16, §17). **Done.**
 - **Reject** → not taken.
 - **Defer** → not taken.
 

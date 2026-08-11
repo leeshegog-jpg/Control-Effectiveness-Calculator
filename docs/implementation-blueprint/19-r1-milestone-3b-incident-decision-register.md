@@ -105,7 +105,7 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | Recommendation | **RECOMMENDATION — NOT DECISION:** (a), pursued via ACR. |
 | Governance route | **ACR** — resolved at 3A Review: OpenAPI is a controlled Design Baseline artefact ([02-development-standards.md](02-development-standards.md) §7); additive-only and low-risk does not exempt a change to it from the ACR process. |
 | Decision authority | Architecture Review Board (ACR-001/002/003 precedent). |
-| Status | **Approved (2026-08-11)** — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), raised 2026-08-09, approved by the governance authority 2026-08-11. Approval is not implementation authorization — `10-openapi.yaml` remains unchanged; a separate GO is required before it is edited (ACR-004 §17–§18). |
+| Status | **Approved (2026-08-11) and implemented, contract only** — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), raised 2026-08-09, approved 2026-08-11, `10-openapi.yaml` additively extended and validated the same day (Option A for the hazard-link shape). Contract change only — no application code written; a separate GO is still required before any implementation against these endpoints (ACR-004 §17–§18). |
 | Traceability | 3A §4, §8, §12 D4; 3A Review disposition (3A §16). **Depends on D2** being recorded first — see §5 dependency matrix. |
 
 ### D5 — Five V1 fields with no schema home
@@ -203,12 +203,12 @@ This is stated for completeness, carried forward from 3A §14 — **it is not a 
 
 ## 8. Outstanding Governance Decisions
 
-- **D4** — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), drafted against ADR-003, raised 2026-08-09, **Approved 2026-08-11**. Investigation/hazard-linking/incident-Evidence remain unexposed — approval is a Design Baseline governance act only, not implementation authorization; `10-openapi.yaml` still needs a separate, explicit edit-and-implement GO. §14(b)'s open design question (bare list vs. first-class `IncidentHazard` object) is unresolved by this approval and must be settled before/at that point.
+- **D4** — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), drafted against ADR-003, raised 2026-08-09, **Approved and contract-implemented 2026-08-11**. Investigation/hazard-linking/incident-Evidence are now exposed in `10-openapi.yaml` (v0.3.0-draft, validated: 0 dangling `$ref`s, strictly additive diff). §14(b) resolved same day: **Option A** (bare reference list) chosen for the hazard-link shape — `incident_hazards` has no columns beyond its composite key, and no join table anywhere in the frozen contract is exposed as a first-class resource. Application-code implementation against these endpoints remains a separate, not-yet-authorized gate.
 - **D3, D5** still require an ADR to be written to formally record their recommended (not yet approved) positions. Neither written by this document.
 - **D6** requires explicit Compliance/Legal-informed scope determination — genuinely unresolved, no recommendation offered. Its D7 dependency is now satisfied, so D6 may be taken up next, but nothing about it has been decided by that.
 - ~~D7~~ — **Resolved.** Governance authority accepted this register as the evidentiary sign-off record, 2026-08-09.
 - ~~D2~~ — **Resolved.** [ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), Accepted 2026-08-09.
-- Remaining open: **D3, D5, D6** (no instrument raised yet). D1, D2, D4 ([ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), Approved), D7 closed. D4's approval does not authorize touching `10-openapi.yaml` — that remains a separate gate.
+- Remaining open: **D3, D5, D6** (no instrument raised yet). D1, D2, D4 ([ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), Approved + contract-implemented), D7 closed. D4's approval and contract implementation still do not authorize any application-code implementation — that remains a separate gate.
 
 ---
 
