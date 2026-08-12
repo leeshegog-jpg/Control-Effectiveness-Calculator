@@ -25,6 +25,7 @@ This document set answers "how do we build what Design Baseline v1.1 specifies" 
 | 17 | [R1 Milestone 2A — CCM Discovery & Reconciliation](17-r1-milestone-2-ccm-discovery-reconciliation.md) — research-only pass; confirms Control/Support/Verification classification model against V1/schema/OpenAPI, surfaces decision points before CCM implementation |
 | 18 | [R1 Milestone 3A — Incident Discovery & Reconciliation](18-r1-milestone-3a-incident-discovery-reconciliation.md) — research-only pass; confirms Incident/Investigation/Action is a sibling structure (not a chain) against V1/schema/OpenAPI/Neo4j, surfaces decision points — including a frozen-OpenAPI-surface gap — before Incident implementation |
 | 19 | [R1 Milestone 3B — Incident Decision Register (D1–D7)](19-r1-milestone-3b-incident-decision-register.md) — governance-methodology pass; routes each of IB18's decision points to ACR/ADR/No Change/Defer with evidence and a marked recommendation, maps cross-decision dependencies, raises nothing itself |
+| 20 | [R1 Milestone 3C — D6 Notification-Rule Scope: Discovery & Evidence Matrix](20-r1-milestone-3c-d6-notification-evidence-matrix.md) — discovery-only pass; cited evidence matrix for D6 (R10 notification-rule scope), reads WHS Act/Regulation primary text in full, surfaces that "OSR" is undefined anywhere in the controlled document set — no recommendation offered, hands Compliance/Legal a specific evidence matrix rather than an open question |
 
 ## Reading order
 
