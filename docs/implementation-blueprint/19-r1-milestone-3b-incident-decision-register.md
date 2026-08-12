@@ -108,20 +108,23 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | Status | **Approved (2026-08-11) and implemented, contract only** — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), raised 2026-08-09, approved 2026-08-11, `10-openapi.yaml` additively extended and validated the same day (Option A for the hazard-link shape). Contract change only — no application code written; a separate GO is still required before any implementation against these endpoints (ACR-004 §17–§18). |
 | Traceability | 3A §4, §8, §12 D4; 3A Review disposition (3A §16). **Depends on D2** being recorded first — see §5 dependency matrix. |
 
-### D5 — Five V1 fields with no schema home
+### D5 — Six orphan V1 fields (corrected from "five" — see below), per-field disposition
+
+**Correction:** [18](18-r1-milestone-3a-incident-discovery-reconciliation.md) §1/§11/§12 and this document originally labeled this "Five V1 fields," though every cited evidence row and 18's own §10 text ("none of the six match any existing column") always listed six. [ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md) reconciles all six individually rather than perpetuating the mismatched count.
 
 | Field | Value |
 |---|---|
 | Finding | 3A §10, §11 item 5, §12 D5 |
-| Evidence | V1 `incident-report.html` fields: `fLessons` (line 109, Lessons Learned), `fInvDate` (line 108, investigation completion date), `fStaffPresent` (line 95), `fPersonStatus` (line 96), `fReporterRole` (line 99), `fOtherNotes` (line 100). Exhaustive column listing of `safety.incidents` (`03:515-537`) and `safety.investigations` (`03:548-558`) — none of the six match any existing column. |
-| Issue | Whether these V1 fields should be silently dropped, folded into an existing free-text field, or given new columns. |
-| Options | (a) Don't port — documented, deliberate non-port; (b) add new columns. |
-| Impact | **Baseline:** (b) would modify `03-postgresql-schema.sql`, a Design Baseline artefact. **(a):** no baseline impact, but leaves a documented data-fidelity gap relative to full V1 field parity — must stay documented, not silently accepted as complete parity. |
-| Recommendation | **RECOMMENDATION — NOT DECISION:** (a), mirroring the CCM Milestone 2A D4/D5 precedent of deferring rather than silently adding columns ahead of the milestone that needs them. |
-| Governance route | **ADR** to record the deliberate non-port under (a) — no baseline change. **ACR required only if (b) is ever pursued.** |
-| Decision authority | Implementation governance for (a); Architecture Review Board only if (b) is ever raised. |
-| Status | **Pending.** |
-| Traceability | 3A §10, §11, §12 D5. |
+| Evidence | V1 `incident-report.html` fields: `fLessons` (line 109, Lessons Learned), `fInvDate` (line 108, investigation completion date), `fStaffPresent` (line 95), `fPersonStatus` (line 96), `fReporterRole` (line 99), `fOtherNotes` (line 100). Exhaustive column listing of `safety.incidents` (`03:515-537`) and `safety.investigations` (`03:548-558`) — none of the six match any existing column *by that exact name*, but see per-field disposition below — one resolves through a linked entity. |
+| Issue | Whether each V1 field should be silently dropped, mapped to an existing canonical entity/property, or given a new column. |
+| Per-field disposition | **`fReporterRole`** — **represented through the existing model**, not a gap: `incidents.reporter_person_id` (`03:524`) → `safety.persons.role_title` (`03:114`, already an implemented SQLAlchemy column, `apps/api/app/models/safety.py:54`; already in `10-openapi.yaml` as `Person.role_title`). **`fStaffPresent`** — no canonical mapping (inherently a list of people, no join table exists); deferred. **`fPersonStatus`** — distinct V1 concept from `injuries` (V1 captures both separately); no canonical mapping; deferred. **`fOtherNotes`** — V1's own placeholder text marks it as non-duplicative of `witnesses`; no canonical mapping; deferred. **`fInvDate`** (investigation completion date) — checked specifically against ACR-004's now-implemented `Investigation` schema; that schema mirrors `safety.investigations`' existing columns exactly and has no completion-date column to expose; deferred. **`fLessons`** (Lessons Learned) — distinct in kind (forward/preventive) from `investigations.findings`/`.contributing_factors` (backward/causal); no canonical mapping; deferred. |
+| Options (for the five genuinely-deferred fields) | (a) Don't port — documented, deliberate non-port; (b) add new columns. |
+| Impact | **Baseline:** (b) would modify `03-postgresql-schema.sql`, a Design Baseline artefact. **(a):** no baseline impact for the five deferred fields; `fReporterRole` requires no schema change either — it already has a home. Deferring the five leaves a documented data-fidelity gap relative to full V1 field parity — stays documented, not silently accepted as complete parity. |
+| Recommendation | **RECOMMENDATION — NOT DECISION, now Accepted:** (a) for the five genuinely-orphan fields, mirroring the CCM Milestone 2A D4/D5 precedent; `fReporterRole` requires no non-port decision at all. |
+| Governance route | **ADR** — [ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md), Accepted 2026-08-12. No baseline change. **ACR required only if a new column is later pursued for one of the five deferred fields** — none is proposed by ADR-005. |
+| Decision authority | Implementation governance. |
+| Status | **Accepted (2026-08-12)** — [ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md). |
+| Traceability | 3A §10, §11, §12 D5. Resolved by [ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md), which also checked D4/ACR-004's implemented `Investigation` schema specifically for `fInvDate`/`fLessons` and found it did not change their disposition. |
 
 ### D6 — R10 (608B/OSR notification propagation rule) — in scope for the next implementation phase?
 
@@ -163,11 +166,11 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | D2 | — | Self-contained; evidenced directly from schema/graph/V1, no dependency on any other decision. **Resolved — [ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), Accepted 2026-08-09.** | Resolved first among the still-open items, as recommended |
 | D3 | — | Independent of every other decision — a separate ontology axis untouched by the OpenAPI/structural questions. **Resolved — [ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md), Accepted 2026-08-12.** | Resolved, no ordering constraint applied |
 | D4 | **D2** | The ACR for D4 should propose endpoint shapes consistent with the confirmed sibling structure (D2), not re-litigate Incident/Investigation/Action's shape mid-ACR. **D2 now recorded ([ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md)) — dependency satisfied.** | D4's ACR may now be drafted on D2's basis, once separately authorized — not authorized by this document |
-| D5 | — | Independent — concerns different columns/tables (`incidents`/`investigations` field-level parity) untouched by D2/D3/D4 | No ordering constraint |
+| D5 | — | Independent — concerns different columns/tables (`incidents`/`investigations` field-level parity) untouched by D2/D3/D4. **Resolved — [ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md), Accepted 2026-08-12** (its own field-level check against D4/ACR-004's `Investigation` schema found no interaction requiring reordering) | Resolved, no ordering constraint applied |
 | D6 | **D7** | D6's recommended-in-scope option (a) relies on `09 §6`/R10 as its evidentiary basis; implementing a statutory-notification-trigger rule against a document still nominally "DRAFT" carries more compliance risk than implementing against one whose Incident-domain content has been explicitly signed off. **D7 now accepted — dependency satisfied.** | D6 may now be taken up; still requires its own Compliance/Legal-informed resolution, not a default |
 | D7 | — | Self-contained procedural question about existing document status. **Resolved — accepted by governance authority, 2026-08-09.** | Resolved, unblocking D6 |
 
-**Recommended resolution order:** D1 (closed) → D7 (accepted) → D2 (**Accepted, ADR-003**) → D4 (**Approved + contract-implemented, ACR-004**) → D3 (**Accepted, ADR-004**) → D5 (next) → **D6** (after D7 — still open, last per explicit instruction). This is a recommended sequence for governance efficiency, not itself a decision or an instruction to proceed.
+**Recommended resolution order:** D1 (closed) → D7 (accepted) → D2 (**Accepted, ADR-003**) → D4 (**Approved + contract-implemented, ACR-004**) → D3 (**Accepted, ADR-004**) → D5 (**Accepted, ADR-005**) → **D6** (after D7 — still open, last per explicit instruction, only decision remaining). This is a recommended sequence for governance efficiency, not itself a decision or an instruction to proceed.
 
 ---
 
@@ -179,11 +182,11 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | D2 | ADR | Interpretation of an already-frozen structure; zero baseline edit — **[ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), Accepted 2026-08-09** |
 | D3 | ADR | Records a deferral; no baseline edit (columns already nullable/exist) — **[ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md), Accepted 2026-08-12** |
 | D4 | **ACR** | Modifies `10-openapi.yaml`, a named Design Baseline v1.1 artefact — additive-only does not exempt it |
-| D5 | ADR (for the recommended non-port option); ACR only if new columns are later pursued | Recommended option (a) touches no baseline artefact |
+| D5 | ADR (for the recommended non-port option); ACR only if new columns are later pursued | Recommended option (a) touches no baseline artefact — **[ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md), Accepted 2026-08-12; no ACR raised** |
 | D6 | ADR (once decided) | No baseline artefact change under either option; scope call only |
 | D7 | No formal ACR/ADR — this register serves as the evidentiary sign-off record | Procedural governance-status question, not a content change — **Accepted 2026-08-09** |
 
-**One ACR required to unblock any of D1–D7:** D4 — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), **Approved 2026-08-11**. **No ACR is required to proceed with D2 (now recorded), D3, D5, D6, or D7 (now accepted).**
+**One ACR required to unblock any of D1–D7:** D4 — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), **Approved 2026-08-11**. **No ACR was required or raised for D2, D3, or D5 — all resolved via ADR only.**
 
 ---
 
@@ -192,7 +195,7 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 None of D1–D7's *pending* status blocks basic Incident/Action CRUD as already specified in the frozen OpenAPI contract (3A §14) — this was true before this register and remains true after it; nothing in this pass changes that boundary. Specifically:
 
 - D3's ontology gap (now resolved, deferred per ADR-004) does not block Incident/Action CRUD (`incident_type`/`root_cause_category` are optional fields) — unchanged conclusion, now formally recorded rather than merely observed.
-- D5's field gap does not block CRUD (it's an omission, not a blocking requirement).
+- D5's field gaps (now resolved, five deferred per ADR-005; `fReporterRole` was never a gap) do not block CRUD — unchanged conclusion, now formally recorded.
 - D6's rule is service-layer logic layered on top of CRUD, not a precondition for it.
 - D2 (now recorded, ADR-003) and D7 (now accepted) governed internal structure and document status respectively, not API availability — their resolution changes nothing about the CRUD boundary either.
 - **D4 blocks only the Investigation / hazard-linking / incident-Evidence sub-resources specifically** — it does not block Incident or Action CRUD.
@@ -205,11 +208,11 @@ This is stated for completeness, carried forward from 3A §14 — **it is not a 
 
 - **D4** — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), drafted against ADR-003, raised 2026-08-09, **Approved and contract-implemented 2026-08-11**. Investigation/hazard-linking/incident-Evidence are now exposed in `10-openapi.yaml` (v0.3.0-draft, validated: 0 dangling `$ref`s, strictly additive diff). §14(b) resolved same day: **Option A** (bare reference list) chosen for the hazard-link shape — `incident_hazards` has no columns beyond its composite key, and no join table anywhere in the frozen contract is exposed as a first-class resource. Application-code implementation against these endpoints remains a separate, not-yet-authorized gate.
 - ~~D3~~ — **Resolved.** [ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md), Accepted 2026-08-12.
-- **D5** still requires an ADR to be written to formally record its recommended (not yet approved) position. Not written by this document.
+- ~~D5~~ — **Resolved.** [ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md), Accepted 2026-08-12.
 - **D6** requires explicit Compliance/Legal-informed scope determination — genuinely unresolved, no recommendation offered. Its D7 dependency is now satisfied, so D6 may be taken up next, but nothing about it has been decided by that.
 - ~~D7~~ — **Resolved.** Governance authority accepted this register as the evidentiary sign-off record, 2026-08-09.
 - ~~D2~~ — **Resolved.** [ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), Accepted 2026-08-09.
-- Remaining open: **D5, D6** (no instrument raised yet). D1, D2 ([ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md)), D3 ([ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md)), D4 ([ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), Approved + contract-implemented), D7 closed. None of D2/D3/D4's resolutions authorize any application-code implementation — that remains a separate gate.
+- Remaining open: **D6 only.** D1, D2 ([ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md)), D3 ([ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md)), D4 ([ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), Approved + contract-implemented), D5 ([ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md)), D7 closed. None of D2/D3/D4/D5's resolutions authorize any application-code implementation — that remains a separate gate, and D6 is explicitly held last per instruction, requiring Compliance/Legal input not resolvable by ADR alone.
 
 ---
 
