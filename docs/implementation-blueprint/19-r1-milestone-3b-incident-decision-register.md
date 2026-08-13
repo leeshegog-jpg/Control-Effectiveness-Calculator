@@ -135,11 +135,11 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | Issue | Whether implementing R10 belongs in the next Incident implementation scope, or is deferred — analogous to the standing "FARSI → Risk rating feedback loop" deferred item. |
 | Options | (a) Implement in the next Incident implementation scope (no schema/API/ontology change needed — service-layer logic only, over already-existing columns); (b) defer. |
 | Impact | **Baseline:** none either way. **Workflow:** determines whether automated `osr_notified` propagation exists in the first Incident release or remains a manually-set field until a later one. This concerns a **statutory notification trigger** (WHS Regulation s.608B(1)), not a pure engineering tradeoff. |
-| Recommendation | **No default recommended.** 3A left this genuinely open; this milestone does not manufacture a recommendation where none was evidenced — the scope call belongs with whoever holds compliance authority for notifiable-incident determinations, not with implementation governance alone. |
-| Governance route | **ADR**, whichever way it's decided, to record the scope call once made. |
-| Decision authority | Compliance/Legal input recommended alongside implementation governance, given the regulatory nature (consistent with `09`'s own citation discipline) — flagged here, not resolved. |
-| Status | **Pending.** **Depends on D7** — see §5 dependency matrix. |
-| Traceability | 3A §7, §12 D6. |
+| Recommendation | **No default recommended** on the substance. [20-r1-milestone-3c-d6-notification-evidence-matrix.md](20-r1-milestone-3c-d6-notification-evidence-matrix.md) (D6 discovery pass, 2026-08-12) built the evidence but likewise offered no recommendation. **Formally deferred instead** — [ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md). |
+| Governance route | **ADR** — [ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md), Accepted as a **defer** (not a substantive resolution), 2026-08-12. A further ADR (or ACR, if the eventual answer requires a schema/API/ontology change) will record the substantive resolution once Compliance/Legal responds to ADR-006 §6's 7-question referral. |
+| Decision authority | Compliance/Legal — formally referred, not yet answered. Implementation governance closed only the procedural/governance-status question (whether D6 sits as an open "Pending" or a recorded "Deferred"), not the substance. |
+| Status | **Deferred (2026-08-12)** — [ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md). Not Accepted/Approved — the substantive question remains genuinely open, referred externally. |
+| Traceability | 3A §7, §12 D6; [20-r1-milestone-3c-d6-notification-evidence-matrix.md](20-r1-milestone-3c-d6-notification-evidence-matrix.md) (evidence); [ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md) (formal defer + Compliance/Legal referral). |
 
 ### D7 — Governance status of `09 §6` / `07 R10` for the Incident domain
 
@@ -154,7 +154,7 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | Governance route | **No formal ACR/ADR instrument required** — recommend that this decision register, once reviewed and explicitly signed off, itself serves as the evidentiary sign-off record for `09 §6`/`07 R10`'s Incident-domain content, the same treatment CCM D6 proposed for `08`. |
 | Decision authority | Whoever holds sign-off authority over knowledge-graph document content generally (the same authority that reviewed 3A). |
 | Status | **Accepted (2026-08-09)** — governance authority confirmed this register serves as the evidentiary sign-off record for `09 §6`/`07 R10`'s Incident-domain content; option (b) treated as satisfied by that acceptance. |
-| Traceability | 3A §12 D7; CCM precedent `17-r1-milestone-2-ccm-discovery-reconciliation.md` §6f, §7 D6. **Blocks D6** — dependency now satisfied; D6 itself remains open — see §5. |
+| Traceability | 3A §12 D7; CCM precedent `17-r1-milestone-2-ccm-discovery-reconciliation.md` §6f, §7 D6. **Blocks D6** — dependency satisfied; D6 itself formally deferred via [ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md), substance still open — see §5. |
 
 ---
 
@@ -167,10 +167,10 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | D3 | — | Independent of every other decision — a separate ontology axis untouched by the OpenAPI/structural questions. **Resolved — [ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md), Accepted 2026-08-12.** | Resolved, no ordering constraint applied |
 | D4 | **D2** | The ACR for D4 should propose endpoint shapes consistent with the confirmed sibling structure (D2), not re-litigate Incident/Investigation/Action's shape mid-ACR. **D2 now recorded ([ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md)) — dependency satisfied.** | D4's ACR may now be drafted on D2's basis, once separately authorized — not authorized by this document |
 | D5 | — | Independent — concerns different columns/tables (`incidents`/`investigations` field-level parity) untouched by D2/D3/D4. **Resolved — [ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md), Accepted 2026-08-12** (its own field-level check against D4/ACR-004's `Investigation` schema found no interaction requiring reordering) | Resolved, no ordering constraint applied |
-| D6 | **D7** | D6's recommended-in-scope option (a) relies on `09 §6`/R10 as its evidentiary basis; implementing a statutory-notification-trigger rule against a document still nominally "DRAFT" carries more compliance risk than implementing against one whose Incident-domain content has been explicitly signed off. **D7 now accepted — dependency satisfied.** | D6 may now be taken up; still requires its own Compliance/Legal-informed resolution, not a default |
+| D6 | **D7** | D6's recommended-in-scope option (a) relies on `09 §6`/R10 as its evidentiary basis; implementing a statutory-notification-trigger rule against a document still nominally "DRAFT" carries more compliance risk than implementing against one whose Incident-domain content has been explicitly signed off. **D7 accepted — dependency satisfied. D6 itself resolved procedurally via formal defer, [ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md) — substance referred to Compliance/Legal, not decided.** | Closed (as a defer) |
 | D7 | — | Self-contained procedural question about existing document status. **Resolved — accepted by governance authority, 2026-08-09.** | Resolved, unblocking D6 |
 
-**Recommended resolution order:** D1 (closed) → D7 (accepted) → D2 (**Accepted, ADR-003**) → D4 (**Approved + contract-implemented, ACR-004**) → D3 (**Accepted, ADR-004**) → D5 (**Accepted, ADR-005**) → **D6** (after D7 — still open, last per explicit instruction, only decision remaining). This is a recommended sequence for governance efficiency, not itself a decision or an instruction to proceed.
+**Resolution order as executed:** D1 (closed) → D7 (accepted) → D2 (**Accepted, ADR-003**) → D4 (**Approved + contract-implemented, ACR-004**) → D3 (**Accepted, ADR-004**) → D5 (**Accepted, ADR-005**) → **D6** (**Deferred, ADR-006** — the only decision not substantively resolved; closed procedurally, referred to Compliance/Legal). **All seven decision points now have a recorded disposition.**
 
 ---
 
@@ -183,7 +183,7 @@ Status values used: **Pending** (recommendation recorded, no governance authorit
 | D3 | ADR | Records a deferral; no baseline edit (columns already nullable/exist) — **[ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md), Accepted 2026-08-12** |
 | D4 | **ACR** | Modifies `10-openapi.yaml`, a named Design Baseline v1.1 artefact — additive-only does not exempt it |
 | D5 | ADR (for the recommended non-port option); ACR only if new columns are later pursued | Recommended option (a) touches no baseline artefact — **[ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md), Accepted 2026-08-12; no ACR raised** |
-| D6 | ADR (once decided) | No baseline artefact change under either option; scope call only |
+| D6 | ADR — **[ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md), Accepted as a defer, 2026-08-12** | No baseline artefact change; substance not decided, formally referred to Compliance/Legal (7-question query attached) |
 | D7 | No formal ACR/ADR — this register serves as the evidentiary sign-off record | Procedural governance-status question, not a content change — **Accepted 2026-08-09** |
 
 **One ACR required to unblock any of D1–D7:** D4 — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), **Approved 2026-08-11**. **No ACR was required or raised for D2, D3, or D5 — all resolved via ADR only.**
@@ -196,7 +196,7 @@ None of D1–D7's *pending* status blocks basic Incident/Action CRUD as already 
 
 - D3's ontology gap (now resolved, deferred per ADR-004) does not block Incident/Action CRUD (`incident_type`/`root_cause_category` are optional fields) — unchanged conclusion, now formally recorded rather than merely observed.
 - D5's field gaps (now resolved, five deferred per ADR-005; `fReporterRole` was never a gap) do not block CRUD — unchanged conclusion, now formally recorded.
-- D6's rule is service-layer logic layered on top of CRUD, not a precondition for it.
+- D6's rule (now formally deferred, ADR-006) is service-layer logic layered on top of CRUD, not a precondition for it — Investigation, hazard-linking, and incident-Evidence (all ACR-004) proceed unaffected; only automated notification-propagation logic is blocked.
 - D2 (now recorded, ADR-003) and D7 (now accepted) governed internal structure and document status respectively, not API availability — their resolution changes nothing about the CRUD boundary either.
 - **D4 blocks only the Investigation / hazard-linking / incident-Evidence sub-resources specifically** — it does not block Incident or Action CRUD.
 
@@ -209,10 +209,10 @@ This is stated for completeness, carried forward from 3A §14 — **it is not a 
 - **D4** — [ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), drafted against ADR-003, raised 2026-08-09, **Approved and contract-implemented 2026-08-11**. Investigation/hazard-linking/incident-Evidence are now exposed in `10-openapi.yaml` (v0.3.0-draft, validated: 0 dangling `$ref`s, strictly additive diff). §14(b) resolved same day: **Option A** (bare reference list) chosen for the hazard-link shape — `incident_hazards` has no columns beyond its composite key, and no join table anywhere in the frozen contract is exposed as a first-class resource. Application-code implementation against these endpoints remains a separate, not-yet-authorized gate.
 - ~~D3~~ — **Resolved.** [ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md), Accepted 2026-08-12.
 - ~~D5~~ — **Resolved.** [ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md), Accepted 2026-08-12.
-- **D6** requires explicit Compliance/Legal-informed scope determination — genuinely unresolved, no recommendation offered. Its D7 dependency is now satisfied, so D6 may be taken up next, but nothing about it has been decided by that.
+- ~~D6~~ — **Deferred (procedural closure, substance open).** [ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md), 2026-08-12. "OSR" meaning and `whsq_notified`/R10 reportability scope formally referred to Compliance/Legal (7-question query, ADR-006 §6) — no scope determination made or implied. R10 stays exactly as specified (`osr_notified` only); no notification logic implemented for either field.
 - ~~D7~~ — **Resolved.** Governance authority accepted this register as the evidentiary sign-off record, 2026-08-09.
 - ~~D2~~ — **Resolved.** [ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md), Accepted 2026-08-09.
-- Remaining open: **D6 only.** D1, D2 ([ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md)), D3 ([ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md)), D4 ([ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), Approved + contract-implemented), D5 ([ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md)), D7 closed. None of D2/D3/D4/D5's resolutions authorize any application-code implementation — that remains a separate gate, and D6 is explicitly held last per instruction, requiring Compliance/Legal input not resolvable by ADR alone.
+- **All seven decision points now have a recorded governance disposition.** D1 (evidence-resolved), D2 ([ADR-003](../../.adr/ADR-003-incident-investigation-action-sibling-structure.md)), D3 ([ADR-004](../../.adr/ADR-004-incident-ontology-scheme-deferral.md)), D4 ([ACR-004](../../.acr/ACR-004-incident-openapi-extension.md), Approved + contract-implemented), D5 ([ADR-005](../../.adr/ADR-005-incident-orphan-v1-fields-disposition.md)), D6 ([ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md), formally deferred), D7 (accepted). **D6's substance remains open** — externally referred, not decided here. None of D2–D5's resolutions authorize any application-code implementation — that remains a separate gate.
 
 ---
 
@@ -239,7 +239,7 @@ This is stated for completeness, carried forward from 3A §14 — **it is not a 
 | §4 D3 | 3A §6, §12 D3 |
 | §4 D4 | 3A §4, §8, §12 D4; 3A §16 (Review correction) |
 | §4 D5 | 3A §10, §11 item 5, §12 D5 |
-| §4 D6 | 3A §7, §12 D6 |
+| §4 D6 | 3A §7, §12 D6; [20-r1-milestone-3c-d6-notification-evidence-matrix.md](20-r1-milestone-3c-d6-notification-evidence-matrix.md); [ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md) |
 | §4 D7 | 3A §12 D7 |
 | §5 | Not present in 3A — new analysis performed at 3B per the GO's explicit "check for dependencies" requirement |
 | §6 | Consolidates 3A §15 and the 3A §16 correction into a single routing table |
