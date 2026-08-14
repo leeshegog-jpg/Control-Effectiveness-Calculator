@@ -95,13 +95,20 @@ If approved and implemented: `scripts/validate_openapi.py` must pass (0 dangling
 
 ## 18. Approval / Disposition
 
-**Pending Approval.** No disposition recorded. Approval is not inferred by this document's existence or internal consistency — it requires an explicit act by the designated governance authority, per ACR-001/002/003/004 precedent.
+**Approved** — Architecture Review Board (project sponsor), recorded in chat, 2026-08-12. Scope approved: §7's four additive changes (new `incidents.is_notifiable_incident` column, its OpenAPI and Neo4j representations, and new rule R23 in `07-inference-rules-catalogue.md`, R10 itself untouched).
+
+**Approval of this ACR is a Design Baseline governance act only.** It does not, by itself:
+- Edit `03-postgresql-schema.sql`, `10-openapi.yaml`, `02-neo4j-node-relationship-model.md`, or `07-inference-rules-catalogue.md` — all remain exactly as they stood before this ACR.
+- Authorize implementation of R23's propagation logic in application code, or any UI/form change.
+- Resolve `osr_notified`/"OSR" (`TO_BE_CONFIRMED`, [ADR-006](../.adr/ADR-006-incident-notification-rule-formal-defer.md) §11) — explicitly out of scope, untouched.
+
+A separate, explicit GO is required before the four artefacts in §5 are actually edited.
 
 ## Outcome Paths
 
-- **Approve** → §7's four changes may be additively made in a subsequent, separately-authorized action (schema migration, OpenAPI field, Neo4j property, R23 text).
-- **Reject** → `whsq_notified` remains fully manual; D6's scope determination (ADR-006 §9) stands recorded but unimplemented; may be revisited later without re-litigating the underlying determination.
-- **Defer** → same practical effect as Reject, distinguished by an explicit intent to revisit alongside a future Incident implementation-scope milestone.
+- **Approve** *(this path taken, 2026-08-12)* → §7's four changes **may** be additively made in a subsequent, separately-authorized action (schema migration, OpenAPI field, Neo4j property, R23 text). Not yet made.
+- **Reject** → not taken.
+- **Defer** → not taken.
 
 ---
 
