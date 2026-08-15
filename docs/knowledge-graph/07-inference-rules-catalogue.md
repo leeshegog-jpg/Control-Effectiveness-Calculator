@@ -163,6 +163,12 @@ WHERE currency_expiry_date < current_date AND status = 'current';
 **Output:** staleness flag.
 **Surfaces:** Management of Change / Safety Demonstration (Emergency Planning), Executive Dashboard.
 
+### R23 — WHS Act s.38 / General Notifiable-Incident Propagation (Design Baseline v1.1 amendment — ACR-005, approved 2026-08-12)
+**Trigger:** `Incident.is_notifiable_incident = true`.
+**Logic:** propagates a "notification assessment required" state onto `Incident.whsq_notified` (defaults it out of `'Not yet assessed'` rather than leaving it unset), per [ADR-006](../../.adr/ADR-006-incident-notification-rule-formal-defer.md) §9 — mirrors R10's structure exactly, applied to the sibling field. R10 itself is unchanged; this is a separate, parallel rule, not a modification of it.
+**Output:** notification-assessment-required flag on `whsq_notified`.
+**Surfaces:** Incident module. Responsible notifier: Safety Systems Manager (ADR-006 §9). Timeframe: 48 hours (ADR-006 §9, consistent with WHS Act s.38(2) "fastest possible means"). Evidence retention: 10 years (ADR-006 §9 — exceeds WHS Act s.38(7)'s 5-year minimum; the longer VRTP-determined period governs).
+
 ## 3. Rule Governance
 
 New inference rules follow the same approval gate as relationship types ([06](06-relationship-rules-catalogue.md) §6) — a rule is documented here, reviewed, and approved before it runs against production data, particularly for anything that could auto-populate a field a regulator might later rely on (R1, R2 explicitly excluded from auto-write on critical-rated risks, per R2's note).

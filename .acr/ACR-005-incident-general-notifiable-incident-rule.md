@@ -87,26 +87,25 @@ If this ACR is rejected or left pending: `whsq_notified` remains entirely unauto
 
 ## 16. Validation Requirements
 
-If approved and implemented: `scripts/validate_openapi.py` must pass (0 dangling `$ref`s) after the `IncidentInput` extension, same as ACR-004's validation. `configure_mappers()`/SQLAlchemy parity check applies once a model column is added (no model exists yet for `Incident` at all — greenfield, per [18](../docs/implementation-blueprint/18-r1-milestone-3a-incident-discovery-reconciliation.md) §9). No new CI job proposed.
+`scripts/validate_openapi.py` run after the `IncidentInput`/`Incident` extension: **`OK: 68 paths, 78 schemas, 0 dangling $refs.`** (exit 0), same clean result as ACR-004's. The diff across all four artefacts is additive only — no existing table, column, path, schema field, or Neo4j property was altered or removed; R10's text is byte-for-byte unchanged. `configure_mappers()`/SQLAlchemy parity check does not apply — no `Incident` SQLAlchemy model exists yet (greenfield, per [18](../docs/implementation-blueprint/18-r1-milestone-3a-incident-discovery-reconciliation.md) §9); only the DDL source (`03-postgresql-schema.sql`) changed, not a runnable Alembic migration or ORM model. No new CI job introduced.
 
 ## 17. Implementation Boundary
 
-**This ACR authorizes nothing to be built.** If approved, it opens the boundary for a subsequent, separately-authorized action to: add the migration (§12), extend `IncidentInput`/`Incident` and the Neo4j `Incident` node property (§7), and add R23's text to `07-inference-rules-catalogue.md`. It does **not** authorize implementing R23's actual propagation logic in application code, nor any UI/form change to capture `is_notifiable_incident`. D3, D5 (both closed) do not gate this; D6's "OSR" residual item (ADR-006 §11) is explicitly out of this ACR's scope and remains separately open.
+**Implemented, scoped exactly to §7 — nothing beyond.** `03-postgresql-schema.sql` gained `ALTER TABLE safety.incidents ADD COLUMN is_notifiable_incident boolean NOT NULL DEFAULT false`. No separate Alembic migration file was needed or added: `database/postgres/migrations/versions/0001_initial_schema.py` executes `03-postgresql-schema.sql` verbatim at `alembic upgrade head` time rather than re-deriving it (see that file's own docstring — deliberate drift prevention), so this DDL edit is already picked up; §12's anticipated separate migration step turned out to be unnecessary given that design. `10-openapi.yaml` gained the `is_notifiable_incident` field on `IncidentInput`/`Incident` (version held at v0.3.0-draft — additive under the existing MINOR bump, no new bump needed). `02-neo4j-node-relationship-model.md` gained the corresponding `Incident` node property. `07-inference-rules-catalogue.md` gained **R23**, added after R22, worded exactly per §7 point 4 — **R10 was not touched**. This is a **schema/contract-only** implementation — no application code (routers, services, repositories, SQLAlchemy models) was written; the R0 placeholder stubs for the Incident domain remain unchanged; R23's actual propagation logic and any UI/form change to capture `is_notifiable_incident` remain unauthorized. D3, D5 (both closed) did not gate this; D6's "OSR" residual item (ADR-006 §11) remains explicitly out of scope and untouched.
 
 ## 18. Approval / Disposition
 
 **Approved** — Architecture Review Board (project sponsor), recorded in chat, 2026-08-12. Scope approved: §7's four additive changes (new `incidents.is_notifiable_incident` column, its OpenAPI and Neo4j representations, and new rule R23 in `07-inference-rules-catalogue.md`, R10 itself untouched).
 
-**Approval of this ACR is a Design Baseline governance act only.** It does not, by itself:
-- Edit `03-postgresql-schema.sql`, `10-openapi.yaml`, `02-neo4j-node-relationship-model.md`, or `07-inference-rules-catalogue.md` — all remain exactly as they stood before this ACR.
-- Authorize implementation of R23's propagation logic in application code, or any UI/form change.
-- Resolve `osr_notified`/"OSR" (`TO_BE_CONFIRMED`, [ADR-006](../.adr/ADR-006-incident-notification-rule-formal-defer.md) §11) — explicitly out of scope, untouched.
-
-A separate, explicit GO is required before the four artefacts in §5 are actually edited.
+**Incorporated — 2026-08-15**, on a separate, explicit chat GO bounding the exact six-item scope of §7 (the four artefacts) plus governance/index updates and validation, per the same approve-then-implement gate ACR-004 passed through. `03-postgresql-schema.sql`, `10-openapi.yaml`, `02-neo4j-node-relationship-model.md`, and `07-inference-rules-catalogue.md` are now extended per §16-§17. Still not done by this incorporation, per the same GO's explicit exclusions:
+- R23's propagation logic in application code, or any UI/form change.
+- `osr_notified`/"OSR" (`TO_BE_CONFIRMED`, [ADR-006](../.adr/ADR-006-incident-notification-rule-formal-defer.md) §11) — explicitly out of scope, untouched.
+- R10 — byte-for-byte unchanged.
+- Any broader Incident domain implementation, ontology change, or unrelated schema change.
 
 ## Outcome Paths
 
-- **Approve** *(this path taken, 2026-08-12)* → §7's four changes **may** be additively made in a subsequent, separately-authorized action (schema migration, OpenAPI field, Neo4j property, R23 text). Not yet made.
+- **Approve** *(this path taken, 2026-08-12)* → §7's four changes additively made in a subsequent, separately-authorized action (2026-08-15 — schema DDL, OpenAPI field, Neo4j property, R23 text). **Done** (§17).
 - **Reject** → not taken.
 - **Defer** → not taken.
 
