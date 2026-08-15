@@ -150,14 +150,10 @@ class Risk(Base):
     cause: Mapped[str | None] = mapped_column(Text)
     inherent_likelihood: Mapped[int | None] = mapped_column(SmallInteger)
     inherent_consequence: Mapped[int | None] = mapped_column(SmallInteger)
-    inherent_rating: Mapped[str | None] = mapped_column(
-        String(10)
-    )  # derived -- R1, service-set only
+    inherent_rating: Mapped[str | None] = mapped_column(String(10))  # derived -- R1, service-set only
     current_likelihood: Mapped[int | None] = mapped_column(SmallInteger)
     current_consequence: Mapped[int | None] = mapped_column(SmallInteger)
-    current_rating: Mapped[str | None] = mapped_column(
-        String(10)
-    )  # derived -- R1, service-set only
+    current_rating: Mapped[str | None] = mapped_column(String(10))  # derived -- R1, service-set only
     target_likelihood: Mapped[int | None] = mapped_column(SmallInteger)
     target_consequence: Mapped[int | None] = mapped_column(SmallInteger)
     sfarp_justification: Mapped[str | None] = mapped_column(Text)
@@ -190,9 +186,7 @@ class Control(Base):
     risk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("safety.risks.id"), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     control_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    hierarchy_concept_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("ontology.concepts.id")
-    )
+    hierarchy_concept_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ontology.concepts.id"))
     # Workflow-set only -- app/services/controls/rules.py:classify_from_gates.
     classification: Mapped[str | None] = mapped_column(String(20))
     gate_1: Mapped[bool | None] = mapped_column()
@@ -255,9 +249,7 @@ class PerformanceStandard(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    critical_control: Mapped["CriticalControl"] = relationship(
-        back_populates="performance_standards"
-    )
+    critical_control: Mapped["CriticalControl"] = relationship(back_populates="performance_standards")
     verification_activities: Mapped[list["VerificationActivity"]] = relationship(
         back_populates="performance_standard"
     )
@@ -277,16 +269,12 @@ class VerificationActivity(Base):
     frequency: Mapped[str | None] = mapped_column(String(30))
     due_date: Mapped[date | None] = mapped_column(Date)
     last_completed: Mapped[date | None] = mapped_column(Date)
-    performed_by_person_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("safety.persons.id")
-    )
+    performed_by_person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.persons.id"))
     result: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    performance_standard: Mapped["PerformanceStandard"] = relationship(
-        back_populates="verification_activities"
-    )
+    performance_standard: Mapped["PerformanceStandard"] = relationship(back_populates="verification_activities")
     evidence: Mapped[list["Evidence"]] = relationship(back_populates="verification_activity")
 
 
@@ -305,13 +293,59 @@ class Evidence(Base):
     # reasoning as ProvenanceRecord.document_id (Milestone 0).
     source_document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     uploaded_by_person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.persons.id"))
-    uploaded_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # Polymorphic pointer -- plain columns, not a FK to any single table.
     linked_entity_type: Mapped[str | None] = mapped_column(String(50))
     linked_entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
     verification_activity: Mapped["VerificationActivity | None"] = relationship(
         back_populates="evidence"
+    )
+
+
+class Incident(Base):
+    """R1 Milestone 3D-1 persistence mapping for the frozen safety.incidents table.
+
+    Persistence only. Incident business rules, DTOs, routers, Neo4j sync, and
+    notification propagation are deliberately outside 3D-1.
+    """
+
+    __tablename__ = "incidents"
+    __table_args__ = {"schema": "safety"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    report_date: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date())
+    incident_type_concept_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ontology.concepts.id")
+    )
+    severity: Mapped[int | None] = mapped_column(SmallInteger)
+    vrtp_severity: Mapped[str | None] = mapped_column(String(30))
+    location: Mapped[str | None] = mapped_column(String(300))
+    asset_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.assets.id"))
+    reporter_person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.persons.id"))
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    injuries: Mapped[str | None] = mapped_column(Text)
+    witnesses: Mapped[str | None] = mapped_column(Text)
+    immediate_actions: Mapped[str | None] = mapped_column(Text)
+    immediate_cause: Mapped[str | None] = mapped_column(Text)
+    root_cause: Mapped[str | None] = mapped_column(Text)
+    whsq_notified: Mapped[str] = mapped_column(
+        String(40), nullable=False, server_default=text("'Not yet assessed'")
+    )
+    osr_notified: Mapped[str] = mapped_column(
+        String(40), nullable=False, server_default=text("'Not applicable / under assessment'")
+    )
+    investigation_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=text("'Not Started'")
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=text("'Open'")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    is_notifiable_incident: Mapped[bool] = mapped_column(
+        nullable=False, server_default=text("false")
     )
