@@ -331,7 +331,9 @@ class Incident(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    report_date: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date())
+    report_date: Mapped[date] = mapped_column(
+        Date, nullable=False, server_default=func.current_date()
+    )
     incident_type_concept_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("ontology.concepts.id")
     )
