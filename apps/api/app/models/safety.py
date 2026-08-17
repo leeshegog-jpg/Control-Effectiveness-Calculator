@@ -23,6 +23,7 @@ remain unmapped -- out of this milestone's authorized scope.
 
 import uuid
 from datetime import date, datetime
+from datetime import datetime as PyDT  # avoids Incident.datetime column shadowing this type
 
 from sqlalchemy import (
     Date,
@@ -358,8 +359,8 @@ class Incident(Base):
         String(20), nullable=False, server_default=text("'Not Started'")
     )
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'Open'"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[PyDT] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[PyDT] = mapped_column(DateTime(timezone=True), server_default=func.now())
     is_notifiable_incident: Mapped[bool] = mapped_column(
         nullable=False, server_default=text("false")
     )
