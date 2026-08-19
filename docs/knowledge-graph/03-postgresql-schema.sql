@@ -771,6 +771,15 @@ CREATE TABLE safety.competency_evidence (   -- mirrors safety_argument_evidence 
 );
 
 -- =====================================================================================
+-- DESIGN BASELINE v1.1 AMENDMENT — General Notifiable-Incident Trigger Flag (ACR-005).
+-- Approved by Architecture Review Board, 2026-08-12. Full assessment: .acr/ACR-005-incident-
+-- general-notifiable-incident-rule.md. Mirrors the is_serious_risk pattern above (line 383):
+-- human-set determination, not auto-derived from vrtp_severity/severity (ACR-005 §14) — no
+-- confirmed legal equivalence between those internal scales and the WHS Act s.35/36/37 test.
+-- =====================================================================================
+ALTER TABLE safety.incidents ADD COLUMN is_notifiable_incident boolean NOT NULL DEFAULT false;
+
+-- =====================================================================================
 -- End of schema. Every table above maps 1:1 to a Neo4j node label in
 -- 02-neo4j-node-relationship-model.md; every *_concept_id / source_concept_id column
 -- is the FK enforcement point for "no free-text categories" (architecture §1.4 finding 1).

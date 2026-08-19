@@ -23,6 +23,7 @@ remain unmapped -- out of this milestone's authorized scope.
 
 import uuid
 from datetime import date, datetime
+from datetime import datetime as PyDT  # avoids Incident.datetime column shadowing this type
 
 from sqlalchemy import (
     Date,
@@ -314,4 +315,52 @@ class Evidence(Base):
 
     verification_activity: Mapped["VerificationActivity | None"] = relationship(
         back_populates="evidence"
+    )
+
+
+class Incident(Base):
+    """R1 Milestone 3D-1 persistence mapping for the frozen safety.incidents table.
+
+    Persistence only. Incident business rules, DTOs, routers, Neo4j sync, and
+    notification propagation are deliberately outside 3D-1.
+    """
+
+    __tablename__ = "incidents"
+    __table_args__ = {"schema": "safety"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    report_date: Mapped[date] = mapped_column(
+        Date, nullable=False, server_default=func.current_date()
+    )
+    incident_type_concept_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ontology.concepts.id")
+    )
+    severity: Mapped[int | None] = mapped_column(SmallInteger)
+    vrtp_severity: Mapped[str | None] = mapped_column(String(30))
+    location: Mapped[str | None] = mapped_column(String(300))
+    asset_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.assets.id"))
+    reporter_person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.persons.id"))
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    injuries: Mapped[str | None] = mapped_column(Text)
+    witnesses: Mapped[str | None] = mapped_column(Text)
+    immediate_actions: Mapped[str | None] = mapped_column(Text)
+    immediate_cause: Mapped[str | None] = mapped_column(Text)
+    root_cause: Mapped[str | None] = mapped_column(Text)
+    whsq_notified: Mapped[str] = mapped_column(
+        String(40), nullable=False, server_default=text("'Not yet assessed'")
+    )
+    osr_notified: Mapped[str] = mapped_column(
+        String(40), nullable=False, server_default=text("'Not applicable / under assessment'")
+    )
+    investigation_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=text("'Not Started'")
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'Open'"))
+    created_at: Mapped[PyDT] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[PyDT] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    is_notifiable_incident: Mapped[bool] = mapped_column(
+        nullable=False, server_default=text("false")
     )

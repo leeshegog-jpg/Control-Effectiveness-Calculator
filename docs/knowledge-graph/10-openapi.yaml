@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TP Risk Management SMS — Safety Knowledge Graph Platform API
-  version: 0.2.0-draft
+  version: 0.3.0-draft
   description: >
     DRAFT — controlled design document, requires approval before implementation.
     Backend REST surface for the Safety Knowledge Graph + AI Risk Intelligence Platform.
@@ -12,6 +12,11 @@ info:
     v0.2.0: Design Baseline v1.1 amendment — Emergency Planning (ACR-002) + Competency
     Management (ACR-003, supersedes ACR-001), approved 2026-08-04. Additive only —
     no removed/changed paths or schemas (02-development-standards.md §2 MINOR bump rule).
+    v0.3.0: ACR-004 (approved 2026-08-11) — Investigation (1:1, INVESTIGATED_AS),
+    incident-hazards linking (N:N, REVEALS, Option A bare-reference-list per ACR-004 §14),
+    and incident-scoped Evidence. Drafted against ADR-003 (Investigation and Action are
+    independent siblings of Incident, not a chain). Additive only — no removed/changed
+    paths or schemas.
 servers:
   - url: https://api.{environment}.vrtp-sms.example.net/v1
     variables:
@@ -559,6 +564,71 @@ paths:
           content:
             application/json:
               schema: { type: object, properties: { extraction_run_id: { type: string, format: uuid } } }
+
+  # ── ACR-004 (Approved 2026-08-11) — Investigation, hazard-linking, incident Evidence ──
+  # Drafted against ADR-003: Investigation and Action are independent siblings of
+  # Incident, not a chain. See 18-r1-milestone-3a-incident-discovery-reconciliation.md
+  # §5 and 19-r1-milestone-3b-incident-decision-register.md D4.
+  /incidents/{id}/investigation:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Incidents]
+      summary: Get the investigation for this incident (1:1 — INVESTIGATED_AS, ADR-003)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Investigation' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Incidents]
+      summary: Create the investigation for this incident
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/InvestigationInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Investigation' } } } }
+        '409': { description: "Investigation already exists for this incident (investigations.incident_id UNIQUE)" }
+    patch:
+      tags: [Incidents]
+      summary: Update the investigation for this incident
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/InvestigationInput' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Investigation' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /incidents/{id}/hazards:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Incidents, Hazards]
+      summary: List hazards this incident revealed (REVEALS, N:N — safety.incident_hazards)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Hazard' } } } } } }
+    post:
+      tags: [Incidents, Hazards]
+      summary: >
+        Link a hazard this incident revealed (ACR-004 Option A — bare reference,
+        no IncidentHazard schema; safety.incident_hazards has no columns beyond
+        the incident_id/hazard_id composite key)
+      requestBody: { content: { application/json: { schema: { type: object, required: [hazard_id], properties: { hazard_id: { type: string, format: uuid } } } } } }
+      responses:
+        '201': { description: Linked }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /incidents/{id}/hazards/{hazardId}:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+      - { name: hazardId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Incidents, Hazards]
+      summary: Unlink a hazard from this incident
+      responses:
+        '204': { description: Unlinked }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /incidents/{id}/evidence:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Evidence]
+      summary: List evidence attached to this incident (safety.evidence.linked_entity_type = 'incident')
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Evidence' } } } } } }
+    post:
+      tags: [Evidence]
+      summary: Attach evidence to this incident
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/EvidenceInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Evidence' } } } } }
+
   /actions:
     get:
       tags: [Actions]
@@ -1105,6 +1175,25 @@ components:
         osr_notified: { type: string, enum: ["Not applicable / under assessment", "Yes", "No - assessed not required", "No - under assessment"], description: "Chapter 9A — see 09-regulatory-knowledge-model.md §4" }
         investigation_status: { type: string, enum: [Not Started, In Progress, Complete] }
         status: { type: string, enum: [Open, Under Investigation, Closed] }
+        # ── ACR-005 (Approved 2026-08-12) ──────────────────────────────────────────────
+        is_notifiable_incident: { type: boolean, default: false, description: "WHS Act 2011 s.35 notifiable-incident determination (death / s.36 serious injury / s.37 dangerous incident) — operator-determined, see ADR-006 §9" }
+
+    # ── ACR-004 (Approved 2026-08-11) ──────────────────────────────────────────────────
+    Investigation:
+      allOf:
+        - $ref: '#/components/schemas/InvestigationInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            incident_id: { type: string, format: uuid, readOnly: true }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    InvestigationInput:
+      type: object
+      properties:
+        method: { type: string, description: "TO BE CONFIRMED — ICAM or VRTP-mandated equivalent (03-postgresql-schema.sql investigations.method; docs/knowledge-graph/README.md open item)" }
+        findings: { type: string }
+        contributing_factors: { type: string }
 
     Action:
       allOf:

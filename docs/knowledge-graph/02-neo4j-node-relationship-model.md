@@ -53,7 +53,7 @@ Ontology relationships: `(Concept)-[:IN_SCHEME]->(OntologyScheme)`, `(Concept)-[
 
 | Label | Key properties |
 |---|---|
-| `Incident` | `id`, `datetime`, `severity`, `vrtp_severity`, `location`, `description`, `immediate_cause`, `root_cause`, `whsq_notified`, `osr_notified`, `investigation_status` | `type → Concept` |
+| `Incident` | `id`, `datetime`, `severity`, `vrtp_severity`, `location`, `description`, `immediate_cause`, `root_cause`, `whsq_notified`, `osr_notified`, `is_notifiable_incident` (bool, ACR-005), `investigation_status` | `type → Concept` |
 | `Investigation` | `id`, `method`, `findings`, `contributing_factors` | *`method` — TO BE CONFIRMED: which methodology (ICAM or other) VRTP mandates* |
 | `Action` | `id`, `description`, `priority`, `assigned_to` (→ `Person`), `due_date`, `status`, `effectiveness_review` | `source_type → Concept`, `root_cause_category → Concept` |
 | `AuditFinding` | `id`, `severity`, `description` | |
