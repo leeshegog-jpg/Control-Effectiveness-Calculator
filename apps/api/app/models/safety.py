@@ -369,7 +369,7 @@ class Incident(Base):
 class IncidentHazard(Base):
     """Relational hazard-link (safety.incident_hazards) -- ACR-004 Option A:
     bare reference, no columns beyond the composite key. Neo4j REVEALS sync
-    is out of the current implementation slice's authorized scope.
+    is driven from this table's rows, not modelled as its own node.
     """
 
     __tablename__ = "incident_hazards"
@@ -379,3 +379,27 @@ class IncidentHazard(Base):
         ForeignKey("safety.incidents.id"), primary_key=True
     )
     hazard_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("safety.hazards.id"), primary_key=True)
+
+
+class Investigation(Base):
+    """Sibling of Incident (ADR-003) -- 1:1 via incident_id UNIQUE, not a
+    stage Incident "becomes". method is TO BE CONFIRMED (no V1 grounding,
+    no ICAM/methodology mandate identified) -- carried as a free-text
+    nullable column exactly as the frozen schema specifies, not resolved
+    here.
+    """
+
+    __tablename__ = "investigations"
+    __table_args__ = {"schema": "safety"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    incident_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("safety.incidents.id"), unique=True, nullable=False
+    )
+    method: Mapped[str | None] = mapped_column(String(50))
+    findings: Mapped[str | None] = mapped_column(Text)
+    contributing_factors: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -1,8 +1,10 @@
 """Incidents service -- CRUD + Neo4j sync (bare Incident node only) +
-relational hazard-link (safety.incident_hazards, ACR-004 Option A).
+relational hazard-link (safety.incident_hazards, ACR-004 Option A) with
+REVEALS graph sync driven off the relational rows.
 
-Investigation, Action, and Neo4j hazard-link (REVEALS) synchronisation are
-out of this slice's authorized scope -- see
+Investigation lives in services/investigations (ADR-003 sibling structure,
+not nested here). Action, Evidence wiring, and osr_notified logic remain
+out of scope -- see
 docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md.
 """
 
@@ -154,13 +156,22 @@ def list_incident_hazards(db: Session, incident_id: uuid.UUID) -> list[Hazard]:
     return incidents_repository.list_incident_hazards(db, incident_id)
 
 
-def link_incident_hazard(db: Session, incident_id: uuid.UUID, hazard_id: uuid.UUID) -> None:
-    """Relational link only -- no Neo4j REVEALS sync (out of this slice's scope)."""
+def link_incident_hazard(
+    db: Session, graph_driver: Driver, incident_id: uuid.UUID, hazard_id: uuid.UUID
+) -> None:
+    """Relational link (source of truth) + REVEALS sync -- incident_hazards
+    rows drive the graph edge, not the other way around.
+    """
     incidents_repository.link_incident_hazard(db, incident_id, hazard_id)
     db.commit()
+    sync_service.sync_incident_hazard_link(graph_driver, incident_id, hazard_id)
 
 
-def unlink_incident_hazard(db: Session, incident_id: uuid.UUID, hazard_id: uuid.UUID) -> bool:
+def unlink_incident_hazard(
+    db: Session, graph_driver: Driver, incident_id: uuid.UUID, hazard_id: uuid.UUID
+) -> bool:
     existed = incidents_repository.unlink_incident_hazard(db, incident_id, hazard_id)
     db.commit()
+    if existed:
+        sync_service.unsync_incident_hazard_link(graph_driver, incident_id, hazard_id)
     return existed

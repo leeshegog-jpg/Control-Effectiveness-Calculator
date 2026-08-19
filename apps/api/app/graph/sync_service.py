@@ -12,10 +12,14 @@ row still exists and the graph is simply stale until the next sync, never
 the other way around.
 
 sync_incident is a self-contained bare-node MERGE only (scalar properties,
-per 02 §3.3) -- REVEALS/INVESTIGATED_AS/TRIGGERS and any Incident->Asset or
-Incident->Person edge are deliberately out of scope for this slice (no
-relationship type for either FK exists anywhere in the frozen graph model;
-see docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md).
+per 02 §3.3) -- Incident->Asset and Incident->Person edges stay deliberately
+out of scope (no relationship type for either FK exists anywhere in the
+frozen graph model; see
+docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md).
+sync_investigation (INVESTIGATED_AS) and sync_incident_hazard_link/
+unsync_incident_hazard_link (REVEALS) were added for the "R1 Incident
+Management -- Investigation API & Hazard-Link Graph Sync" slice.
+Investigation/Action/TRIGGERS Action sync remain out of scope.
 """
 
 import uuid
@@ -29,6 +33,7 @@ from app.models.safety import (
     Evidence,
     Hazard,
     Incident,
+    Investigation,
     PerformanceStandard,
     Risk,
     VerificationActivity,
@@ -318,3 +323,63 @@ def get_incident_node(driver: Driver, incident_id: uuid.UUID) -> dict | None:
         )
         record = result.single()
         return dict(record) if record else None
+
+
+def sync_investigation(driver: Driver, investigation: Investigation) -> None:
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (i:Incident {pg_id: $incident_pg_id})
+            MERGE (v:Investigation {pg_id: $pg_id})
+            SET v.method = $method, v.findings = $findings,
+                v.contributing_factors = $contributing_factors
+            MERGE (i)-[:INVESTIGATED_AS]->(v)
+            """,
+            pg_id=str(investigation.id),
+            incident_pg_id=str(investigation.incident_id),
+            method=investigation.method,
+            findings=investigation.findings,
+            contributing_factors=investigation.contributing_factors,
+        )
+
+
+def get_investigation_node(driver: Driver, incident_id: uuid.UUID) -> dict | None:
+    with driver.session() as session:
+        result = session.run(
+            "MATCH (:Incident {pg_id: $incident_pg_id})-[:INVESTIGATED_AS]->(v:Investigation) "
+            "RETURN v.pg_id AS pg_id, v.method AS method",
+            incident_pg_id=str(incident_id),
+        )
+        record = result.single()
+        return dict(record) if record else None
+
+
+def sync_incident_hazard_link(driver: Driver, incident_id: uuid.UUID, hazard_id: uuid.UUID) -> None:
+    """REVEALS -- both endpoint nodes are expected to already exist (sync_incident/
+    sync_hazard); this MATCHes rather than MERGEs either node to avoid creating a
+    partial node from a stale/missing sync.
+    """
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (i:Incident {pg_id: $incident_pg_id})
+            MATCH (h:Hazard {pg_id: $hazard_pg_id})
+            MERGE (i)-[:REVEALS]->(h)
+            """,
+            incident_pg_id=str(incident_id),
+            hazard_pg_id=str(hazard_id),
+        )
+
+
+def unsync_incident_hazard_link(
+    driver: Driver, incident_id: uuid.UUID, hazard_id: uuid.UUID
+) -> None:
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (:Incident {pg_id: $incident_pg_id})-[r:REVEALS]->(:Hazard {pg_id: $hazard_pg_id})
+            DELETE r
+            """,
+            incident_pg_id=str(incident_id),
+            hazard_pg_id=str(hazard_id),
+        )
