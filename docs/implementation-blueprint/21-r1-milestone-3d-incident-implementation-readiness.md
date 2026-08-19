@@ -1,6 +1,6 @@
 # R1 Milestone 3D — Incident Implementation Readiness & Scope
 
-**Status:** Draft — research/reconciliation only. **This document authorizes nothing to be built.** It converts the now-frozen Incident domain baseline (3A/3B/3C, ADR-003/004/005/006, ACR-004/005) into a bounded implementation plan, and proposes a slice structure for future GOs. Written 2026-08-15, PR #18, HEAD `1b3c2d2`.
+**Status:** Readiness section (§1-§11) is the original research/reconciliation pass — authorizes nothing to be built. Written 2026-08-15, PR #18, HEAD `1b3c2d2`. **Addendum, 2026-08-19: 3D-1 (§7) has since been GO'd, implemented, and closed — see §12.** The readiness content below is left as originally written; §12 records what actually happened.
 
 ## 1. Purpose
 
@@ -82,7 +82,7 @@ Refining the proposed breakdown against what's actually verified above:
 
 | Slice | Scope | Depends on | Notes |
 |---|---|---|---|
-| **3D-1** | `Incident` ORM model, repository, base CRUD service, Neo4j `sync_incident` | — | Foundation; nothing else can start without this |
+| **3D-1** | `Incident` ORM model, repository, base CRUD | — | **CLOSED 2026-08-19 — see §12.** Neo4j `sync_incident` and a base CRUD *service* layer were not part of the GO'd scope in practice (see §12) — persistence only, per the actual GO issued. Those remain open for a later slice. |
 | **3D-2** | `Incident` DTO + `/incidents`, `/incidents/{id}` router endpoints | 3D-1 | Wires 3D-1 to the existing OpenAPI contract |
 | **3D-3** | `Investigation` model/repo/service/DTO + `/incidents/{id}/investigation`, Neo4j `sync_investigation` + `INVESTIGATED_AS` | 3D-1 | Sibling per ADR-003 — do not nest under Incident's service |
 | **3D-4** | `incident_hazards` join, `/incidents/{id}/hazards[/{hazardId}]`, Neo4j `REVEALS` sync | 3D-1, existing Hazard implementation | Bare reference list (ACR-004 Option A) — no new schema object |
@@ -113,3 +113,66 @@ Refining the proposed breakdown against what's actually verified above:
 ## 11. Recommended next step
 
 Per the user's own framing: issue a scoped GO for one slice at a time, starting with **3D-1** (the only slice with no implementation dependency). Each subsequent slice's GO should name the slice explicitly (e.g. "GO — 3D-2 Incident API/DTOs only") rather than "GO — Incident implementation," consistent with this session's bounded-GO discipline.
+
+## 12. 3D-1 Closure Record (2026-08-19)
+
+**Milestone: CLOSED.**
+
+### 12.1 What was authorized and built
+
+`GO — R1 Milestone 3D-1: Incident persistence/model/repository implementation only`, explicitly bounded to the persistence layer and its tests, explicitly excluding router/service*-orchestration/DTO/Investigation/Action/hazard-link/Evidence/notification/OSR/AI-pipeline/Safety-Case work and unrelated refactoring.
+
+Delivered, on `feature/r1-milestone-3a-incident-discovery`, squash-merged to `main` as `f115590`:
+
+- `apps/api/app/models/safety.py` — `Incident` ORM mapping, all 21 frozen `safety.incidents` columns including `whsq_notified`, `osr_notified`, `is_notifiable_incident` (ACR-005), carried as plain columns with no business logic attached.
+- `apps/api/app/repositories/incidents_repository.py` — `list_incidents`/`get_incident`/`create_incident`/`update_incident`. No `delete` — correctly absent, `10-openapi.yaml` contracts no `DELETE /incidents`.
+- `tests/unit/test_incident_persistence_model.py` — ORM mapping/column/default assertions.
+- `tests/integration/test_incidents_persistence.py` — create→read→update→list round-trip against real Postgres, via the pre-existing `db` fixture (unmodified).
+
+*Correction against §7's original proposal: base CRUD **service** layer and Neo4j `sync_incident` were named in the original 3D-1 slice proposal but were not part of the GO actually issued or the work actually authorized — the GO narrowed to persistence (model + repository) only. Both remain open, unclaimed by any slice yet.
+
+### 12.2 Provenance discrepancy, reconciled
+
+The five persistence commits (`39d4e61`…`df854ee`) landed directly on the remote branch outside the session that had just delivered the 3D readiness document, without a GO visible in that session's own transcript. Per this project's standing rule that remote advancement is not itself authorization, the change was treated as unverified pending reconciliation (not auto-accepted): commit range inspected (`git log --decorate`, `git diff --stat`, full diffs), author verified (`leeshegog-jpg <leeshegog@icloud.com>` — the account this session runs under, not a third party), single-branch provenance confirmed (`git branch -a --contains`), content checked file-by-file against the 3D-1 exclusion list (clean — no router/service/DTO/Neo4j/notification/OSR/Investigation/Action/hazard-link/Evidence/AI/Safety-Case content), and two minor disclosure items were surfaced (a mechanical ruff-format collateral edit to unrelated ORM classes, zero semantic change; a stale module-docstring line still listing `incidents` as deferred). Classified **Category A — legitimate, in-scope** and reconciled into the governed record on that basis, not on the strength of the commit messages alone.
+
+### 12.3 CI-gate closure sequence (each step separately GO'd)
+
+Three defects surfaced only once full CI ran (`ruff check`, `ruff format --check`, `mypy` run sequentially in one job — each subsequent check is invisible until the prior one passes), and each was fixed under its own explicit, narrowly-scoped GO rather than bundled:
+
+| # | Defect | File:line | Class | Commit | GO scope |
+|---|---|---|---|---|---|
+| 1 | `E501` line too long | `safety.py:334` (`report_date`) | Lint | `7dee896` | "fix `safety.py:334` only" |
+| 2 | Formatter mismatch | `safety.py:360` (`status`) | Format | `c2be5f5` | "fix `safety.py:360` only" |
+| 3 | `Incident.datetime` column shadows the `datetime` type within its own class body, breaking `Mapped[datetime]` on `created_at`/`updated_at` | `safety.py:361-362` | Type error | `ff11f5a` | "fix `safety.py:361–362` datetime type-shadow via import alias only" |
+
+Fix 3 used a type-import alias (`from datetime import datetime as PyDT`, used only at the two affected annotations) rather than renaming the frozen `Incident.datetime` column — preserves the schema, OpenAPI contract, and ORM field name exactly. Each commit's diff was verified single-purpose before push (no bundling, no opportunistic cleanup); each discovery of a *further* failure after a fix landed was treated as a new, separately-classified item requiring its own GO, not an extension of the prior one.
+
+### 12.4 Final validation, verified against the merge commit directly (not assumed from the last PR push)
+
+`gh api .../commits/f115590/check-runs` — all 12 checks `success`, including the 7 PR-validation jobs and the merge-to-main jobs (`build`, `deploy`, `report-build-status`, `Container build — api`, `Container build — web`).
+
+Local re-verification on `main` post-merge: `git status` clean, `Incident.datetime` column line unchanged (`safety.py:334` in the pre-fix numbering / current line — frozen name intact), squash-merge diff (`6deeb8e..f115590`, 22 files) contains exactly the expected file set — 3A/3B/3C/3D governance docs, ACR-004/005, ADR-003/004/005/006, the four baseline-artefact edits from ACR-005 incorporation, and the 3D-1 persistence files. No router/DTO/service/Neo4j-sync/OSR/AI/Safety-Case file present.
+
+### 12.5 Status table
+
+| Item | Status |
+|---|---|
+| 3D-1 implementation | ✅ Complete |
+| E501 fix | ✅ `7dee896` |
+| Formatting fix | ✅ `c2be5f5` |
+| `datetime` type-shadow fix | ✅ `ff11f5a` |
+| Unit validation | ✅ (49 passed locally, and in CI) |
+| Integration validation | ✅ CI (Postgres+Neo4j service containers) |
+| 7/7 PR CI | ✅ |
+| Merge-to-main CI (12/12) | ✅ |
+| PR #18 | ✅ Merged |
+| Merge commit | `f115590` |
+| Schema/OpenAPI/ontology/architecture altered by closure | **No** — closure is documentation only |
+| Milestone | **CLOSED** |
+
+### 12.6 What remains open (not implied complete by this closure)
+
+- 3D-2 through 3D-7 (API/DTO, Investigation, hazard-links, Evidence, R23 propagation + `fReporterRole`, tests/shared-types) — none started.
+- Neo4j `sync_incident` and an `Incident` service/orchestration layer — named in §7's original 3D-1 proposal but not delivered under the GO actually issued (§12.1) — unclaimed by any slice.
+- OSR (`osr_notified`) — `TO_BE_CONFIRMED`, untouched, tracked in [12-deliverables-index.md](12-deliverables-index.md)'s open items.
+- No automatic progression to 3D-2 or any other slice is authorized by this closure. The next bounded GO is a separate decision.
