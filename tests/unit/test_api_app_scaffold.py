@@ -9,7 +9,9 @@ from app.main import ROUTERS, app
 # Update this set only when a router gains real endpoints in an approved
 # milestone, not ad hoc. R1 Milestone 0: assets, ontology. R1 Milestone 1:
 # hazards, risks. R1 Milestone 2: controls, critical_controls, verification,
-# evidence.
+# evidence. R1 Incident Management -- API, Service & Graph Synchronisation:
+# incidents (CRUD + relational hazard-link endpoints only -- see
+# docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md).
 IMPLEMENTED_ROUTERS = {
     "assets",
     "ontology",
@@ -19,6 +21,7 @@ IMPLEMENTED_ROUTERS = {
     "critical_controls",
     "verification",
     "evidence",
+    "incidents",
 }
 
 
