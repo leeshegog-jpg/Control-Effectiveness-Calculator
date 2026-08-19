@@ -1,7 +1,7 @@
 """Incident persistence repository. Postgres/SQLAlchemy access only.
 
-R1 Milestone 3D-1 scope: persistence only. Business rules, DTOs, routers,
-Neo4j synchronisation, and notification propagation remain outside this slice.
+Includes relational incident_hazards (ACR-004 Option A) persistence --
+bare link/unlink, no Neo4j REVEALS sync (out of this slice's scope).
 """
 
 import uuid
@@ -9,7 +9,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.safety import Incident
+from app.models.safety import Hazard, Incident, IncidentHazard
 
 
 def list_incidents(
@@ -41,3 +41,34 @@ def update_incident(db: Session, incident: Incident) -> Incident:
     """Flush changes to an existing Incident; transaction ownership remains with caller."""
     db.flush()
     return incident
+
+
+def list_incident_hazards(db: Session, incident_id: uuid.UUID) -> list[Hazard]:
+    """Return the hazards linked to this incident via safety.incident_hazards."""
+    stmt = (
+        select(Hazard)
+        .join(IncidentHazard, IncidentHazard.hazard_id == Hazard.id)
+        .where(IncidentHazard.incident_id == incident_id)
+        .order_by(Hazard.name)
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
+def link_incident_hazard(
+    db: Session, incident_id: uuid.UUID, hazard_id: uuid.UUID
+) -> IncidentHazard:
+    """Create the incident_hazards row; transaction ownership remains with caller."""
+    link = IncidentHazard(incident_id=incident_id, hazard_id=hazard_id)
+    db.add(link)
+    db.flush()
+    return link
+
+
+def unlink_incident_hazard(db: Session, incident_id: uuid.UUID, hazard_id: uuid.UUID) -> bool:
+    """Delete the incident_hazards row if present. Returns whether it existed."""
+    link = db.get(IncidentHazard, {"incident_id": incident_id, "hazard_id": hazard_id})
+    if link is None:
+        return False
+    db.delete(link)
+    db.flush()
+    return True

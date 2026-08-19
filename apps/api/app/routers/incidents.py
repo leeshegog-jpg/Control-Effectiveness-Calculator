@@ -1,7 +1,193 @@
-"""R0 scaffold placeholder -- incidents router (OpenAPI tag).
-No endpoints implemented. Contract: docs/knowledge-graph/10-openapi.yaml.
+"""Incidents router (OpenAPI tag). Contract: docs/knowledge-graph/10-openapi.yaml.
+
+/incidents/{id}/investigation, /incidents/{id}/evidence, and
+/incidents/{id}/run-investigation-pipeline are deliberately not implemented
+here -- Investigation/Evidence wiring and the AI-layer pipeline are separate,
+not-yet-authorized slices. See
+docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md.
 """
 
-from fastapi import APIRouter
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from neo4j import Driver
+from sqlalchemy.orm import Session
+
+from app.dependencies.db import get_db
+from app.dependencies.graph import get_graph_driver
+from app.dto.assets import ConceptRef
+from app.dto.hazards import HazardOut
+from app.dto.incidents import IncidentHazardLinkInput, IncidentInput, IncidentListOut, IncidentOut
+from app.models.ontology import Concept
+from app.services.incidents import service
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
+
+
+def _concept_ref(db: Session, concept_id: uuid.UUID | None) -> ConceptRef | None:
+    if concept_id is None:
+        return None
+    concept = db.get(Concept, concept_id)
+    return ConceptRef(concept_id=concept_id, pref_label=concept.pref_label if concept else None)
+
+
+def _to_out(db: Session, incident) -> IncidentOut:
+    return IncidentOut(
+        id=incident.id,
+        datetime=incident.datetime,
+        incident_type=_concept_ref(db, incident.incident_type_concept_id),
+        severity=incident.severity,
+        vrtp_severity=incident.vrtp_severity,
+        location=incident.location,
+        asset_id=incident.asset_id,
+        reporter_person_id=incident.reporter_person_id,
+        description=incident.description,
+        injuries=incident.injuries,
+        witnesses=incident.witnesses,
+        immediate_actions=incident.immediate_actions,
+        immediate_cause=incident.immediate_cause,
+        root_cause=incident.root_cause,
+        whsq_notified=incident.whsq_notified,
+        osr_notified=incident.osr_notified,
+        investigation_status=incident.investigation_status,
+        status=incident.status,
+        is_notifiable_incident=incident.is_notifiable_incident,
+        created_at=incident.created_at,
+    )
+
+
+def _hazard_to_out(db: Session, hazard) -> HazardOut:
+    return HazardOut(
+        id=hazard.id,
+        asset_id=hazard.asset_id,
+        name=hazard.name,
+        description=hazard.description,
+        exposure_pathway=hazard.exposure_pathway,
+        possible_consequence=hazard.possible_consequence,
+        category=_concept_ref(db, hazard.category_concept_id),
+        energy_source=_concept_ref(db, hazard.energy_source_concept_id),
+        date_identified=hazard.date_identified,
+        owner_person_id=hazard.owner_person_id,
+        is_adh=hazard.is_adh,
+        device_boundary_id=hazard.device_boundary_id,
+        created_at=hazard.created_at,
+        updated_at=hazard.updated_at,
+    )
+
+
+@router.get("", response_model=IncidentListOut)
+def list_incidents(
+    limit: int = Query(default=50, le=200),
+    offset: int = Query(default=0),
+    db: Session = Depends(get_db),
+) -> IncidentListOut:
+    items, total = service.list_incidents(db, limit=limit, offset=offset)
+    return IncidentListOut(items=[_to_out(db, i) for i in items], total=total)
+
+
+@router.post("", response_model=IncidentOut, status_code=201)
+def create_incident(
+    body: IncidentInput,
+    db: Session = Depends(get_db),
+    graph_driver: Driver = Depends(get_graph_driver),
+) -> IncidentOut:
+    incident = service.create_incident(
+        db,
+        graph_driver,
+        incident_datetime=body.datetime,
+        incident_type_concept_id=body.incident_type.concept_id if body.incident_type else None,
+        severity=body.severity,
+        vrtp_severity=body.vrtp_severity,
+        location=body.location,
+        asset_id=body.asset_id,
+        reporter_person_id=body.reporter_person_id,
+        description=body.description,
+        injuries=body.injuries,
+        witnesses=body.witnesses,
+        immediate_actions=body.immediate_actions,
+        immediate_cause=body.immediate_cause,
+        root_cause=body.root_cause,
+        whsq_notified=body.whsq_notified,
+        osr_notified=body.osr_notified,
+        investigation_status=body.investigation_status,
+        status=body.status,
+        is_notifiable_incident=body.is_notifiable_incident,
+    )
+    return _to_out(db, incident)
+
+
+@router.get("/{incident_id}", response_model=IncidentOut)
+def get_incident(incident_id: uuid.UUID, db: Session = Depends(get_db)) -> IncidentOut:
+    incident = service.get_incident(db, incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return _to_out(db, incident)
+
+
+@router.patch("/{incident_id}", response_model=IncidentOut)
+def update_incident(
+    incident_id: uuid.UUID,
+    body: IncidentInput,
+    db: Session = Depends(get_db),
+    graph_driver: Driver = Depends(get_graph_driver),
+) -> IncidentOut:
+    incident = service.get_incident(db, incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    updated = service.update_incident(
+        db,
+        graph_driver,
+        incident,
+        incident_datetime=body.datetime,
+        incident_type_concept_id=body.incident_type.concept_id if body.incident_type else None,
+        severity=body.severity,
+        vrtp_severity=body.vrtp_severity,
+        location=body.location,
+        asset_id=body.asset_id,
+        reporter_person_id=body.reporter_person_id,
+        description=body.description,
+        injuries=body.injuries,
+        witnesses=body.witnesses,
+        immediate_actions=body.immediate_actions,
+        immediate_cause=body.immediate_cause,
+        root_cause=body.root_cause,
+        whsq_notified=body.whsq_notified,
+        osr_notified=body.osr_notified,
+        investigation_status=body.investigation_status,
+        status=body.status,
+        is_notifiable_incident=body.is_notifiable_incident,
+    )
+    return _to_out(db, updated)
+
+
+@router.get("/{incident_id}/hazards", response_model=list[HazardOut])
+def list_incident_hazards(incident_id: uuid.UUID, db: Session = Depends(get_db)) -> list[HazardOut]:
+    if service.get_incident(db, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    hazards = service.list_incident_hazards(db, incident_id)
+    return [_hazard_to_out(db, h) for h in hazards]
+
+
+@router.post("/{incident_id}/hazards", status_code=201)
+def link_incident_hazard(
+    incident_id: uuid.UUID,
+    body: IncidentHazardLinkInput,
+    db: Session = Depends(get_db),
+) -> dict:
+    if service.get_incident(db, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    service.link_incident_hazard(db, incident_id, body.hazard_id)
+    return {}
+
+
+@router.delete("/{incident_id}/hazards/{hazard_id}", status_code=204)
+def unlink_incident_hazard(
+    incident_id: uuid.UUID,
+    hazard_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> None:
+    if service.get_incident(db, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    existed = service.unlink_incident_hazard(db, incident_id, hazard_id)
+    if not existed:
+        raise HTTPException(status_code=404, detail="Hazard not linked to this incident")

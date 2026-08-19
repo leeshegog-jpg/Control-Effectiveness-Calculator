@@ -10,6 +10,12 @@ docs/knowledge-graph/02-neo4j-node-relationship-model.md §3.1/§3.2/§4.
 Postgres remains the system of record -- if this write fails, the Postgres
 row still exists and the graph is simply stale until the next sync, never
 the other way around.
+
+sync_incident is a self-contained bare-node MERGE only (scalar properties,
+per 02 §3.3) -- REVEALS/INVESTIGATED_AS/TRIGGERS and any Incident->Asset or
+Incident->Person edge are deliberately out of scope for this slice (no
+relationship type for either FK exists anywhere in the frozen graph model;
+see docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md).
 """
 
 import uuid
@@ -22,6 +28,7 @@ from app.models.safety import (
     CriticalControl,
     Evidence,
     Hazard,
+    Incident,
     PerformanceStandard,
     Risk,
     VerificationActivity,
@@ -271,3 +278,43 @@ def sync_evidence(driver: Driver, evidence: Evidence) -> None:
             verification_activity_pg_id=str(evidence.verification_activity_id),
             linked_entity_type=evidence.linked_entity_type,
         )
+
+
+def sync_incident(driver: Driver, incident: Incident) -> None:
+    with driver.session() as session:
+        session.run(
+            """
+            MERGE (i:Incident {pg_id: $pg_id})
+            SET i.datetime = $datetime, i.severity = $severity,
+                i.vrtp_severity = $vrtp_severity, i.location = $location,
+                i.description = $description, i.immediate_cause = $immediate_cause,
+                i.root_cause = $root_cause, i.whsq_notified = $whsq_notified,
+                i.osr_notified = $osr_notified,
+                i.is_notifiable_incident = $is_notifiable_incident,
+                i.investigation_status = $investigation_status
+            """,
+            pg_id=str(incident.id),
+            datetime=incident.datetime.isoformat(),
+            severity=incident.severity,
+            vrtp_severity=incident.vrtp_severity,
+            location=incident.location,
+            description=incident.description,
+            immediate_cause=incident.immediate_cause,
+            root_cause=incident.root_cause,
+            whsq_notified=incident.whsq_notified,
+            osr_notified=incident.osr_notified,
+            is_notifiable_incident=incident.is_notifiable_incident,
+            investigation_status=incident.investigation_status,
+        )
+
+
+def get_incident_node(driver: Driver, incident_id: uuid.UUID) -> dict | None:
+    with driver.session() as session:
+        result = session.run(
+            "MATCH (i:Incident {pg_id: $pg_id}) "
+            "RETURN i.pg_id AS pg_id, i.description AS description, "
+            "i.is_notifiable_incident AS is_notifiable_incident",
+            pg_id=str(incident_id),
+        )
+        record = result.single()
+        return dict(record) if record else None

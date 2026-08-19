@@ -364,3 +364,18 @@ class Incident(Base):
     is_notifiable_incident: Mapped[bool] = mapped_column(
         nullable=False, server_default=text("false")
     )
+
+
+class IncidentHazard(Base):
+    """Relational hazard-link (safety.incident_hazards) -- ACR-004 Option A:
+    bare reference, no columns beyond the composite key. Neo4j REVEALS sync
+    is out of the current implementation slice's authorized scope.
+    """
+
+    __tablename__ = "incident_hazards"
+    __table_args__ = {"schema": "safety"}
+
+    incident_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("safety.incidents.id"), primary_key=True
+    )
+    hazard_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("safety.hazards.id"), primary_key=True)
