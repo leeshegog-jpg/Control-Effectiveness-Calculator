@@ -1,9 +1,8 @@
 """Incidents router (OpenAPI tag). Contract: docs/knowledge-graph/10-openapi.yaml.
 
-/incidents/{id}/investigation, /incidents/{id}/evidence, and
-/incidents/{id}/run-investigation-pipeline are deliberately not implemented
-here -- Investigation/Evidence wiring and the AI-layer pipeline are separate,
-not-yet-authorized slices. See
+/incidents/{id}/evidence and /incidents/{id}/run-investigation-pipeline are
+deliberately not implemented here -- Evidence wiring and the AI-layer
+pipeline are separate, not-yet-authorized slices. See
 docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md.
 """
 
@@ -18,8 +17,10 @@ from app.dependencies.graph import get_graph_driver
 from app.dto.assets import ConceptRef
 from app.dto.hazards import HazardOut
 from app.dto.incidents import IncidentHazardLinkInput, IncidentInput, IncidentListOut, IncidentOut
+from app.dto.investigations import InvestigationInput, InvestigationOut
 from app.models.ontology import Concept
 from app.services.incidents import service
+from app.services.investigations import service as investigations_service
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
@@ -173,10 +174,11 @@ def link_incident_hazard(
     incident_id: uuid.UUID,
     body: IncidentHazardLinkInput,
     db: Session = Depends(get_db),
+    graph_driver: Driver = Depends(get_graph_driver),
 ) -> dict:
     if service.get_incident(db, incident_id) is None:
         raise HTTPException(status_code=404, detail="Incident not found")
-    service.link_incident_hazard(db, incident_id, body.hazard_id)
+    service.link_incident_hazard(db, graph_driver, incident_id, body.hazard_id)
     return {}
 
 
@@ -185,9 +187,79 @@ def unlink_incident_hazard(
     incident_id: uuid.UUID,
     hazard_id: uuid.UUID,
     db: Session = Depends(get_db),
+    graph_driver: Driver = Depends(get_graph_driver),
 ) -> None:
     if service.get_incident(db, incident_id) is None:
         raise HTTPException(status_code=404, detail="Incident not found")
-    existed = service.unlink_incident_hazard(db, incident_id, hazard_id)
+    existed = service.unlink_incident_hazard(db, graph_driver, incident_id, hazard_id)
     if not existed:
         raise HTTPException(status_code=404, detail="Hazard not linked to this incident")
+
+
+def _investigation_to_out(investigation) -> InvestigationOut:
+    return InvestigationOut(
+        id=investigation.id,
+        incident_id=investigation.incident_id,
+        method=investigation.method,
+        findings=investigation.findings,
+        contributing_factors=investigation.contributing_factors,
+        created_at=investigation.created_at,
+        updated_at=investigation.updated_at,
+    )
+
+
+@router.get("/{incident_id}/investigation", response_model=InvestigationOut)
+def get_investigation(incident_id: uuid.UUID, db: Session = Depends(get_db)) -> InvestigationOut:
+    if service.get_incident(db, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    investigation = investigations_service.get_investigation(db, incident_id)
+    if investigation is None:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+    return _investigation_to_out(investigation)
+
+
+@router.post("/{incident_id}/investigation", response_model=InvestigationOut, status_code=201)
+def create_investigation(
+    incident_id: uuid.UUID,
+    body: InvestigationInput,
+    db: Session = Depends(get_db),
+    graph_driver: Driver = Depends(get_graph_driver),
+) -> InvestigationOut:
+    if service.get_incident(db, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    if investigations_service.get_investigation(db, incident_id) is not None:
+        raise HTTPException(
+            status_code=409, detail="Investigation already exists for this incident"
+        )
+    investigation = investigations_service.create_investigation(
+        db,
+        graph_driver,
+        incident_id=incident_id,
+        method=body.method,
+        findings=body.findings,
+        contributing_factors=body.contributing_factors,
+    )
+    return _investigation_to_out(investigation)
+
+
+@router.patch("/{incident_id}/investigation", response_model=InvestigationOut)
+def update_investigation(
+    incident_id: uuid.UUID,
+    body: InvestigationInput,
+    db: Session = Depends(get_db),
+    graph_driver: Driver = Depends(get_graph_driver),
+) -> InvestigationOut:
+    if service.get_incident(db, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    investigation = investigations_service.get_investigation(db, incident_id)
+    if investigation is None:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+    updated = investigations_service.update_investigation(
+        db,
+        graph_driver,
+        investigation,
+        method=body.method,
+        findings=body.findings,
+        contributing_factors=body.contributing_factors,
+    )
+    return _investigation_to_out(updated)

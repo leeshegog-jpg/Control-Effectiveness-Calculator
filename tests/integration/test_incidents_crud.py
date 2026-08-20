@@ -1,8 +1,9 @@
 """Incidents CRUD against a real Postgres + Neo4j -- API/service/graph-sync
 acceptance criteria for the "R1 Incident Management -- API, Service & Graph
-Synchronisation" slice. Neo4j hazard-link (REVEALS) sync and
-Investigation/Action wiring are deliberately not covered here -- out of
-this slice's scope. See
+Synchronisation" slice, extended by "R1 Incident Management -- Investigation
+API & Hazard-Link Graph Sync" (REVEALS is now in scope; see
+test_incidents_investigation.py for Investigation coverage). Action/Evidence
+wiring remain out of scope. See
 docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md.
 """
 
@@ -126,22 +127,36 @@ def test_incident_hazard_unlink_missing_link_returns_404(client):
     assert resp.status_code == 404
 
 
-def test_incident_hazard_link_does_not_sync_reveals_to_neo4j(client, graph_driver):
-    """Explicit boundary check: hazard-link is relational-only in this slice."""
+def test_incident_hazard_link_syncs_reveals_to_neo4j(client, graph_driver):
+    """REVEALS sync is in scope as of "R1 Incident Management --
+    Investigation API & Hazard-Link Graph Sync" -- relational incident_hazards
+    rows remain the source of truth; the graph edge follows them.
+    """
     incident_resp = client.post(
         "/incidents",
         json={
             "datetime": "2026-08-20T09:00:00Z",
-            "description": f"No REVEALS {uuid.uuid4()}",
+            "description": f"REVEALS sync {uuid.uuid4()}",
         },
     )
     incident_id = incident_resp.json()["id"]
     hazard_resp = client.post(
-        "/hazards", json={"name": f"No-Sync Hazard {uuid.uuid4()}", "description": "d"}
+        "/hazards", json={"name": f"Synced Hazard {uuid.uuid4()}", "description": "d"}
     )
     hazard_id = hazard_resp.json()["id"]
 
     client.post(f"/incidents/{incident_id}/hazards", json={"hazard_id": hazard_id})
+
+    with graph_driver.session() as session:
+        result = session.run(
+            "MATCH (:Incident {pg_id: $incident_pg_id})-[:REVEALS]->(:Hazard {pg_id: $hazard_pg_id}) "
+            "RETURN count(*) AS c",
+            incident_pg_id=incident_id,
+            hazard_pg_id=hazard_id,
+        )
+        assert result.single()["c"] == 1
+
+    client.delete(f"/incidents/{incident_id}/hazards/{hazard_id}")
 
     with graph_driver.session() as session:
         result = session.run(
