@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TP Risk Management SMS — Safety Knowledge Graph Platform API
-  version: 0.3.0-draft
+  version: 0.4.0-draft
   description: >
     DRAFT — controlled design document, requires approval before implementation.
     Backend REST surface for the Safety Knowledge Graph + AI Risk Intelligence Platform.
@@ -628,6 +628,33 @@ paths:
       summary: Attach evidence to this incident
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/EvidenceInput' } } } }
       responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Evidence' } } } } }
+  /incidents/{id}/actions:
+    parameters: [ { $ref: '#/components/parameters/id' } ]
+    get:
+      tags: [Incidents, Actions]
+      summary: List Actions linked to this incident's linked-CAR roster (TRIGGERS, 1:N — safety.incident_actions; V1 fCARs)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Action' } } } } } }
+    post:
+      tags: [Incidents, Actions]
+      summary: >
+        Link an existing Action to this incident's roster (ACR-006 Option A — bare reference,
+        no IncidentAction schema; safety.incident_actions has no columns beyond the
+        incident_id/action_id composite key. Does not create an Action — use POST /actions
+        for creation.)
+      requestBody: { content: { application/json: { schema: { type: object, required: [action_id], properties: { action_id: { type: string, format: uuid } } } } } }
+      responses:
+        '201': { description: Linked }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /incidents/{id}/actions/{actionId}:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+      - { name: actionId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Incidents, Actions]
+      summary: Unlink an Action from this incident's roster
+      responses:
+        '204': { description: Unlinked }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /actions:
     get:

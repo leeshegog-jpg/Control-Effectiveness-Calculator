@@ -102,16 +102,11 @@ If this ACR is rejected or left indefinitely pending: any future Incident Action
 
 ## 16. Validation Requirements
 
-Not yet applicable — no OpenAPI change has been made under this ACR. When `10-openapi.yaml` is actually extended (a separate, not-yet-issued GO), `scripts/validate_openapi.py` must confirm 0 dangling `$ref`s and a strictly additive diff before commit, per the ACR-004/005 precedent.
+The extended `10-openapi.yaml` was validated with `scripts/validate_openapi.py` before commit, per a separate contract-only GO (2026-08-22): **`OK: 70 paths, 78 schemas, 0 dangling $refs.`** (exit 0). Diff confirmed strictly additive: 28 insertions, 1 deletion — the sole deletion is `version: 0.3.0-draft`, replaced by `0.4.0-draft` per the file's own MINOR-bump convention, matching ACR-004's precedent. Schema count unchanged (78) — confirms no new schema object was introduced, per §7.
 
 ## 17. Implementation Boundary
 
-**Nothing implemented by this ACR, notwithstanding approval.** This ACR's approval (§3, §18) does not authorize:
-- Any edit to `10-openapi.yaml`.
-- Any application-code implementation (routers, services, repositories, models) against the endpoints in §7-§8.
-- Any Postgres schema, Neo4j, or ontology change.
-
-A separate, explicit GO is required before this ACR's approved `10-openapi.yaml` extension is written, and a further separate GO is required before any application-code implementation against it.
+**Implemented, scoped exactly to §7-§8 — nothing beyond.** `10-openapi.yaml` was additively extended: `/incidents/{id}/actions` (`GET`, `POST`), `/incidents/{id}/actions/{actionId}` (`DELETE`), reusing the existing `Action` schema unchanged. This is a **contract-only** implementation — no application code (routers, services, repositories, SQLAlchemy models) was written; the Incident/Action domains' R0 placeholder stubs (`apps/api/app/{dto,routers,repositories,services}/actions*`, `.../incidents*`) are unchanged. A separate, explicit GO is required before any application-code implementation against these endpoints.
 
 ## 18. Approval / Disposition
 
@@ -127,7 +122,7 @@ A separate, explicit GO is required before the `10-openapi.yaml` extension is wr
 
 ## Outcome Paths
 
-- **Approve** *(this path taken, 2026-08-22)* → Option A resolved for §9's fork (§9a). `10-openapi.yaml` extension per §7-§8 authorized in principle, not yet written — awaiting a separate implementation GO. **Governance decision done; contract edit and implementation both still pending.**
+- **Approve** *(this path taken, 2026-08-22)* → Option A resolved for §9's fork (§9a). `10-openapi.yaml` extension per §7-§8 implemented and validated (§16, §17), 2026-08-22. **Contract-only. Done.** Application-code implementation remains a separate, not-yet-issued GO.
 - **Reject** → not taken.
 - **Defer** → not taken.
 
@@ -143,4 +138,4 @@ Additively extend `10-openapi.yaml` with the endpoints in §7-§8, reusing the e
 
 ## Impact (template field, restated for index consistency)
 
-Touches `10-openapi.yaml` only (§5), once separately GO'd — not yet edited. Fully additive, no breaking change (§11). No schema/Neo4j/ontology/code change (§5, §12). `completion_date`/`notes` and `action_controls`/`REMEDIATES` remain separate, unaddressed governance items (§5).
+Touches `10-openapi.yaml` only (§5) — edited and validated (§16, §17). Fully additive, no breaking change (§11). No schema/Neo4j/ontology/code change (§5, §12). `completion_date`/`notes` and `action_controls`/`REMEDIATES` remain separate, unaddressed governance items (§5).
