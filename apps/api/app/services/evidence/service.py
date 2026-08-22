@@ -1,4 +1,10 @@
-"""Evidence service -- Evidence CRUD, audit metadata (provenance), Neo4j sync."""
+"""Evidence service -- Evidence CRUD, audit metadata (provenance), Neo4j sync.
+
+verification_activity_id is nullable on the frozen safety.evidence schema --
+create_evidence accepts None for standalone evidence (e.g. incident-linked,
+via linked_entity_type/linked_entity_id). sync_evidence already handles the
+None case (no PRODUCES edge attempted); no Neo4j change needed here.
+"""
 
 import uuid
 
@@ -15,11 +21,15 @@ def list_evidence(db: Session, verification_activity_id: uuid.UUID) -> list[Evid
     return evidence_repository.list_evidence(db, verification_activity_id)
 
 
+def list_incident_evidence(db: Session, incident_id: uuid.UUID) -> list[Evidence]:
+    return evidence_repository.list_incident_evidence(db, incident_id)
+
+
 def create_evidence(
     db: Session,
     graph_driver: Driver,
     *,
-    verification_activity_id: uuid.UUID,
+    verification_activity_id: uuid.UUID | None,
     type_concept_id: uuid.UUID | None,
     source_document_id: uuid.UUID | None,
     uploaded_by_person_id: uuid.UUID | None,

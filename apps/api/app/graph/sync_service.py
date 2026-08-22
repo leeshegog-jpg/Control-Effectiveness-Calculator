@@ -275,7 +275,18 @@ def sync_verification_activity(driver: Driver, activity: VerificationActivity) -
 
 def sync_evidence(driver: Driver, evidence: Evidence) -> None:
     if evidence.verification_activity_id is None:
-        return  # standalone evidence -- no VerificationActivity to attach PRODUCES to
+        # Standalone evidence (e.g. incident-linked) -- bare node only, no
+        # VerificationActivity to attach PRODUCES to, no other edge either.
+        with driver.session() as session:
+            session.run(
+                """
+                MERGE (e:Evidence {pg_id: $pg_id})
+                SET e.linked_entity_type = $linked_entity_type
+                """,
+                pg_id=str(evidence.id),
+                linked_entity_type=evidence.linked_entity_type,
+            )
+        return
     with driver.session() as session:
         session.run(
             """
