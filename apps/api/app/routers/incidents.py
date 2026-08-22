@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
 from app.dependencies.graph import get_graph_driver
+from app.dto.actions import ActionOut, IncidentActionLinkInput
 from app.dto.assets import ConceptRef
 from app.dto.hazards import HazardOut
 from app.dto.incidents import IncidentHazardLinkInput, IncidentInput, IncidentListOut, IncidentOut
@@ -54,6 +55,21 @@ def _to_out(db: Session, incident) -> IncidentOut:
         status=incident.status,
         is_notifiable_incident=incident.is_notifiable_incident,
         created_at=incident.created_at,
+    )
+
+
+def _action_to_out(db: Session, action) -> ActionOut:
+    return ActionOut(
+        id=action.id,
+        source_type=_concept_ref(db, action.source_type_concept_id),
+        source_id=action.source_id,
+        description=action.description,
+        root_cause_category=_concept_ref(db, action.root_cause_category_concept_id),
+        priority=action.priority,
+        assigned_to_person_id=action.assigned_to_person_id,
+        due_date=action.due_date,
+        status=action.status,
+        effectiveness_review=action.effectiveness_review,
     )
 
 
@@ -263,3 +279,38 @@ def update_investigation(
         contributing_factors=body.contributing_factors,
     )
     return _investigation_to_out(updated)
+
+
+@router.get("/{incident_id}/actions", response_model=list[ActionOut])
+def list_incident_actions(incident_id: uuid.UUID, db: Session = Depends(get_db)) -> list[ActionOut]:
+    if service.get_incident(db, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    actions = service.list_incident_actions(db, incident_id)
+    return [_action_to_out(db, a) for a in actions]
+
+
+@router.post("/{incident_id}/actions", status_code=201)
+def link_incident_action(
+    incident_id: uuid.UUID,
+    body: IncidentActionLinkInput,
+    db: Session = Depends(get_db),
+    graph_driver: Driver = Depends(get_graph_driver),
+) -> dict:
+    if service.get_incident(db, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    service.link_incident_action(db, graph_driver, incident_id, body.action_id)
+    return {}
+
+
+@router.delete("/{incident_id}/actions/{action_id}", status_code=204)
+def unlink_incident_action(
+    incident_id: uuid.UUID,
+    action_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    graph_driver: Driver = Depends(get_graph_driver),
+) -> None:
+    if service.get_incident(db, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    existed = service.unlink_incident_action(db, graph_driver, incident_id, action_id)
+    if not existed:
+        raise HTTPException(status_code=404, detail="Action not linked to this incident")

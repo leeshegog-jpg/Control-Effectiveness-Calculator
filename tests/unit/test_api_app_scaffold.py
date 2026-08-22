@@ -12,6 +12,9 @@ from app.main import ROUTERS, app
 # evidence. R1 Incident Management -- API, Service & Graph Synchronisation:
 # incidents (CRUD + relational hazard-link endpoints only -- see
 # docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md).
+# R1 Incident Management -- Action API, Incident Linking & TRIGGERS Sync:
+# actions (base CRUD + incident-scoped link endpoints via incidents router,
+# ACR-006 Option A).
 IMPLEMENTED_ROUTERS = {
     "assets",
     "ontology",
@@ -22,6 +25,7 @@ IMPLEMENTED_ROUTERS = {
     "verification",
     "evidence",
     "incidents",
+    "actions",
 }
 
 

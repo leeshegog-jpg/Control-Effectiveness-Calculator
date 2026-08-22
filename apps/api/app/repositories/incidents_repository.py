@@ -1,7 +1,8 @@
 """Incident persistence repository. Postgres/SQLAlchemy access only.
 
-Includes relational incident_hazards (ACR-004 Option A) persistence --
-bare link/unlink, no Neo4j REVEALS sync (out of this slice's scope).
+Includes relational incident_hazards (ACR-004 Option A) and incident_actions
+(ACR-006 Option A) persistence -- bare link/unlink, no Neo4j sync (that's
+the service layer's job).
 """
 
 import uuid
@@ -9,7 +10,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.safety import Hazard, Incident, IncidentHazard
+from app.models.safety import Action, Hazard, Incident, IncidentAction, IncidentHazard
 
 
 def list_incidents(
@@ -67,6 +68,38 @@ def link_incident_hazard(
 def unlink_incident_hazard(db: Session, incident_id: uuid.UUID, hazard_id: uuid.UUID) -> bool:
     """Delete the incident_hazards row if present. Returns whether it existed."""
     link = db.get(IncidentHazard, {"incident_id": incident_id, "hazard_id": hazard_id})
+    if link is None:
+        return False
+    db.delete(link)
+    db.flush()
+    return True
+
+
+def list_incident_actions(db: Session, incident_id: uuid.UUID) -> list[Action]:
+    """Return the Actions linked to this incident via safety.incident_actions
+    (the Incident's linked-CAR roster, V1 fCARs)."""
+    stmt = (
+        select(Action)
+        .join(IncidentAction, IncidentAction.action_id == Action.id)
+        .where(IncidentAction.incident_id == incident_id)
+        .order_by(Action.created_at.desc())
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
+def link_incident_action(
+    db: Session, incident_id: uuid.UUID, action_id: uuid.UUID
+) -> IncidentAction:
+    """Create the incident_actions row; transaction ownership remains with caller."""
+    link = IncidentAction(incident_id=incident_id, action_id=action_id)
+    db.add(link)
+    db.flush()
+    return link
+
+
+def unlink_incident_action(db: Session, incident_id: uuid.UUID, action_id: uuid.UUID) -> bool:
+    """Delete the incident_actions row if present. Returns whether it existed."""
+    link = db.get(IncidentAction, {"incident_id": incident_id, "action_id": action_id})
     if link is None:
         return False
     db.delete(link)
