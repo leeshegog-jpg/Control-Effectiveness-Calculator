@@ -1,10 +1,13 @@
 """Incidents service -- CRUD + Neo4j sync (bare Incident node only) +
-relational hazard-link (safety.incident_hazards, ACR-004 Option A) with
-REVEALS graph sync driven off the relational rows.
+relational hazard-link (safety.incident_hazards, ACR-004 Option A) and
+Action-link (safety.incident_actions, ACR-006 Option A), both with graph
+sync driven off the relational rows.
 
 Investigation lives in services/investigations (ADR-003 sibling structure,
-not nested here). Action, Evidence wiring, and osr_notified logic remain
-out of scope -- see
+not nested here) -- Action is likewise a shared entity (services/actions
+owns Action CRUD), only its Incident link lives here. Evidence wiring,
+completion_date/notes, action_controls/REMEDIATES, and osr_notified logic
+remain out of scope -- see
 docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md.
 """
 
@@ -15,7 +18,7 @@ from neo4j import Driver
 from sqlalchemy.orm import Session
 
 from app.graph import sync_service
-from app.models.safety import Hazard, Incident
+from app.models.safety import Action, Hazard, Incident
 from app.repositories import incidents_repository
 
 
@@ -174,4 +177,30 @@ def unlink_incident_hazard(
     db.commit()
     if existed:
         sync_service.unsync_incident_hazard_link(graph_driver, incident_id, hazard_id)
+    return existed
+
+
+def list_incident_actions(db: Session, incident_id: uuid.UUID) -> list[Action]:
+    return incidents_repository.list_incident_actions(db, incident_id)
+
+
+def link_incident_action(
+    db: Session, graph_driver: Driver, incident_id: uuid.UUID, action_id: uuid.UUID
+) -> None:
+    """Relational link (source of truth) + TRIGGERS sync -- incident_actions
+    rows drive the graph edge, not the other way around. ACR-006 Option A:
+    links an existing Action only, does not create one.
+    """
+    incidents_repository.link_incident_action(db, incident_id, action_id)
+    db.commit()
+    sync_service.sync_incident_action_link(graph_driver, incident_id, action_id)
+
+
+def unlink_incident_action(
+    db: Session, graph_driver: Driver, incident_id: uuid.UUID, action_id: uuid.UUID
+) -> bool:
+    existed = incidents_repository.unlink_incident_action(db, incident_id, action_id)
+    db.commit()
+    if existed:
+        sync_service.unsync_incident_action_link(graph_driver, incident_id, action_id)
     return existed

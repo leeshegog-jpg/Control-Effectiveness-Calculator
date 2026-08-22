@@ -18,8 +18,12 @@ frozen graph model; see
 docs/implementation-blueprint/22-r1-incident-reconciliation-decision-review.md).
 sync_investigation (INVESTIGATED_AS) and sync_incident_hazard_link/
 unsync_incident_hazard_link (REVEALS) were added for the "R1 Incident
-Management -- Investigation API & Hazard-Link Graph Sync" slice.
-Investigation/Action/TRIGGERS Action sync remain out of scope.
+Management -- Investigation API & Hazard-Link Graph Sync" slice. sync_action
+and sync_incident_action_link/unsync_incident_action_link (TRIGGERS) were
+added for the "R1 Incident Management -- Action API, Incident Linking &
+TRIGGERS Sync" slice, matching ACR-006 Option A -- relational
+incident_actions rows remain the source of truth, the graph edge follows
+them.
 """
 
 import uuid
@@ -27,6 +31,7 @@ import uuid
 from neo4j import Driver
 
 from app.models.safety import (
+    Action,
     Asset,
     Control,
     CriticalControl,
@@ -382,4 +387,65 @@ def unsync_incident_hazard_link(
             """,
             incident_pg_id=str(incident_id),
             hazard_pg_id=str(hazard_id),
+        )
+
+
+def sync_action(driver: Driver, action: Action) -> None:
+    with driver.session() as session:
+        session.run(
+            """
+            MERGE (a:Action {pg_id: $pg_id})
+            SET a.description = $description, a.priority = $priority,
+                a.due_date = $due_date, a.status = $status,
+                a.effectiveness_review = $effectiveness_review
+            """,
+            pg_id=str(action.id),
+            description=action.description,
+            priority=action.priority,
+            due_date=action.due_date.isoformat() if action.due_date else None,
+            status=action.status,
+            effectiveness_review=action.effectiveness_review,
+        )
+
+
+def get_action_node(driver: Driver, action_id: uuid.UUID) -> dict | None:
+    with driver.session() as session:
+        result = session.run(
+            "MATCH (a:Action {pg_id: $pg_id}) "
+            "RETURN a.pg_id AS pg_id, a.description AS description, a.status AS status",
+            pg_id=str(action_id),
+        )
+        record = result.single()
+        return dict(record) if record else None
+
+
+def sync_incident_action_link(driver: Driver, incident_id: uuid.UUID, action_id: uuid.UUID) -> None:
+    """TRIGGERS -- both endpoint nodes are expected to already exist (sync_incident/
+    sync_action); this MATCHes rather than MERGEs either node to avoid creating a
+    partial node from a stale/missing sync.
+    """
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (i:Incident {pg_id: $incident_pg_id})
+            MATCH (a:Action {pg_id: $action_pg_id})
+            MERGE (i)-[:TRIGGERS]->(a)
+            """,
+            incident_pg_id=str(incident_id),
+            action_pg_id=str(action_id),
+        )
+
+
+def unsync_incident_action_link(
+    driver: Driver, incident_id: uuid.UUID, action_id: uuid.UUID
+) -> None:
+    with driver.session() as session:
+        session.run(
+            """
+            MATCH (:Incident {pg_id: $incident_pg_id})
+              -[r:TRIGGERS]->(:Action {pg_id: $action_pg_id})
+            DELETE r
+            """,
+            incident_pg_id=str(incident_id),
+            action_pg_id=str(action_id),
         )

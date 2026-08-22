@@ -403,3 +403,55 @@ class Investigation(Base):
     contributing_factors: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Action(Base):
+    """Shared, polymorphic entity (safety.actions) -- reachable from Incident
+    or AuditFinding via source_type_concept_id/source_id, per ADR-003 (Action
+    is not a child of Investigation). completion_date and notes are frozen
+    schema columns, mapped here for persistence fidelity, but are
+    deliberately not exposed via ActionInput/ActionOut -- ACR-006 excludes
+    them from this slice's OpenAPI surface; each needs its own ACR to expose.
+    """
+
+    __tablename__ = "actions"
+    __table_args__ = {"schema": "safety"}
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    source_type_concept_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ontology.concepts.id")
+    )
+    source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    root_cause_category_concept_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ontology.concepts.id")
+    )
+    priority: Mapped[str | None] = mapped_column(String(20))
+    assigned_to_person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("safety.persons.id"))
+    due_date: Mapped[date | None] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'Open'"))
+    completion_date: Mapped[date | None] = mapped_column(Date)
+    effectiveness_review: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default=text("'Not Reviewed'")
+    )
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class IncidentAction(Base):
+    """Relational Incident-Action link (safety.incident_actions) -- ACR-006
+    Option A: bare reference, no columns beyond the composite key. Represents
+    the Incident's linked-CAR roster (V1 fCARs), independent of an Action's
+    origin (source_type_concept_id/source_id).
+    """
+
+    __tablename__ = "incident_actions"
+    __table_args__ = {"schema": "safety"}
+
+    incident_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("safety.incidents.id"), primary_key=True
+    )
+    action_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("safety.actions.id"), primary_key=True)
