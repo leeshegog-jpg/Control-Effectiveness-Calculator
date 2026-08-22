@@ -13,7 +13,7 @@ Incident Domain — OpenAPI Extension for Incident-Scoped Action Linking (`incid
 
 ## 3. Status
 
-**Pending.** Drafted per explicit chat GO, scoped to governance/documentation only. Not approved. `10-openapi.yaml` remains unchanged; no schema/Neo4j/ontology/code change has been made. This ACR does not itself authorize implementation even if approved — see §17.
+**Approved (2026-08-22)** — project sponsor/governance authority, recorded in chat, per §9a/§18. **Approval of this ACR is not implementation authorization** — see §17/§18. `10-openapi.yaml` remains unchanged; no schema/Neo4j/ontology/code change has been made.
 
 ## 4. Decision Requiring Change
 
@@ -62,6 +62,15 @@ Two readings are both plausible from the evidence and neither is picked here:
 
 This is presented as a fork for the approving authority to resolve, the same way ACR-004 §14(b)/§18 presented and then resolved the hazard-link shape question at approval time — not pre-decided in this draft.
 
+## 9a. Fork Resolved — Option A (Approved 2026-08-22)
+
+**Option A — link existing Action** chosen. `POST /incidents/{id}/actions` links an existing Action by ID (bare `{action_id}` reference, matching `IncidentHazardLinkInput`'s shape) — it does **not** create a new Action. Rationale, recorded from the approving authority:
+
+- `POST /actions` remains solely responsible for Action creation; `POST /incidents/{id}/actions` is responsible only for linking an existing Action; `DELETE /incidents/{id}/actions/{actionId}` removes the relationship. Clean separation between resource lifecycle and relationship management.
+- Mirrors the already-approved and implemented `incident_hazards` pattern exactly — same shape, same precedent, no new endpoint semantics to design.
+- Avoids introducing new create-and-link transaction, validation, and error semantics that Option B would have required.
+- V1's `fCARs` requirement is still fully satisfied under Option A: the roster is represented by `incident_actions` rows independently of an Action's origin (`source_type`/`source_id`) — nothing about `fCARs`'s comma-separated, potentially-cross-sourced list behaviour requires the linking call to also create the Action.
+
 ## 10. Relationship Semantics
 
 Consistent with ADR-003 and ACR-004 §10: `/incidents/{id}/actions` is scoped only to Incident's `TRIGGERS` edge. It does not affect, nest under, or depend on `/incidents/{id}/investigation` or `/incidents/{id}/hazards`. `source_type`/`source_id` on `actions` (Action's origin) and `incident_actions` (Incident's linked-CAR roster) are confirmed independent, non-competing concepts (§6, [29 §2](../docs/implementation-blueprint/29-action-mechanism-reconciliation-correction.md#2-corrected-finding)) — this ACR adds API surface for the roster only; the origin mechanism already has full representation via generic `/actions`.
@@ -93,21 +102,32 @@ If this ACR is rejected or left indefinitely pending: any future Incident Action
 
 ## 16. Validation Requirements
 
-Not yet applicable — no OpenAPI change has been made under this draft. If approved, `scripts/validate_openapi.py` must confirm 0 dangling `$ref`s and a strictly additive diff before commit, per the ACR-004/005 precedent.
+Not yet applicable — no OpenAPI change has been made under this ACR. When `10-openapi.yaml` is actually extended (a separate, not-yet-issued GO), `scripts/validate_openapi.py` must confirm 0 dangling `$ref`s and a strictly additive diff before commit, per the ACR-004/005 precedent.
 
 ## 17. Implementation Boundary
 
-**Nothing implemented by this ACR draft.** Raising this ACR does not authorize:
+**Nothing implemented by this ACR, notwithstanding approval.** This ACR's approval (§3, §18) does not authorize:
 - Any edit to `10-openapi.yaml`.
-- Any application-code implementation (routers, services, repositories, models) against these proposed endpoints.
+- Any application-code implementation (routers, services, repositories, models) against the endpoints in §7-§8.
 - Any Postgres schema, Neo4j, or ontology change.
-- Resolution of §9's open design question — that resolution, if this ACR is approved, is itself a governance act, mirroring how ACR-004 §18 resolved its own Option A/B fork at approval time, not before.
 
-A separate, explicit GO is required before this ACR's proposed `10-openapi.yaml` extension is written, and a further separate GO is required before any application-code implementation against it.
+A separate, explicit GO is required before this ACR's approved `10-openapi.yaml` extension is written, and a further separate GO is required before any application-code implementation against it.
+
+## 18. Approval / Disposition
+
+**Approved** — project sponsor/governance authority, 2026-08-22, recorded in chat. Scope approved: additive extension of `10-openapi.yaml` per §7-§8, with §9's fork resolved as **Option A** (§9a) — `POST /incidents/{id}/actions` links an existing Action by ID only; it does not create one.
+
+**Approval + Option A resolution together authorize the future `10-openapi.yaml` edit described in §7-§8, once separately GO'd.** This remains a Design Baseline governance act — it does not, by itself:
+- Authorize implementation of the `10-openapi.yaml` edit itself.
+- Authorize implementation of application code (routers/services/repositories/models) against the new endpoints.
+- Authorize any Postgres schema, Neo4j, or ontology change.
+- Resolve `completion_date`/`notes` exposure or `action_controls`/`REMEDIATES` — both remain separate, unaddressed governance items (§5).
+
+A separate, explicit GO is required before the `10-openapi.yaml` extension is written, and a further separate GO is required before any application-code implementation begins against it.
 
 ## Outcome Paths
 
-- **Approve** → `10-openapi.yaml` additively extended per §7-§9, with §9's design question resolved at approval time (mirroring ACR-004 §18) — not yet taken.
+- **Approve** *(this path taken, 2026-08-22)* → Option A resolved for §9's fork (§9a). `10-openapi.yaml` extension per §7-§8 authorized in principle, not yet written — awaiting a separate implementation GO. **Governance decision done; contract edit and implementation both still pending.**
 - **Reject** → not taken.
 - **Defer** → not taken.
 
@@ -119,8 +139,8 @@ A separate, explicit GO is required before this ACR's proposed `10-openapi.yaml`
 
 ## Proposed Change (template field, restated for index consistency)
 
-Additively extend `10-openapi.yaml` with the endpoints in §7-§9, reusing the existing `Action` schema, with one open design question (§9) left for the approving authority.
+Additively extend `10-openapi.yaml` with the endpoints in §7-§8, reusing the existing `Action` schema. §9's design question resolved as Option A (§9a) — link-existing only.
 
 ## Impact (template field, restated for index consistency)
 
-Touches `10-openapi.yaml` only (§5). Fully additive, no breaking change (§11). No schema/Neo4j/ontology/code change (§5, §12). `completion_date`/`notes` and `action_controls`/`REMEDIATES` remain separate, unaddressed governance items (§5).
+Touches `10-openapi.yaml` only (§5), once separately GO'd — not yet edited. Fully additive, no breaking change (§11). No schema/Neo4j/ontology/code change (§5, §12). `completion_date`/`notes` and `action_controls`/`REMEDIATES` remain separate, unaddressed governance items (§5).
