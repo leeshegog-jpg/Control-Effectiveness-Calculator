@@ -70,6 +70,8 @@ def _action_to_out(db: Session, action) -> ActionOut:
         due_date=action.due_date,
         status=action.status,
         effectiveness_review=action.effectiveness_review,
+        completion_date=action.completion_date,
+        notes=action.notes,
     )
 
 

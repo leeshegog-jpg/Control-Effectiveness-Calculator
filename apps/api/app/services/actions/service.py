@@ -1,9 +1,8 @@
 """Actions service -- CRUD + Neo4j sync (bare Action node only).
 
-completion_date and notes are not accepted here -- ACR-006 excludes them
-from this slice's OpenAPI surface. Incident-linking lives in
-services/incidents (mirrors link_incident_hazard) -- Action is a shared,
-polymorphic entity per ADR-003, not owned by the Incident domain.
+Incident-linking lives in services/incidents (mirrors link_incident_hazard)
+-- Action is a shared, polymorphic entity per ADR-003, not owned by the
+Incident domain.
 """
 
 import uuid
@@ -40,6 +39,8 @@ def create_action(
     due_date: date | None,
     status: str | None,
     effectiveness_review: str | None,
+    completion_date: date | None = None,
+    notes: str | None = None,
 ) -> Action:
     action = Action(
         source_type_concept_id=source_type_concept_id,
@@ -49,6 +50,8 @@ def create_action(
         priority=priority,
         assigned_to_person_id=assigned_to_person_id,
         due_date=due_date,
+        completion_date=completion_date,
+        notes=notes,
     )
     if status is not None:
         action.status = status
@@ -77,6 +80,8 @@ def update_action(
     due_date: date | None = None,
     status: str | None = None,
     effectiveness_review: str | None = None,
+    completion_date: date | None = None,
+    notes: str | None = None,
 ) -> Action:
     if source_type_concept_id is not None:
         action.source_type_concept_id = source_type_concept_id
@@ -96,6 +101,10 @@ def update_action(
         action.status = status
     if effectiveness_review is not None:
         action.effectiveness_review = effectiveness_review
+    if completion_date is not None:
+        action.completion_date = completion_date
+    if notes is not None:
+        action.notes = notes
 
     actions_repository.update_action(db, action)
     db.commit()

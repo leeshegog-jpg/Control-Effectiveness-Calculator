@@ -1,7 +1,6 @@
 """Actions CRUD against a real Postgres + Neo4j -- "R1 Incident Management --
-Action API, Incident Linking & TRIGGERS Sync" slice. completion_date/notes
-are deliberately not exercised here -- excluded from this slice's OpenAPI
-surface (ACR-006).
+Action API, Incident Linking & TRIGGERS Sync" slice, plus completion_date/
+notes (ACR-007).
 """
 
 import uuid
@@ -45,6 +44,36 @@ def test_action_list_filters_by_status(client):
     assert list_resp.status_code == 200
     assert any(a["id"] == open_id for a in list_resp.json())
     assert all(a["status"] == "Open" for a in list_resp.json())
+
+
+def test_action_completion_date_and_notes_round_trip(client):
+    create_resp = client.post(
+        "/actions",
+        json={"description": f"Completion test {uuid.uuid4()}"},
+    )
+    assert create_resp.status_code == 201
+    action = create_resp.json()
+    assert action["completion_date"] is None
+    assert action["notes"] is None
+    action_id = action["id"]
+
+    patch_resp = client.patch(
+        f"/actions/{action_id}",
+        json={
+            "description": action["description"],
+            "completion_date": "2026-08-25",
+            "notes": "Closed out after verification.",
+        },
+    )
+    assert patch_resp.status_code == 200
+    updated = patch_resp.json()
+    assert updated["completion_date"] == "2026-08-25"
+    assert updated["notes"] == "Closed out after verification."
+
+    get_resp = client.get("/actions")
+    fetched = next(a for a in get_resp.json() if a["id"] == action_id)
+    assert fetched["completion_date"] == "2026-08-25"
+    assert fetched["notes"] == "Closed out after verification."
 
 
 def test_action_update_not_found(client):

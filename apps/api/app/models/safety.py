@@ -408,10 +408,7 @@ class Investigation(Base):
 class Action(Base):
     """Shared, polymorphic entity (safety.actions) -- reachable from Incident
     or AuditFinding via source_type_concept_id/source_id, per ADR-003 (Action
-    is not a child of Investigation). completion_date and notes are frozen
-    schema columns, mapped here for persistence fidelity, but are
-    deliberately not exposed via ActionInput/ActionOut -- ACR-006 excludes
-    them from this slice's OpenAPI surface; each needs its own ACR to expose.
+    is not a child of Investigation).
     """
 
     __tablename__ = "actions"

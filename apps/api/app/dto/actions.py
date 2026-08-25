@@ -1,9 +1,5 @@
 """Action request/response DTOs. Companion to docs/knowledge-graph/10-openapi.yaml
 `Actions` tag -- field shapes match `Action`/`ActionInput` exactly.
-
-completion_date and notes exist as columns on the ORM model but are
-deliberately not exposed here -- ACR-006 excludes them from this slice's
-OpenAPI surface; each needs its own ACR to expose.
 """
 
 import uuid
@@ -24,6 +20,8 @@ class ActionInput(BaseModel):
     due_date: date | None = None
     status: str | None = None
     effectiveness_review: str | None = None
+    completion_date: date | None = None
+    notes: str | None = None
 
 
 class ActionOut(BaseModel):
@@ -39,6 +37,8 @@ class ActionOut(BaseModel):
     due_date: date | None = None
     status: str
     effectiveness_review: str
+    completion_date: date | None = None
+    notes: str | None = None
 
 
 class IncidentActionLinkInput(BaseModel):
