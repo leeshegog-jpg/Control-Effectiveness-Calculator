@@ -13,7 +13,7 @@ Action Domain — OpenAPI Extension for `completion_date` and `notes`.
 
 ## 3. Status
 
-**Pending.** Drafted per explicit chat GO, scoped to governance/documentation only. Not approved. `10-openapi.yaml` remains unchanged; no schema/Neo4j/ontology/code change has been made.
+**Approved (2026-08-25).** Approved per explicit chat decision. `10-openapi.yaml` remains unchanged as of this approval record — the additive extension in §7 is authorized but not yet written; a separate GO is required before `10-openapi.yaml` is edited (§17), and a further separate GO is required before any application-code implementation against it.
 
 ## 4. Decision Requiring Change
 
@@ -99,7 +99,7 @@ A separate, explicit GO is required before this ACR's proposed `10-openapi.yaml`
 
 ## Outcome Paths
 
-- **Approve** → `10-openapi.yaml` additively extended per §7 — not yet taken.
+- **Approve** → `10-openapi.yaml` additively extended per §7 — **decision taken 2026-08-25**; the extension itself remains pending a separate GO (§17).
 - **Reject** → not taken.
 - **Defer** → not taken.
 
