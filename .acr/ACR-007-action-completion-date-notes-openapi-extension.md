@@ -13,7 +13,7 @@ Action Domain — OpenAPI Extension for `completion_date` and `notes`.
 
 ## 3. Status
 
-**Approved (2026-08-25).** Approved per explicit chat decision. `10-openapi.yaml` remains unchanged as of this approval record — the additive extension in §7 is authorized but not yet written; a separate GO is required before `10-openapi.yaml` is edited (§17), and a further separate GO is required before any application-code implementation against it.
+**Approved (2026-08-25) — Incorporated (2026-08-25).** `10-openapi.yaml` additively extended per §7 under a separate, explicit GO. A further separate GO is required before any application-code implementation against it.
 
 ## 4. Decision Requiring Change
 
@@ -86,20 +86,19 @@ If this ACR is rejected or left indefinitely pending: Action records remain unab
 
 ## 16. Validation Requirements
 
-Not yet applicable — no OpenAPI change has been made under this draft. If approved, `scripts/validate_openapi.py` must confirm 0 dangling `$ref`s and a strictly additive diff before commit, per the ACR-004/005/006 precedent.
+**Satisfied.** `scripts/validate_openapi.py` → `OK: 70 paths, 78 schemas, 0 dangling $refs` (paths/schemas count unchanged from pre-extension baseline). Diff strictly additive: 3 insertions, 1 deletion (version bump only) — per the ACR-004/005/006 precedent.
 
 ## 17. Implementation Boundary
 
-**Nothing implemented by this ACR draft.** Raising this ACR does not authorize:
-- Any edit to `10-openapi.yaml`.
+**`10-openapi.yaml` extended per §7. Application code remains unauthorized.** This incorporation does not authorize:
 - Any application-code implementation (DTO/router/service changes) to expose the new fields.
 - Any Postgres schema, Neo4j, or ontology change.
 
-A separate, explicit GO is required before this ACR's proposed `10-openapi.yaml` extension is written, and a further separate GO is required before any application-code implementation against it.
+A further separate, explicit GO is required before any application-code implementation against these fields.
 
 ## Outcome Paths
 
-- **Approve** → `10-openapi.yaml` additively extended per §7 — **decision taken 2026-08-25**; the extension itself remains pending a separate GO (§17).
+- **Approve** → `10-openapi.yaml` additively extended per §7 — **decision taken 2026-08-25; incorporated 2026-08-25.**
 - **Reject** → not taken.
 - **Defer** → not taken.
 

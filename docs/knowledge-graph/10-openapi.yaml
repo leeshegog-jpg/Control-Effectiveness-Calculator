@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TP Risk Management SMS — Safety Knowledge Graph Platform API
-  version: 0.4.0-draft
+  version: 0.5.0-draft
   description: >
     DRAFT — controlled design document, requires approval before implementation.
     Backend REST surface for the Safety Knowledge Graph + AI Risk Intelligence Platform.
@@ -1240,6 +1240,8 @@ components:
         due_date: { type: string, format: date }
         status: { type: string, enum: [Open, In Progress, Closed] }
         effectiveness_review: { type: string, enum: ["Not Reviewed", Effective, "Partially Effective", Ineffective] }
+        completion_date: { type: string, format: date }
+        notes: { type: string }
 
     Audit:
       allOf:
