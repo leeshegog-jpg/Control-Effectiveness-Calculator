@@ -23,6 +23,7 @@ dev = [
     "httpx>=0.27",
     "ruff>=0.8",
     "mypy>=1.13",
+    "schemathesis>=4.25",
 ]
 
 [build-system]
