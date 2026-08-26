@@ -40,6 +40,8 @@ def _to_out(db: Session, action) -> ActionOut:
         due_date=action.due_date,
         status=action.status,
         effectiveness_review=action.effectiveness_review,
+        completion_date=action.completion_date,
+        notes=action.notes,
     )
 
 
@@ -74,6 +76,8 @@ def create_action(
         due_date=body.due_date,
         status=body.status,
         effectiveness_review=body.effectiveness_review,
+        completion_date=body.completion_date,
+        notes=body.notes,
     )
     return _to_out(db, action)
 
@@ -103,5 +107,7 @@ def update_action(
         due_date=body.due_date,
         status=body.status,
         effectiveness_review=body.effectiveness_review,
+        completion_date=body.completion_date,
+        notes=body.notes,
     )
     return _to_out(db, updated)
