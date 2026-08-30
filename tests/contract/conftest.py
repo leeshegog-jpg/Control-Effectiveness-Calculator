@@ -1,7 +1,11 @@
-"""Contract test setup -- validates the live FastAPI app against the frozen
-docs/knowledge-graph/10-openapi.yaml via Schemathesis, driven in-process
-(ASGI, no live server). Requires a real Postgres + Neo4j, same as
-tests/integration -- see tests/integration/conftest.py and DEVELOPMENT.md.
+"""Contract test setup.
+
+Puts ``apps/api`` on ``sys.path`` so ``app.main`` imports the same way it
+does for ``tests/integration``. The Schemathesis suite itself is described
+in ``test_openapi_contract.py``; its scope and CI treatment are fixed by
+ADR-007. The implemented-operation assertions need a real Postgres + Neo4j
+(same as ``tests/integration`` -- see ``tests/integration/conftest.py`` and
+``DEVELOPMENT.md``); the deferred operations are skipped and need neither.
 """
 
 import sys
