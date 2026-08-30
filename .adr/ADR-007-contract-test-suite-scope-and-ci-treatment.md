@@ -1,6 +1,6 @@
 # ADR-007: OpenAPI Contract Test Suite — Scope, Failure Semantics, and CI Treatment
 
-**Status:** Proposed
+**Status:** Accepted (2026-08-30)
 **Context:** PR #44 (merged to `main` @ `150b571`) added a Schemathesis contract
 suite at `tests/contract/`, validating the FastAPI app against the frozen
 `docs/knowledge-graph/10-openapi.yaml`. It was merged **inactive** —
