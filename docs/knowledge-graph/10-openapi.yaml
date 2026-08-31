@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TP Risk Management SMS — Safety Knowledge Graph Platform API
-  version: 0.6.0-draft
+  version: 0.7.0-draft
   description: >
     DRAFT — controlled design document, requires approval before implementation.
     Backend REST surface for the Safety Knowledge Graph + AI Risk Intelligence Platform.
@@ -99,6 +99,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Asset' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   # ── Device Boundary (11-safety-case-demonstration-model.md §2) ──────────────────────
   /assets/{id}/boundary:
@@ -170,6 +171,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Hazard' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /hazards/{id}/duplicate-candidates:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -397,6 +399,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Risk' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
     patch:
       tags: [Risks]
       summary: Update a risk. If current_rating is Extreme/High, sfarp_justification is validated (R4 SFARP gate).
@@ -428,6 +431,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Control' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /controls/{id}/gate-test:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     post:
@@ -454,6 +458,7 @@ paths:
                 properties:
                   classification: { type: string, enum: [Control, Support, Verification] }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /controls/{id}/eia-test:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     post:
@@ -464,6 +469,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Control' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /controls/{id}/critical-control-test:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     post:
@@ -483,6 +489,7 @@ paths:
           content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControl' } } }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { description: "Control is not classified 'Control' — cannot be tested for criticality" }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /critical-controls/{id}:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -491,6 +498,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControl' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
     patch:
       tags: [CriticalControls]
       summary: Update FARSI scores (08 §4)
@@ -498,6 +506,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControl' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /critical-controls/{id}/performance-standards:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -505,12 +514,14 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PerformanceStandard' } } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
     post:
       tags: [CriticalControls]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/PerformanceStandardInput' } } } }
       responses:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/PerformanceStandard' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /performance-standards/{id}/verification-activities:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -564,12 +575,14 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
     patch:
       tags: [Incidents]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/IncidentInput' } } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /incidents/{id}/run-investigation-pipeline:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     post:
@@ -605,6 +618,7 @@ paths:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Investigation' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { description: "Investigation already exists for this incident (investigations.incident_id UNIQUE)" }
+        '422': { $ref: '#/components/responses/ValidationError' }
     patch:
       tags: [Incidents]
       summary: Update the investigation for this incident
@@ -621,6 +635,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Hazard' } } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
     post:
       tags: [Incidents, Hazards]
       summary: >
@@ -651,6 +666,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Evidence' } } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
     post:
       tags: [Evidence]
       summary: Attach evidence to this incident
@@ -658,6 +674,7 @@ paths:
       responses:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Evidence' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /incidents/{id}/actions:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -666,6 +683,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Action' } } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
     post:
       tags: [Incidents, Actions]
       summary: >
@@ -707,6 +725,7 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Action' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /audits:
     get:
       tags: [Audits]

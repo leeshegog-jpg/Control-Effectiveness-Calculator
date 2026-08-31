@@ -138,9 +138,23 @@ The D4 contract job stays at 46 failures, ~26 of which are contract-documentatio
 
 **Separate observation, not addressed here:** the documented error-response body (`components.schemas.Error` = `{code?, message?, details?}`) does not match the API's actual FastAPI error body (`{"detail": …}`). The loose `Error` schema still validates the actual body (no `required`, `additionalProperties` default-true), so this causes no response-schema-conformance failure and is pre-existing on every operation that already references `NotFound`/`ValidationError`. Whether to tighten `Error` to the real shape is a separate contract decision.
 
+## Round 2 (2026-08-31) — path-parameter `422`
+
+**Approved on chat GO ("GO — ACR-A Round 2"), 2026-08-31.** Round 1 (§14 alternative (c)) deliberately gated the `422` additions to what the first DB-backed run evidenced. Its `contract-tests` result (PR #49, Actions run `33387238415`: `40 failed, 12 passed, 67 skipped`) then evidenced, per-operation, the discrepancy Round 1 predicted: with the `404` now documented, Schemathesis surfaces a previously-masked **`422` on a malformed path/query UUID** on the P1 `{id}` operations (`{"detail":[{"type":"uuid_parsing","loc":["path","<id>"], …}]}`).
+
+**Change:** `info.version` `0.6.0-draft` → `0.7.0-draft`; `'422': { $ref: '#/components/responses/ValidationError' }` added to the **19** P1 `{id}` operations that did not already carry it (the 20th, `PATCH /risks/{id}`, already has an inline `422` for the R4 SFARP gate — untouched, and it passed in Round 1). No new component, schema, or endpoint; path count 70, schema count 78 unchanged.
+
+**Evidence split:**
+- **12 operations** surfaced `Received: 422 … Documented: 200,404` (or `201,404[,409]`) directly in run `33387238415`: `PATCH /assets/{id}` · `PATCH /hazards/{id}` · `GET /controls/{id}` · `POST /controls/{id}/gate-test` · `POST /controls/{id}/eia-test` · `POST /controls/{id}/critical-control-test` · `PATCH /critical-controls/{id}` · `POST /critical-controls/{id}/performance-standards` · `PATCH /incidents/{id}` · `POST /incidents/{id}/investigation` · `POST /incidents/{id}/evidence` · `PATCH /actions/{id}`.
+- **7 operations** — all `GET {id}` — surfaced `AllowHeaderMismatch` (P5) first in that run, which deduplicated the `422` behind it: `GET /risks/{id}` · `GET /critical-controls/{id}` · `GET /critical-controls/{id}/performance-standards` · `GET /incidents/{id}` · `GET /incidents/{id}/hazards` · `GET /incidents/{id}/evidence` · `GET /incidents/{id}/actions`. All 7 take the **identical shared `#/components/parameters/id` component** (typed `format: uuid`, routed as `uuid.UUID`) as the 12 above, so FastAPI's `422` on a malformed path segment is the same deterministic code path — documented here to complete the class. The next DB-backed run confirms it (these 7 will pass, or reduce to their P5 finding).
+
+**Validation:** `scripts/validate_openapi.py` → `OK: 70 paths, 78 schemas, 0 dangling $refs`; semantic-additivity check (`HEAD` vs tree, UTF-8) → `components` byte-identical, 0 responses removed, exactly 19 operations gained a response, every added code `== '422'`, every pre-existing code retained in order, only `info.version` changed; `pytest tests/contract/test_contract_classification.py` → 6 passed; `--collect-only` → 119, unchanged. DB-backed before/after in the Round 2 PR body.
+
+**Still not addressed** (unchanged from §5): P3 (`IntegrityError` → `500`, 8 `POST` operations), P4 (`status` query param), P5 `AllowHeaderMismatch`, P6 unknown-query-param, P7 / S4 authentication. Each remains its own governance item.
+
 ## Outcome Paths
 
-- **Approve** → `10-openapi.yaml` additively extended per §7 — **decision taken 2026-08-31 on chat GO (ACR-A only); incorporated 2026-08-31; PR open, not merged.**
+- **Approve** → `10-openapi.yaml` additively extended per §7 — **Round 1: decision 2026-08-31 on chat GO (ACR-A only), incorporated 2026-08-31, merged as PR #49 (`main @ 8644e8e`). Round 2: decision 2026-08-31 on chat GO ("GO — ACR-A Round 2"), incorporated 2026-08-31; PR open, not merged.**
 - **Reject** → not taken.
 - **Defer** → not taken.
 
