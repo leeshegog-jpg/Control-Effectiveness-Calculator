@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TP Risk Management SMS — Safety Knowledge Graph Platform API
-  version: 0.5.0-draft
+  version: 0.6.0-draft
   description: >
     DRAFT — controlled design document, requires approval before implementation.
     Backend REST surface for the Safety Knowledge Graph + AI Risk Intelligence Platform.
@@ -71,6 +71,7 @@ paths:
                 properties:
                   items: { type: array, items: { $ref: '#/components/schemas/Asset' } }
                   total: { type: integer }
+        '422': { $ref: '#/components/responses/ValidationError' }
     post:
       tags: [Assets]
       summary: Create an asset
@@ -97,6 +98,7 @@ paths:
         content: { application/json: { schema: { $ref: '#/components/schemas/AssetInput' } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Asset' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # ── Device Boundary (11-safety-case-demonstration-model.md §2) ──────────────────────
   /assets/{id}/boundary:
@@ -167,6 +169,7 @@ paths:
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/HazardInput' } } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Hazard' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /hazards/{id}/duplicate-candidates:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -393,12 +396,14 @@ paths:
       summary: Get a risk
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Risk' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
     patch:
       tags: [Risks]
       summary: Update a risk. If current_rating is Extreme/High, sfarp_justification is validated (R4 SFARP gate).
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/RiskInput' } } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Risk' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
         '422': { description: SFARP gate rejected the justification (07-inference-rules-catalogue.md R4) }
 
   # ── Controls & Critical Controls ─────────────────────────────────────────────────
@@ -422,6 +427,7 @@ paths:
       summary: Get a control
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Control' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /controls/{id}/gate-test:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     post:
@@ -447,6 +453,7 @@ paths:
                 type: object
                 properties:
                   classification: { type: string, enum: [Control, Support, Verification] }
+        '404': { $ref: '#/components/responses/NotFound' }
   /controls/{id}/eia-test:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     post:
@@ -454,7 +461,9 @@ paths:
       summary: Record the Effective/Independent/Auditable quick assessment (08-critical-control-assurance-model.md §4a, Guide Table 2) — distinct from the 3-gate classification test
       requestBody:
         content: { application/json: { schema: { $ref: '#/components/schemas/ControlEiaInput' } } }
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Control' } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Control' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /controls/{id}/critical-control-test:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     post:
@@ -472,6 +481,7 @@ paths:
         '201':
           description: CriticalControl created
           content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControl' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { description: "Control is not classified 'Control' — cannot be tested for criticality" }
   /critical-controls/{id}:
     parameters: [ { $ref: '#/components/parameters/id' } ]
@@ -480,21 +490,27 @@ paths:
       summary: Get a critical control, including derived FARSI score and current health state (08-critical-control-assurance-model.md §6)
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControl' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
     patch:
       tags: [CriticalControls]
       summary: Update FARSI scores (08 §4)
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControlFarsiInput' } } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CriticalControl' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /critical-controls/{id}/performance-standards:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
       tags: [CriticalControls]
-      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PerformanceStandard' } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PerformanceStandard' } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [CriticalControls]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/PerformanceStandardInput' } } } }
-      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/PerformanceStandard' } } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/PerformanceStandard' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /performance-standards/{id}/verification-activities:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -545,11 +561,15 @@ paths:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
       tags: [Incidents]
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
     patch:
       tags: [Incidents]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/IncidentInput' } } } }
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /incidents/{id}/run-investigation-pipeline:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     post:
@@ -583,6 +603,7 @@ paths:
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/InvestigationInput' } } } }
       responses:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Investigation' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { description: "Investigation already exists for this incident (investigations.incident_id UNIQUE)" }
     patch:
       tags: [Incidents]
@@ -591,12 +612,15 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Investigation' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /incidents/{id}/hazards:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
       tags: [Incidents, Hazards]
       summary: List hazards this incident revealed (REVEALS, N:N — safety.incident_hazards)
-      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Hazard' } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Hazard' } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [Incidents, Hazards]
       summary: >
@@ -607,6 +631,7 @@ paths:
       responses:
         '201': { description: Linked }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /incidents/{id}/hazards/{hazardId}:
     parameters:
       - { $ref: '#/components/parameters/id' }
@@ -617,23 +642,30 @@ paths:
       responses:
         '204': { description: Unlinked }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /incidents/{id}/evidence:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
       tags: [Evidence]
       summary: List evidence attached to this incident (safety.evidence.linked_entity_type = 'incident')
-      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Evidence' } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Evidence' } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [Evidence]
       summary: Attach evidence to this incident
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/EvidenceInput' } } } }
-      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Evidence' } } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Evidence' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /incidents/{id}/actions:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
       tags: [Incidents, Actions]
       summary: List Actions linked to this incident's linked-CAR roster (TRIGGERS, 1:N — safety.incident_actions; V1 fCARs)
-      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Action' } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Action' } } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [Incidents, Actions]
       summary: >
@@ -645,6 +677,7 @@ paths:
       responses:
         '201': { description: Linked }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /incidents/{id}/actions/{actionId}:
     parameters:
       - { $ref: '#/components/parameters/id' }
@@ -655,6 +688,7 @@ paths:
       responses:
         '204': { description: Unlinked }
         '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /actions:
     get:
@@ -670,7 +704,9 @@ paths:
     patch:
       tags: [Actions]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ActionInput' } } } }
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Action' } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Action' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /audits:
     get:
       tags: [Audits]
