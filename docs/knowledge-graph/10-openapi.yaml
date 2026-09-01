@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TP Risk Management SMS — Safety Knowledge Graph Platform API
-  version: 0.8.0-draft
+  version: 0.9.0-draft
   description: >
     DRAFT — controlled design document, requires approval before implementation.
     Backend REST surface for the Safety Knowledge Graph + AI Risk Intelligence Platform.
@@ -1028,7 +1028,7 @@ components:
       description: Reference to an ontology concept (03-postgresql-schema.sql ontology.concepts)
       properties:
         concept_id: { type: string, format: uuid, nullable: true }
-        pref_label: { type: string, description: "Read-only, resolved server-side" }
+        pref_label: { type: string, description: "Read-only, resolved server-side", nullable: true }
 
     Park:
       type: object
@@ -1066,7 +1066,7 @@ components:
         name: { type: string }
         park_id: { type: string, format: uuid }
         asset_type: { $ref: '#/components/schemas/ConceptRef' }
-        iso55000_class: { type: string, description: "TO BE CONFIRMED — see PLATFORM_ARCHITECTURE_V2.md §5" }
+        iso55000_class: { type: string, description: "TO BE CONFIRMED — see PLATFORM_ARCHITECTURE_V2.md §5", nullable: true }
         status: { type: string, default: active }
 
     Hazard:
@@ -1084,8 +1084,8 @@ components:
         asset_id: { type: string, format: uuid, nullable: true }
         name: { type: string }
         description: { type: string }
-        exposure_pathway: { type: string }
-        possible_consequence: { type: string }
+        exposure_pathway: { type: string, nullable: true }
+        possible_consequence: { type: string, nullable: true }
         category: { $ref: '#/components/schemas/ConceptRef' }
         energy_source: { $ref: '#/components/schemas/ConceptRef' }
         date_identified: { type: string, format: date }
@@ -1099,26 +1099,26 @@ components:
         - type: object
           properties:
             id: { type: string, format: uuid }
-            inherent_rating: { type: string, enum: [Extreme, High, Medium, Low], readOnly: true, description: "Derived — 07-inference-rules-catalogue.md R1" }
-            current_rating: { type: string, enum: [Extreme, High, Medium, Low], readOnly: true }
+            inherent_rating: { type: string, enum: [Extreme, High, Medium, Low], readOnly: true, description: "Derived — 07-inference-rules-catalogue.md R1", nullable: true }
+            current_rating: { type: string, enum: [Extreme, High, Medium, Low], readOnly: true, nullable: true }
     RiskInput:
       type: object
       required: [hazard_id, description]
       properties:
         hazard_id: { type: string, format: uuid }
         description: { type: string }
-        cause: { type: string }
+        cause: { type: string, nullable: true }
         inherent_likelihood: { type: integer, minimum: 1, maximum: 5 }
         inherent_consequence: { type: integer, minimum: 1, maximum: 5 }
         current_likelihood: { type: integer, minimum: 1, maximum: 5 }
         current_consequence: { type: integer, minimum: 1, maximum: 5 }
         target_likelihood: { type: integer, minimum: 1, maximum: 5 }
         target_consequence: { type: integer, minimum: 1, maximum: 5 }
-        sfarp_justification: { type: string, description: "General WHS duty justification. For ADI/Chapter-9A-scoped risks, use serious_risk_justification and SFAIRP terminology in any generated Demonstration text — 09-regulatory-knowledge-model.md §3" }
+        sfarp_justification: { type: string, description: "General WHS duty justification. For ADI/Chapter-9A-scoped risks, use serious_risk_justification and SFAIRP terminology in any generated Demonstration text — 09-regulatory-knowledge-model.md §3", nullable: true }
         status: { type: string, enum: [Open, Under Review, Closed] }
         review_date: { type: string, format: date }
         is_serious_risk: { type: boolean, default: false, description: "Chapter 9A serious risk classification (WHS Reg s.608B(1)(b)) — operator-defined threshold, see 09-regulatory-knowledge-model.md §6" }
-        serious_risk_justification: { type: string }
+        serious_risk_justification: { type: string, nullable: true }
 
     Control:
       allOf:
@@ -1126,7 +1126,7 @@ components:
         - type: object
           properties:
             id: { type: string, format: uuid }
-            classification: { type: string, enum: [Control, Support, Verification], readOnly: true }
+            classification: { type: string, enum: [Control, Support, Verification], readOnly: true, nullable: true }
             is_critical: { type: boolean, readOnly: true }
     ControlInput:
       type: object
@@ -1137,7 +1137,7 @@ components:
         control_type: { type: string, enum: [Prevention, Mitigation] }
         hierarchy: { $ref: '#/components/schemas/ConceptRef' }
         owner_person_id: { type: string, format: uuid }
-        effectiveness_rating: { type: string }
+        effectiveness_rating: { type: string, nullable: true }
 
     CriticalControl:
       type: object
@@ -1179,7 +1179,7 @@ components:
       required: [requirement_text]
       properties:
         requirement_text: { type: string }
-        measurable_criteria: { type: string }
+        measurable_criteria: { type: string, nullable: true }
 
     VerificationActivity:
       allOf:
@@ -1192,11 +1192,11 @@ components:
       type: object
       properties:
         method: { $ref: '#/components/schemas/ConceptRef' }
-        frequency: { type: string, enum: [Daily, Weekly, Fortnightly, Monthly, Quarterly, Annual, Biennial, Other] }
+        frequency: { type: string, enum: [Daily, Weekly, Fortnightly, Monthly, Quarterly, Annual, Biennial, Other], nullable: true }
         due_date: { type: string, format: date }
         last_completed: { type: string, format: date }
         performed_by_person_id: { type: string, format: uuid }
-        result: { type: string }
+        result: { type: string, nullable: true }
 
     Evidence:
       allOf:
@@ -1211,7 +1211,7 @@ components:
         type: { $ref: '#/components/schemas/ConceptRef' }
         source_document_id: { type: string, format: uuid }
         uploaded_by_person_id: { type: string, format: uuid }
-        linked_entity_type: { type: string }
+        linked_entity_type: { type: string, nullable: true }
         linked_entity_id: { type: string, format: uuid }
 
     TARP:
@@ -1245,16 +1245,16 @@ components:
         datetime: { type: string, format: date-time }
         incident_type: { $ref: '#/components/schemas/ConceptRef' }
         severity: { type: integer, minimum: 1, maximum: 5 }
-        vrtp_severity: { type: string, enum: ["First Aid", "Medical Treatment Injury", "Lost Time Injury", "Serious Injury", "Dangerous Incident", "Near Miss"] }
-        location: { type: string }
+        vrtp_severity: { type: string, enum: ["First Aid", "Medical Treatment Injury", "Lost Time Injury", "Serious Injury", "Dangerous Incident", "Near Miss"], nullable: true }
+        location: { type: string, nullable: true }
         asset_id: { type: string, format: uuid }
         reporter_person_id: { type: string, format: uuid }
         description: { type: string }
-        injuries: { type: string }
-        witnesses: { type: string }
-        immediate_actions: { type: string }
-        immediate_cause: { type: string }
-        root_cause: { type: string }
+        injuries: { type: string, nullable: true }
+        witnesses: { type: string, nullable: true }
+        immediate_actions: { type: string, nullable: true }
+        immediate_cause: { type: string, nullable: true }
+        root_cause: { type: string, nullable: true }
         whsq_notified: { type: string, enum: ["Not yet assessed", "Yes", "No - assessed not required", "No - under assessment"] }
         osr_notified: { type: string, enum: ["Not applicable / under assessment", "Yes", "No - assessed not required", "No - under assessment"], description: "Chapter 9A — see 09-regulatory-knowledge-model.md §4" }
         investigation_status: { type: string, enum: [Not Started, In Progress, Complete] }
@@ -1275,9 +1275,9 @@ components:
     InvestigationInput:
       type: object
       properties:
-        method: { type: string, description: "TO BE CONFIRMED — ICAM or VRTP-mandated equivalent (03-postgresql-schema.sql investigations.method; docs/knowledge-graph/README.md open item)" }
-        findings: { type: string }
-        contributing_factors: { type: string }
+        method: { type: string, description: "TO BE CONFIRMED — ICAM or VRTP-mandated equivalent (03-postgresql-schema.sql investigations.method; docs/knowledge-graph/README.md open item)", nullable: true }
+        findings: { type: string, nullable: true }
+        contributing_factors: { type: string, nullable: true }
 
     Action:
       allOf:
@@ -1292,13 +1292,13 @@ components:
         source_id: { type: string, format: uuid }
         description: { type: string }
         root_cause_category: { $ref: '#/components/schemas/ConceptRef' }
-        priority: { type: string, enum: [Critical, High, Medium, Low] }
+        priority: { type: string, enum: [Critical, High, Medium, Low], nullable: true }
         assigned_to_person_id: { type: string, format: uuid }
         due_date: { type: string, format: date }
         status: { type: string, enum: [Open, In Progress, Closed] }
         effectiveness_review: { type: string, enum: ["Not Reviewed", Effective, "Partially Effective", Ineffective] }
         completion_date: { type: string, format: date }
-        notes: { type: string }
+        notes: { type: string, nullable: true }
 
     Audit:
       allOf:
@@ -1398,7 +1398,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        description: { type: string }
+        description: { type: string, nullable: true }
         version: { type: integer }
 
     Concept:
@@ -1415,8 +1415,8 @@ components:
         scheme_id: { type: string, format: uuid }
         parent_concept_id: { type: string, format: uuid, nullable: true }
         pref_label: { type: string }
-        definition: { type: string }
-        source_ref: { type: string }
+        definition: { type: string, nullable: true }
+        source_ref: { type: string, nullable: true }
 
     ConceptAlias:
       allOf:
