@@ -9,10 +9,12 @@ from neo4j import Driver
 from sqlalchemy.orm import Session
 
 from app.graph import sync_service
+from app.models.ontology import Concept
 from app.models.provenance import ProvenanceRecord
-from app.models.safety import Control, CriticalControl
+from app.models.safety import Control, CriticalControl, Person
 from app.repositories import controls_repository, critical_controls_repository
 from app.services.controls import rules
+from app.services.referential import require_exists
 
 
 class ControlNotClassifiedError(Exception):
@@ -41,6 +43,8 @@ def create_control(
     effectiveness_rating: str | None,
     created_by_person_id: uuid.UUID | None = None,
 ) -> Control:
+    require_exists(db, Concept, hierarchy_concept_id, field="hierarchy", entity="ontology concept")
+    require_exists(db, Person, owner_person_id, field="owner_person_id", entity="person")
     control = Control(
         risk_id=risk_id,
         description=description,

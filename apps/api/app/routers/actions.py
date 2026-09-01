@@ -17,6 +17,7 @@ from app.dto.actions import ActionInput, ActionOut
 from app.dto.assets import ConceptRef
 from app.models.ontology import Concept
 from app.services.actions import service
+from app.services.referential import ReferentialIntegrityError
 
 router = APIRouter(prefix="/actions", tags=["actions"])
 
@@ -62,23 +63,26 @@ def create_action(
     db: Session = Depends(get_db),
     graph_driver: Driver = Depends(get_graph_driver),
 ) -> ActionOut:
-    action = service.create_action(
-        db,
-        graph_driver,
-        source_type_concept_id=body.source_type.concept_id if body.source_type else None,
-        source_id=body.source_id,
-        description=body.description,
-        root_cause_category_concept_id=(
-            body.root_cause_category.concept_id if body.root_cause_category else None
-        ),
-        priority=body.priority,
-        assigned_to_person_id=body.assigned_to_person_id,
-        due_date=body.due_date,
-        status=body.status,
-        effectiveness_review=body.effectiveness_review,
-        completion_date=body.completion_date,
-        notes=body.notes,
-    )
+    try:
+        action = service.create_action(
+            db,
+            graph_driver,
+            source_type_concept_id=body.source_type.concept_id if body.source_type else None,
+            source_id=body.source_id,
+            description=body.description,
+            root_cause_category_concept_id=(
+                body.root_cause_category.concept_id if body.root_cause_category else None
+            ),
+            priority=body.priority,
+            assigned_to_person_id=body.assigned_to_person_id,
+            due_date=body.due_date,
+            status=body.status,
+            effectiveness_review=body.effectiveness_review,
+            completion_date=body.completion_date,
+            notes=body.notes,
+        )
+    except ReferentialIntegrityError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _to_out(db, action)
 
 

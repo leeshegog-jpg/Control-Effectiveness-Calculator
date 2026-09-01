@@ -29,6 +29,8 @@ from app.models.ontology import Concept
 from app.services.controls import service
 from app.services.controls.service import ControlNotClassifiedError
 from app.services.critical_controls import service as critical_controls_service
+from app.services.referential import ReferentialIntegrityError
+from app.services.risks import service as risks_service
 
 router = APIRouter(tags=["controls"])
 
@@ -67,16 +69,21 @@ def create_control_for_risk(
     db: Session = Depends(get_db),
     graph_driver: Driver = Depends(get_graph_driver),
 ) -> ControlOut:
-    control = service.create_control(
-        db,
-        graph_driver,
-        risk_id=risk_id,
-        description=body.description,
-        control_type=body.control_type,
-        hierarchy_concept_id=body.hierarchy.concept_id if body.hierarchy else None,
-        owner_person_id=body.owner_person_id,
-        effectiveness_rating=body.effectiveness_rating,
-    )
+    if risks_service.get_risk(db, risk_id) is None:
+        raise HTTPException(status_code=404, detail="Risk not found")
+    try:
+        control = service.create_control(
+            db,
+            graph_driver,
+            risk_id=risk_id,
+            description=body.description,
+            control_type=body.control_type,
+            hierarchy_concept_id=body.hierarchy.concept_id if body.hierarchy else None,
+            owner_person_id=body.owner_person_id,
+            effectiveness_rating=body.effectiveness_rating,
+        )
+    except ReferentialIntegrityError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _to_out(db, control)
 
 

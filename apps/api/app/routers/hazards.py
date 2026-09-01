@@ -19,6 +19,7 @@ from app.dto.assets import ConceptRef
 from app.dto.hazards import HazardInput, HazardListOut, HazardOut
 from app.models.ontology import Concept
 from app.services.hazards import service
+from app.services.referential import ReferentialIntegrityError
 
 router = APIRouter(prefix="/hazards", tags=["hazards"])
 
@@ -69,21 +70,24 @@ def create_hazard(
     db: Session = Depends(get_db),
     graph_driver: Driver = Depends(get_graph_driver),
 ) -> HazardOut:
-    hazard = service.create_hazard(
-        db,
-        graph_driver,
-        asset_id=body.asset_id,
-        name=body.name,
-        description=body.description,
-        exposure_pathway=body.exposure_pathway,
-        possible_consequence=body.possible_consequence,
-        category_concept_id=body.category.concept_id if body.category else None,
-        energy_source_concept_id=body.energy_source.concept_id if body.energy_source else None,
-        date_identified=body.date_identified,
-        owner_person_id=body.owner_person_id,
-        is_adh=body.is_adh,
-        device_boundary_id=body.device_boundary_id,
-    )
+    try:
+        hazard = service.create_hazard(
+            db,
+            graph_driver,
+            asset_id=body.asset_id,
+            name=body.name,
+            description=body.description,
+            exposure_pathway=body.exposure_pathway,
+            possible_consequence=body.possible_consequence,
+            category_concept_id=body.category.concept_id if body.category else None,
+            energy_source_concept_id=body.energy_source.concept_id if body.energy_source else None,
+            date_identified=body.date_identified,
+            owner_person_id=body.owner_person_id,
+            is_adh=body.is_adh,
+            device_boundary_id=body.device_boundary_id,
+        )
+    except ReferentialIntegrityError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _to_out(db, hazard)
 
 

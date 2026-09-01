@@ -12,9 +12,11 @@ from neo4j import Driver
 from sqlalchemy.orm import Session
 
 from app.graph import sync_service
+from app.models.ontology import Concept
 from app.models.provenance import ProvenanceRecord
-from app.models.safety import Evidence
+from app.models.safety import Evidence, Person
 from app.repositories import evidence_repository
+from app.services.referential import require_exists
 
 
 def list_evidence(db: Session, verification_activity_id: uuid.UUID) -> list[Evidence]:
@@ -36,6 +38,13 @@ def create_evidence(
     linked_entity_type: str | None,
     linked_entity_id: uuid.UUID | None,
 ) -> Evidence:
+    require_exists(db, Concept, type_concept_id, field="type", entity="ontology concept")
+    require_exists(
+        db, "safety.documents", source_document_id, field="source_document_id", entity="document"
+    )
+    require_exists(
+        db, Person, uploaded_by_person_id, field="uploaded_by_person_id", entity="person"
+    )
     evidence = Evidence(
         verification_activity_id=verification_activity_id,
         type_concept_id=type_concept_id,

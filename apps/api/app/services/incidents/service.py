@@ -18,8 +18,10 @@ from neo4j import Driver
 from sqlalchemy.orm import Session
 
 from app.graph import sync_service
-from app.models.safety import Action, Hazard, Incident
+from app.models.ontology import Concept
+from app.models.safety import Action, Asset, Hazard, Incident, Person
 from app.repositories import incidents_repository
+from app.services.referential import require_exists
 
 
 def list_incidents(db: Session, limit: int, offset: int) -> tuple[list[Incident], int]:
@@ -53,6 +55,11 @@ def create_incident(
     status: str | None,
     is_notifiable_incident: bool,
 ) -> Incident:
+    require_exists(
+        db, Concept, incident_type_concept_id, field="incident_type", entity="ontology concept"
+    )
+    require_exists(db, Asset, asset_id, field="asset_id", entity="asset")
+    require_exists(db, Person, reporter_person_id, field="reporter_person_id", entity="person")
     incident = Incident(
         datetime=incident_datetime,
         incident_type_concept_id=incident_type_concept_id,

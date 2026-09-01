@@ -11,9 +11,11 @@ from neo4j import Driver
 from sqlalchemy.orm import Session
 
 from app.graph import sync_service
+from app.models.ontology import Concept
 from app.models.provenance import ProvenanceRecord
-from app.models.safety import Hazard
+from app.models.safety import Asset, Hazard, Person
 from app.repositories import hazards_repository
+from app.services.referential import require_exists
 
 
 def list_hazards(
@@ -49,6 +51,19 @@ def create_hazard(
     device_boundary_id: uuid.UUID | None,
     created_by_person_id: uuid.UUID | None = None,
 ) -> Hazard:
+    require_exists(db, Asset, asset_id, field="asset_id", entity="asset")
+    require_exists(db, Concept, category_concept_id, field="category", entity="ontology concept")
+    require_exists(
+        db, Concept, energy_source_concept_id, field="energy_source", entity="ontology concept"
+    )
+    require_exists(db, Person, owner_person_id, field="owner_person_id", entity="person")
+    require_exists(
+        db,
+        "safety.device_boundaries",
+        device_boundary_id,
+        field="device_boundary_id",
+        entity="device boundary",
+    )
     hazard = Hazard(
         asset_id=asset_id,
         name=name,

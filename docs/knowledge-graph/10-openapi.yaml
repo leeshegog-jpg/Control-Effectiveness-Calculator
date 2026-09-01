@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TP Risk Management SMS — Safety Knowledge Graph Platform API
-  version: 0.9.0-draft
+  version: 0.10.0-draft
   description: >
     DRAFT — controlled design document, requires approval before implementation.
     Backend REST surface for the Safety Knowledge Graph + AI Risk Intelligence Platform.
@@ -83,6 +83,7 @@ paths:
       responses:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Asset' } } } }
         '400': { $ref: '#/components/responses/ValidationError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /assets/{id}:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -156,6 +157,7 @@ paths:
         content: { application/json: { schema: { $ref: '#/components/schemas/HazardInput' } } }
       responses:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Hazard' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /hazards/{id}:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -391,6 +393,7 @@ paths:
         content: { application/json: { schema: { $ref: '#/components/schemas/RiskInput' } } }
       responses:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Risk' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /risks/{id}:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -423,6 +426,8 @@ paths:
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ControlInput' } } } }
       responses:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Control' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /controls/{id}:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -530,7 +535,10 @@ paths:
     post:
       tags: [Verification]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/VerificationActivityInput' } } } }
-      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/VerificationActivity' } } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/VerificationActivity' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /verification-activities/{id}/evidence:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -540,7 +548,10 @@ paths:
       tags: [Evidence]
       summary: Attach evidence to a completed verification activity
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/EvidenceInput' } } } }
-      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Evidence' } } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Evidence' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /critical-controls/{id}/tarps:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -567,7 +578,9 @@ paths:
     post:
       tags: [Incidents]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/IncidentInput' } } } }
-      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Incident' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /incidents/{id}:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     get:
@@ -716,7 +729,9 @@ paths:
     post:
       tags: [Actions]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ActionInput' } } } }
-      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Action' } } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Action' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /actions/{id}:
     parameters: [ { $ref: '#/components/parameters/id' } ]
     patch:

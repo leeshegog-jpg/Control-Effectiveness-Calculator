@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.dependencies.db import get_db
 from app.dependencies.graph import get_graph_driver
 from app.dto.risks import RiskInput, RiskListOut, RiskOut
+from app.services.referential import ReferentialIntegrityError
 from app.services.risks import service
 from app.services.risks.service import SfarpJustificationError
 
@@ -61,6 +62,8 @@ def create_risk(
             is_serious_risk=body.is_serious_risk,
             serious_risk_justification=body.serious_risk_justification,
         )
+    except ReferentialIntegrityError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except SfarpJustificationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return RiskOut.model_validate(risk)
