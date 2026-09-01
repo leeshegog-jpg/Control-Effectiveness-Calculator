@@ -152,9 +152,27 @@ The D4 contract job stays at 46 failures, ~26 of which are contract-documentatio
 
 **Still not addressed** (unchanged from §5): P3 (`IntegrityError` → `500`, 8 `POST` operations), P4 (`status` query param), P5 `AllowHeaderMismatch`, P6 unknown-query-param, P7 / S4 authentication. Each remains its own governance item.
 
+## Round 3 (2026-08-31) — the residual collection-query `422`
+
+**Approved on chat GO ("GO — implement ACR-A Round 3 only"), 2026-08-31.** Rounds 1–2 scoped the `422` additions to path-parameter operations. The Round 2 `contract-tests` run (PR #50, Actions run `33446452156`, `28 failed / 24 passed / 67 skipped`) left one operation still failing on an undocumented `422` of the same P2 class but on a **query** parameter, not a path parameter: `GET /ontology/concepts` returns FastAPI's standard `422` when `?scheme_id=` carries a malformed/empty UUID (`{"detail":[{"type":"uuid_parsing","loc":["query","scheme_id"], …}]}`). It is the direct analogue of the `GET /assets` `?park_id=` case Round 1 reconciled; it fell outside Rounds 1–2 only because those were scoped to `{id}` path operations.
+
+**Finding / evidence:** `GET /ontology/concepts`, `UndefinedStatusCode` — `Received: 422`, `Documented: 200` — in run `33446452156` (and originally in the discovery register §2 row 46). The `scheme_id` query parameter is declared `{ type: string, format: uuid }` in the contract and routed as `uuid.UUID | None` in `apps/api/app/routers/ontology.py:27`.
+
+**Change:** `info.version` `0.7.0-draft` → `0.8.0-draft`; `'422': { $ref: '#/components/responses/ValidationError' }` added to `GET /ontology/concepts` only.
+
+| Operation | Before | After |
+|---|---|---|
+| `GET /ontology/concepts` | `200` | `200, 422` |
+
+No new component, schema, or endpoint; path count 70, schema count 78 unchanged. `GET /ontology/concepts` also exhibits P4 (`status` query param → `500` / silent accept), P6 (unknown-query-param), and P7/S4 (unauthenticated `2xx`) — **none addressed here**; Round 3 documents only the `422` it already returns.
+
+**Validation:** `scripts/validate_openapi.py` → `OK: 70 paths, 78 schemas, 0 dangling $refs`; semantic-additivity check (`HEAD` vs tree, UTF-8) → `components` byte-identical, `paths` keyset identical, 0 responses removed, **exactly one operation** gained a response, added code `== '422'` referencing the existing `ValidationError` component, only `info.version` changed; `pytest tests/contract/test_contract_classification.py` → 6 passed; `--collect-only` → 119, unchanged. DB-backed before/after in the Round 3 PR body.
+
+**After Round 3, the P1/P2 contract-completeness class is closed.** The residual `contract-tests` failures are entirely P3 (ACR-B), P4 (ACR-C), P5 / P6 (test decisions), and P7 / S4 (authentication slice) — no further contract-documentation reconciliation is outstanding.
+
 ## Outcome Paths
 
-- **Approve** → `10-openapi.yaml` additively extended per §7 — **Round 1: decision 2026-08-31 on chat GO (ACR-A only), incorporated 2026-08-31, merged as PR #49 (`main @ 8644e8e`). Round 2: decision 2026-08-31 on chat GO ("GO — ACR-A Round 2"), incorporated 2026-08-31; PR open, not merged.**
+- **Approve** → `10-openapi.yaml` additively extended per §7 — **Round 1: decision 2026-08-31 on chat GO (ACR-A only), incorporated 2026-08-31, merged as PR #49 (`main @ 8644e8e`). Round 2: decision 2026-08-31 on chat GO ("GO — ACR-A Round 2"), incorporated 2026-08-31, merged as PR #50 (`main @ d05a015`). Round 3: decision 2026-08-31 on chat GO ("GO — implement ACR-A Round 3 only"), incorporated 2026-08-31; PR open, not merged.**
 - **Reject** → not taken.
 - **Defer** → not taken.
 
