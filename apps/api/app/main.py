@@ -4,8 +4,10 @@ milestone (see docs/implementation-blueprint/16-r1-planning.md).
 Contract: docs/knowledge-graph/10-openapi.yaml.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -74,6 +76,18 @@ def create_app() -> FastAPI:
 
     for module in ROUTERS:
         app.include_router(module.router)
+
+    @app.exception_handler(IntegrityError)
+    async def _integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:
+        """ACR-010 defence-in-depth: a database constraint violation that got
+        past the explicit referential pre-checks (see services/referential.py).
+        Deliberately sanitised -- never expose the SQL statement, the psycopg
+        DETAIL, the constraint name, bound parameters, or a traceback.
+        """
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "The request could not be completed due to a data constraint."},
+        )
 
     @app.get("/health", tags=["health"])
     def health() -> dict[str, str]:

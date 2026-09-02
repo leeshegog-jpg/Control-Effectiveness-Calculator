@@ -12,8 +12,10 @@ from neo4j import Driver
 from sqlalchemy.orm import Session
 
 from app.graph import sync_service
-from app.models.safety import Action
+from app.models.ontology import Concept
+from app.models.safety import Action, Person
 from app.repositories import actions_repository
+from app.services.referential import require_exists
 
 
 def list_actions(
@@ -42,6 +44,19 @@ def create_action(
     completion_date: date | None = None,
     notes: str | None = None,
 ) -> Action:
+    require_exists(
+        db, Concept, source_type_concept_id, field="source_type", entity="ontology concept"
+    )
+    require_exists(
+        db,
+        Concept,
+        root_cause_category_concept_id,
+        field="root_cause_category",
+        entity="ontology concept",
+    )
+    require_exists(
+        db, Person, assigned_to_person_id, field="assigned_to_person_id", entity="person"
+    )
     action = Action(
         source_type_concept_id=source_type_concept_id,
         source_id=source_id,

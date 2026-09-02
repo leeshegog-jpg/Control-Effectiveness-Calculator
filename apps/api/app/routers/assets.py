@@ -14,6 +14,7 @@ from app.dependencies.graph import get_graph_driver
 from app.dto.assets import AssetInput, AssetListOut, AssetOut, ConceptRef
 from app.models.ontology import Concept
 from app.services.assets import service
+from app.services.referential import ReferentialIntegrityError
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -55,15 +56,18 @@ def create_asset(
     db: Session = Depends(get_db),
     graph_driver: Driver = Depends(get_graph_driver),
 ) -> AssetOut:
-    asset = service.create_asset(
-        db,
-        graph_driver,
-        name=body.name,
-        park_id=body.park_id,
-        asset_type_concept_id=body.asset_type.concept_id if body.asset_type else None,
-        iso55000_class=body.iso55000_class,
-        status=body.status,
-    )
+    try:
+        asset = service.create_asset(
+            db,
+            graph_driver,
+            name=body.name,
+            park_id=body.park_id,
+            asset_type_concept_id=body.asset_type.concept_id if body.asset_type else None,
+            iso55000_class=body.iso55000_class,
+            status=body.status,
+        )
+    except ReferentialIntegrityError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _to_out(db, asset)
 
 

@@ -21,6 +21,8 @@ from app.dto.evidence import EvidenceInput, EvidenceOut
 from app.models.ontology import Concept
 from app.services.evidence import service
 from app.services.incidents import service as incidents_service
+from app.services.referential import ReferentialIntegrityError
+from app.services.verification import service as verification_service
 
 router = APIRouter(tags=["evidence"])
 
@@ -60,16 +62,21 @@ def create_evidence(
     db: Session = Depends(get_db),
     graph_driver: Driver = Depends(get_graph_driver),
 ) -> EvidenceOut:
-    evidence = service.create_evidence(
-        db,
-        graph_driver,
-        verification_activity_id=activity_id,
-        type_concept_id=body.type.concept_id if body.type else None,
-        source_document_id=body.source_document_id,
-        uploaded_by_person_id=body.uploaded_by_person_id,
-        linked_entity_type=body.linked_entity_type,
-        linked_entity_id=body.linked_entity_id,
-    )
+    if verification_service.get_verification_activity(db, activity_id) is None:
+        raise HTTPException(status_code=404, detail="Verification activity not found")
+    try:
+        evidence = service.create_evidence(
+            db,
+            graph_driver,
+            verification_activity_id=activity_id,
+            type_concept_id=body.type.concept_id if body.type else None,
+            source_document_id=body.source_document_id,
+            uploaded_by_person_id=body.uploaded_by_person_id,
+            linked_entity_type=body.linked_entity_type,
+            linked_entity_id=body.linked_entity_id,
+        )
+    except ReferentialIntegrityError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _to_out(db, evidence)
 
 
@@ -92,14 +99,17 @@ def create_incident_evidence(
 ) -> EvidenceOut:
     if incidents_service.get_incident(db, incident_id) is None:
         raise HTTPException(status_code=404, detail="Incident not found")
-    evidence = service.create_evidence(
-        db,
-        graph_driver,
-        verification_activity_id=None,
-        type_concept_id=body.type.concept_id if body.type else None,
-        source_document_id=body.source_document_id,
-        uploaded_by_person_id=body.uploaded_by_person_id,
-        linked_entity_type="incident",
-        linked_entity_id=incident_id,
-    )
+    try:
+        evidence = service.create_evidence(
+            db,
+            graph_driver,
+            verification_activity_id=None,
+            type_concept_id=body.type.concept_id if body.type else None,
+            source_document_id=body.source_document_id,
+            uploaded_by_person_id=body.uploaded_by_person_id,
+            linked_entity_type="incident",
+            linked_entity_id=incident_id,
+        )
+    except ReferentialIntegrityError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _to_out(db, evidence)

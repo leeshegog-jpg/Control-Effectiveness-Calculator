@@ -9,10 +9,12 @@ from neo4j import Driver
 from sqlalchemy.orm import Session
 
 from app.graph import sync_service
+from app.models.ontology import Concept
 from app.models.provenance import ProvenanceRecord
-from app.models.safety import VerificationActivity
+from app.models.safety import Person, VerificationActivity
 from app.repositories import verification_repository
 from app.services.critical_controls.rules import is_overdue
+from app.services.referential import require_exists
 
 
 def is_activity_overdue(activity: VerificationActivity) -> bool:
@@ -44,6 +46,10 @@ def create_verification_activity(
     result: str | None,
     created_by_person_id: uuid.UUID | None = None,
 ) -> VerificationActivity:
+    require_exists(db, Concept, method_concept_id, field="method", entity="ontology concept")
+    require_exists(
+        db, Person, performed_by_person_id, field="performed_by_person_id", entity="person"
+    )
     activity = VerificationActivity(
         performance_standard_id=performance_standard_id,
         method_concept_id=method_concept_id,

@@ -22,6 +22,7 @@ from app.dto.investigations import InvestigationInput, InvestigationOut
 from app.models.ontology import Concept
 from app.services.incidents import service
 from app.services.investigations import service as investigations_service
+from app.services.referential import ReferentialIntegrityError
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
@@ -110,28 +111,31 @@ def create_incident(
     db: Session = Depends(get_db),
     graph_driver: Driver = Depends(get_graph_driver),
 ) -> IncidentOut:
-    incident = service.create_incident(
-        db,
-        graph_driver,
-        incident_datetime=body.datetime,
-        incident_type_concept_id=body.incident_type.concept_id if body.incident_type else None,
-        severity=body.severity,
-        vrtp_severity=body.vrtp_severity,
-        location=body.location,
-        asset_id=body.asset_id,
-        reporter_person_id=body.reporter_person_id,
-        description=body.description,
-        injuries=body.injuries,
-        witnesses=body.witnesses,
-        immediate_actions=body.immediate_actions,
-        immediate_cause=body.immediate_cause,
-        root_cause=body.root_cause,
-        whsq_notified=body.whsq_notified,
-        osr_notified=body.osr_notified,
-        investigation_status=body.investigation_status,
-        status=body.status,
-        is_notifiable_incident=body.is_notifiable_incident,
-    )
+    try:
+        incident = service.create_incident(
+            db,
+            graph_driver,
+            incident_datetime=body.datetime,
+            incident_type_concept_id=body.incident_type.concept_id if body.incident_type else None,
+            severity=body.severity,
+            vrtp_severity=body.vrtp_severity,
+            location=body.location,
+            asset_id=body.asset_id,
+            reporter_person_id=body.reporter_person_id,
+            description=body.description,
+            injuries=body.injuries,
+            witnesses=body.witnesses,
+            immediate_actions=body.immediate_actions,
+            immediate_cause=body.immediate_cause,
+            root_cause=body.root_cause,
+            whsq_notified=body.whsq_notified,
+            osr_notified=body.osr_notified,
+            investigation_status=body.investigation_status,
+            status=body.status,
+            is_notifiable_incident=body.is_notifiable_incident,
+        )
+    except ReferentialIntegrityError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _to_out(db, incident)
 
 

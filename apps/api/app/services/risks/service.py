@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 
 from app.graph import sync_service
 from app.models.provenance import ProvenanceRecord
-from app.models.safety import Risk
+from app.models.safety import Hazard, Risk
 from app.repositories import risks_repository
+from app.services.referential import require_exists
 from app.services.risks import rules
 
 
@@ -73,6 +74,7 @@ def create_risk(
     serious_risk_justification: str | None,
     created_by_person_id: uuid.UUID | None = None,
 ) -> Risk:
+    require_exists(db, Hazard, hazard_id, field="hazard_id", entity="hazard")
     risk = Risk(
         hazard_id=hazard_id,
         description=description,

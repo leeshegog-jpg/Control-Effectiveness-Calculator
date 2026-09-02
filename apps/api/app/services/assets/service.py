@@ -9,9 +9,11 @@ from neo4j import Driver
 from sqlalchemy.orm import Session
 
 from app.graph import sync_service
+from app.models.ontology import Concept
 from app.models.provenance import ProvenanceRecord
-from app.models.safety import Asset
+from app.models.safety import Asset, Park
 from app.repositories import assets_repository
+from app.services.referential import require_exists
 
 
 def list_assets(
@@ -35,6 +37,10 @@ def create_asset(
     status: str,
     created_by_person_id: uuid.UUID | None = None,
 ) -> Asset:
+    require_exists(db, Park, park_id, field="park_id", entity="park")
+    require_exists(
+        db, Concept, asset_type_concept_id, field="asset_type", entity="ontology concept"
+    )
     asset = Asset(
         name=name,
         park_id=park_id,
