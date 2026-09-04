@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TP Risk Management SMS — Safety Knowledge Graph Platform API
-  version: 0.10.0-draft
+  version: 0.11.0-draft
   description: >
     DRAFT — controlled design document, requires approval before implementation.
     Backend REST surface for the Safety Knowledge Graph + AI Risk Intelligence Platform.
@@ -725,7 +725,9 @@ paths:
     get:
       tags: [Actions]
       parameters: [ { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/offset' }, { in: query, name: status, schema: { type: string, enum: [Open, In Progress, Closed] } } ]
-      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Action' } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Action' } } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
     post:
       tags: [Actions]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ActionInput' } } } }

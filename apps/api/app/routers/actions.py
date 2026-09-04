@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
 from app.dependencies.graph import get_graph_driver
-from app.dto.actions import ActionInput, ActionOut
+from app.dto.actions import ActionInput, ActionOut, ActionStatus
 from app.dto.assets import ConceptRef
 from app.models.ontology import Concept
 from app.services.actions import service
@@ -48,12 +48,14 @@ def _to_out(db: Session, action) -> ActionOut:
 
 @router.get("", response_model=list[ActionOut])
 def list_actions(
-    status: str | None = Query(default=None),
+    status: ActionStatus | None = Query(default=None),
     limit: int = Query(default=50, le=200),
     offset: int = Query(default=0),
     db: Session = Depends(get_db),
 ) -> list[ActionOut]:
-    items, _ = service.list_actions(db, status=status, limit=limit, offset=offset)
+    items, _ = service.list_actions(
+        db, status=status.value if status else None, limit=limit, offset=offset
+    )
     return [_to_out(db, a) for a in items]
 
 
