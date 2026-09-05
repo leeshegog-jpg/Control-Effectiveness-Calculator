@@ -23,6 +23,13 @@ Behaviour is fixed by ADR-007
 * **D3 -- deferred operations.** A ``404`` from a not-yet-implemented
   operation is not a failure: those operations are skipped before any
   request is sent.
+* **P5 -- Allow header conformance.** The Schemathesis ``Allow``-header check
+  is excluded. Starlette constructs the ``Allow`` header for the coverage
+  ``OPTIONS`` request from the mounted route, while Schemathesis compares it
+  with the frozen operation-method set. The resulting mismatch is a
+  test-methodology finding, not an application defect in the implemented
+  operation. The decision is recorded in ACR-012; the unsupported-method
+  check remains enabled.
 
 Driven in-process against the app (ASGI, no live server). The implemented
 operations need a real Postgres + Neo4j, same as ``tests/integration`` --
@@ -45,7 +52,11 @@ import schemathesis
 import yaml
 from app.main import app
 from hypothesis import settings
-from schemathesis.specs.openapi.checks import ignored_auth, missing_required_header
+from schemathesis.specs.openapi.checks import (
+    allow_header_conformance,
+    ignored_auth,
+    missing_required_header,
+)
 
 from .classification import is_implemented
 
@@ -54,7 +65,8 @@ OPENAPI_SPEC_PATH = (
 )
 
 # ADR-007 D2 -- exclude the authentication-conformance checks for this suite.
-_EXCLUDED_CHECKS = [ignored_auth, missing_required_header]
+# ACR-012 P5 -- exclude the known Allow-header methodology mismatch only.
+_EXCLUDED_CHECKS = [ignored_auth, missing_required_header, allow_header_conformance]
 
 # The frozen spec's servers[0].url carries a deployment-only /v1 prefix
 # (gateway-fronted); every existing test in this repo (see tests/integration)

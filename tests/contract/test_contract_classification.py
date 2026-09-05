@@ -1,9 +1,9 @@
-"""Unit tests for the contract suite's own wiring -- ADR-007 D1/D2/D3.
+"""Unit tests for the contract suite's own wiring -- ADR-007 D1/D2/D3 + P5.
 
 These are Postgres/Neo4j-free: they exercise the classification logic and
 the suite's check configuration, not the API. They are the local
-verification that the suite behaves as ADR-007 approved while the suite
-itself is not yet wired into CI (D4).
+verification that the suite behaves as ADR-007 and ACR-012 approved while
+the suite itself is report-only (ADR-007 D4).
 """
 
 from __future__ import annotations
@@ -12,7 +12,11 @@ from pathlib import Path
 
 import yaml
 from app.main import app
-from schemathesis.specs.openapi.checks import ignored_auth, missing_required_header
+from schemathesis.specs.openapi.checks import (
+    allow_header_conformance,
+    ignored_auth,
+    missing_required_header,
+)
 
 from .classification import implemented_operations, is_implemented, normalise_path
 from .test_openapi_contract import _EXCLUDED_CHECKS
@@ -90,6 +94,12 @@ def test_classification_accepts_the_lowercase_method_the_suite_passes_in():
     assert not is_implemented(app, "/assets/{id}", "delete")
 
 
-def test_suite_excludes_exactly_the_two_auth_conformance_checks():
-    # ADR-007 D2: ignored_auth + missing_required_header, nothing else.
-    assert set(_EXCLUDED_CHECKS) == {ignored_auth, missing_required_header}
+def test_suite_excludes_auth_and_p5_allow_header_checks_only():
+    # ADR-007 D2: ignored_auth + missing_required_header.
+    # ACR-012 P5: allow_header_conformance is a deliberate test-methodology
+    # exclusion for Starlette's route-generated Allow header mismatch.
+    assert set(_EXCLUDED_CHECKS) == {
+        ignored_auth,
+        missing_required_header,
+        allow_header_conformance,
+    }
