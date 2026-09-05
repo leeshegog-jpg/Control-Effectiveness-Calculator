@@ -34,3 +34,19 @@ def test_concept_search_by_partial_label(client):
     assert resp.status_code == 200
     labels = {c["pref_label"] for c in resp.json()}
     assert "Electrical" in labels
+
+
+def test_concept_status_filter_valid_value(client):
+    # Seed data is ported from V1 with a real source, not curator drafts --
+    # scripts/seed_ontology.py sets status="published" (ADR-C / P4).
+    resp = client.get("/ontology/concepts", params={"status": "published"})
+    assert resp.status_code == 200
+    assert resp.json()
+    assert all(c["status"] == "published" for c in resp.json())
+
+
+def test_concept_status_filter_invalid_value_is_422(client):
+    # Before ACR-C this reached the DB and raised InvalidTextRepresentation
+    # against the `ontology.concept_status` Postgres ENUM -> uncaught 500.
+    resp = client.get("/ontology/concepts", params={"status": "bogus"})
+    assert resp.status_code == 422

@@ -81,6 +81,14 @@ def test_action_update_not_found(client):
     assert resp.status_code == 404
 
 
+def test_action_status_filter_invalid_value_is_422(client):
+    # Before ACR-C, `safety.actions.status` is a plain varchar (CHECK
+    # constraint, not a Postgres ENUM) -- an out-of-range filter matched
+    # zero rows and silently returned 200 instead of 422 (P4).
+    resp = client.get("/actions", params={"status": "bogus"})
+    assert resp.status_code == 422
+
+
 def test_action_syncs_to_neo4j_as_bare_node(client, graph_driver):
     create_resp = client.post(
         "/actions", json={"description": f"Neo4j sync test {uuid.uuid4()}"}

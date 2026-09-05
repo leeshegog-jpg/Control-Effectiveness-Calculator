@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.dependencies.db import get_db
-from app.dto.ontology import ConceptOut, OntologySchemeOut
+from app.dto.ontology import ConceptOut, ConceptStatus, OntologySchemeOut
 from app.services.ontology import service
 
 router = APIRouter(prefix="/ontology", tags=["ontology"])
@@ -25,10 +25,12 @@ def get_schemes(db: Session = Depends(get_db)) -> list[OntologySchemeOut]:
 def get_concepts(
     scheme_id: uuid.UUID | None = Query(default=None),
     q: str | None = Query(default=None, description="Search pref_label + aliases"),
-    status: str | None = Query(default=None),
+    status: ConceptStatus | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> list[ConceptOut]:
-    concepts = service.list_concepts(db, scheme_id=scheme_id, query=q, status=status)
+    concepts = service.list_concepts(
+        db, scheme_id=scheme_id, query=q, status=status.value if status else None
+    )
     return [ConceptOut.model_validate(c) for c in concepts]
 
 

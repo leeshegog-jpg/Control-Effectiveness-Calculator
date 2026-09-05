@@ -4,10 +4,24 @@
 
 import uuid
 from datetime import date
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict
 
 from app.dto.assets import ConceptRef
+
+
+class ActionStatus(StrEnum):
+    """Query-param constraint for `GET /actions?status=`. Mirrors the
+    `safety.actions.status` CHECK constraint (03-postgresql-schema.sql
+    line 569) -- a plain `varchar` column, not a Postgres ENUM type, so an
+    out-of-range value previously matched zero rows and returned 200
+    silent-accept instead of 422. ACR-C / P4.
+    """
+
+    OPEN = "Open"
+    IN_PROGRESS = "In Progress"
+    CLOSED = "Closed"
 
 
 class ActionInput(BaseModel):
